@@ -376,10 +376,119 @@ else
         exit 1
     fi
 
+    # 发布前最终验证：确保 dist/package.json 正确
+    echo "发布前最终验证..."
+    if [ ! -f "dist/package.json" ]; then
+        echo -e "${RED}✗ 错误: dist/package.json 不存在，需要重新构建${NC}"
+        echo "重新构建..."
+        if npm run build; then
+            echo -e "${GREEN}✓${NC} 重新构建成功"
+        else
+            echo -e "${RED}✗${NC} 重新构建失败"
+            exit 1
+        fi
+    fi
+    
+    # 再次检查 workspace:* 依赖
+    if grep -q "workspace:\*" dist/package.json 2>/dev/null; then
+        echo -e "${RED}✗ 错误: dist/package.json 仍包含 workspace:* 依赖${NC}"
+        echo "尝试修复..."
+        if npm run build:fix; then
+            if grep -q "workspace:\*" dist/package.json 2>/dev/null; then
+                echo -e "${RED}✗ 错误: 修复失败，仍包含 workspace:* 依赖${NC}"
+                grep "workspace:\*" dist/package.json
+                exit 1
+            else
+                echo -e "${GREEN}✓${NC} workspace:* 依赖已修复"
+            fi
+        else
+            echo -e "${RED}✗${NC} build:fix 执行失败"
+            exit 1
+        fi
+    fi
+    
+    # 验证版本号匹配
+    DIST_VERSION=$(node -p "require('./dist/package.json').version")
+    if [ "$DIST_VERSION" != "$NEW_VERSION" ]; then
+        echo -e "${YELLOW}⚠ 警告: dist/package.json 版本号 ($DIST_VERSION) 与源码版本 ($NEW_VERSION) 不一致${NC}"
+        echo "同步版本号..."
+        node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('dist/package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('dist/package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+        "
+        echo -e "${GREEN}✓${NC} 版本号已同步为 $NEW_VERSION"
+    fi
+    
+    # 关键修复：同步 dist/package.json 的依赖到根目录 package.json（用于发布）
+    echo "同步 dist/package.json 的依赖到根目录 package.json..."
+    node -e "
+        const fs = require('fs');
+        const distPkg = JSON.parse(fs.readFileSync('dist/package.json', 'utf8'));
+        const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        
+        // 保存原始依赖（用于发布后恢复）
+        const originalDeps = JSON.stringify({
+            dependencies: rootPkg.dependencies,
+            devDependencies: rootPkg.devDependencies,
+            peerDependencies: rootPkg.peerDependencies
+        });
+        fs.writeFileSync('.package.json.backup', originalDeps);
+        
+        // 同步依赖信息（使用 dist/package.json 中已修复的依赖）
+        if (distPkg.dependencies) rootPkg.dependencies = distPkg.dependencies;
+        if (distPkg.devDependencies) rootPkg.devDependencies = distPkg.devDependencies;
+        if (distPkg.peerDependencies) rootPkg.peerDependencies = distPkg.peerDependencies;
+        
+        // 同步版本号
+        rootPkg.version = distPkg.version;
+        
+        fs.writeFileSync('package.json', JSON.stringify(rootPkg, null, 2) + '\n', 'utf8');
+        console.log('✓ 已同步依赖和版本号到根目录 package.json');
+    "
+    echo -e "${GREEN}✓${NC} 发布前验证通过"
+    echo ""
+
     if npm publish --ignore-scripts; then
         echo -e "${GREEN}✓${NC} 发布到 npm 成功"
+        
+        # 恢复根目录 package.json 的原始依赖（保持 workspace:* 用于开发）
+        if [ -f ".package.json.backup" ]; then
+            echo "恢复根目录 package.json 的原始依赖..."
+            node -e "
+                const fs = require('fs');
+                const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+                const backup = JSON.parse(fs.readFileSync('.package.json.backup', 'utf8'));
+                
+                rootPkg.dependencies = backup.dependencies;
+                rootPkg.devDependencies = backup.devDependencies;
+                rootPkg.peerDependencies = backup.peerDependencies;
+                
+                fs.writeFileSync('package.json', JSON.stringify(rootPkg, null, 2) + '\n', 'utf8');
+                fs.unlinkSync('.package.json.backup');
+                console.log('✓ 已恢复原始依赖');
+            "
+        fi
     else
         echo -e "${RED}✗${NC} 发布失败"
+        
+        # 发布失败时也要恢复
+        if [ -f ".package.json.backup" ]; then
+            echo "恢复根目录 package.json 的原始依赖..."
+            node -e "
+                const fs = require('fs');
+                const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+                const backup = JSON.parse(fs.readFileSync('.package.json.backup', 'utf8'));
+                
+                rootPkg.dependencies = backup.dependencies;
+                rootPkg.devDependencies = backup.devDependencies;
+                rootPkg.peerDependencies = backup.peerDependencies;
+                
+                fs.writeFileSync('package.json', JSON.stringify(rootPkg, null, 2) + '\n', 'utf8');
+                fs.unlinkSync('.package.json.backup');
+            "
+        fi
         exit 1
     fi
     echo ""
