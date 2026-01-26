@@ -27,8 +27,9 @@ export {
   type ListeningOptions
 } from "./config/config";
 
-// Export connection pool metrics integration
 export {
   registerConnectionPoolMetrics,
   unregisterConnectionPoolMetrics
 } from "./pool-metrics-integration";
+
+export { ServePlugin } from "./ServePlugin";

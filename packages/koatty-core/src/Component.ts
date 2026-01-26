@@ -13,16 +13,36 @@ import { Helper } from "koatty_lib";
 import "reflect-metadata";
 import { KoattyApplication } from "./IApplication";
 import { KoattyContext, KoattyNext } from "./IContext";
+import { AppEvent, EventHookFunc } from "./IApplication";
 
 export type ComponentType = 'COMPONENT' | 'CONTROLLER' | 'MIDDLEWARE' | 'SERVICE';
 
 
-// used to store router 
 export const CONTROLLER_ROUTER = "CONTROLLER_ROUTER";
-// used to store component options
 export const MIDDLEWARE_OPTIONS = "MIDDLEWARE_OPTIONS";
 export const SERVICE_OPTIONS = "SERVICE_OPTIONS";
 export const PLUGIN_OPTIONS = "PLUGIN_OPTIONS";
+
+export enum PluginDependencyType {
+  REQUIRED = 'required',
+  OPTIONAL = 'optional',
+  CONTRACT = 'contract',
+}
+
+export interface IPluginDependency {
+  name: string;
+  type: PluginDependencyType;
+  version?: string;
+  errorMessage?: string;
+  validate?: (app: KoattyApplication) => boolean;
+}
+
+export interface IPluginCapability {
+  name: string;
+  version: string;
+  description?: string;
+  validate?: (app: KoattyApplication) => boolean;
+}
 
 /**
  * Interface for Controller
@@ -88,8 +108,29 @@ export interface IService {
 /**
  * Interface for Plugin class
  */
+export interface IPluginOptions {
+  enabled?: boolean;
+  priority?: number;
+  type?: 'user' | 'core';
+  dependencies?: (string | IPluginDependency)[];
+  optionalDependencies?: string[];
+  provides?: (string | IPluginCapability)[];
+  conflicts?: string[];
+  events?: {
+    [K in AppEvent]?: EventHookFunc;
+  };
+  [key: string]: any;
+}
+
 export interface IPlugin {
-  run: (options: object, app: KoattyApplication) => Promise<any>;
+  run?: (options: object, app: KoattyApplication) => Promise<any>;
+  events?: {
+    [K in AppEvent]?: EventHookFunc;
+  };
+  dependencies?: (string | IPluginDependency)[];
+  provides?: (string | IPluginCapability)[];
+  conflicts?: string[];
+  uninstall?: (app: KoattyApplication) => Promise<void>;
 }
 
 /**
@@ -340,19 +381,24 @@ export function Service(identifier?: string, options?: Record<string, any>): Cla
  * }
  * ```
  */
-export function Plugin(identifier?: string, options?: Record<string, any>): ClassDecorator {
+export function Plugin(identifier?: string, options?: IPluginOptions): ClassDecorator {
   return (target: any) => {
     identifier = identifier || IOC.getIdentifier(target);
-    // 
+
     if (!identifier.endsWith("Plugin")) {
       throw Error("Plugin class name must be 'Plugin' suffix.");
     }
+
+    const pluginOptions: IPluginOptions = {
+      type: 'user',
+      enabled: true,
+      priority: 0,
+      ...options
+    };
+
     IOC.saveClass("COMPONENT", target, `${identifier}`);
-    
-    // Save options if provided
-    if (options) {
-      IOC.savePropertyData(PLUGIN_OPTIONS, options, target, identifier);
-    }
+
+    IOC.savePropertyData(PLUGIN_OPTIONS, pluginOptions, target, identifier);
   };
 }
 
@@ -393,7 +439,10 @@ export function implementsServiceInterface(cls: any): cls is IService {
  * @returns True if the class implements IPlugin interface, false otherwise
  */
 export function implementsPluginInterface(cls: any): cls is IPlugin {
-  return 'run' in cls && Helper.isFunction(cls.run);
+  return (
+    ('run' in cls && Helper.isFunction(cls.run)) ||
+    ('events' in cls && Helper.isObject(cls.events))
+  );
 }
 
 /**
