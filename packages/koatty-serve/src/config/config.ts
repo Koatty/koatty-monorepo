@@ -33,6 +33,7 @@ export interface BaseSSLConfig {
  */
 export interface SSLConfig extends BaseSSLConfig {
   clientCertRequired?: boolean;
+  [key: string]: unknown;
 }
 
 /**
@@ -49,6 +50,7 @@ export interface SSL1Config extends BaseSSLConfig {
   sessionIdContext?: string;                // Session ID context
   ticketKeys?: Buffer;                      // TLS session ticket keys
   ALPNProtocols?: string[];                 // ALPN protocols
+  [key: string]: unknown;
 }
 
 /**
@@ -56,6 +58,7 @@ export interface SSL1Config extends BaseSSLConfig {
  */
 export interface SSL2Config extends SSL1Config {
   allowHTTP1?: boolean;                     // Allow HTTP/1.1 fallback
+  [key: string]: unknown;
 }
 
 /**
@@ -70,6 +73,7 @@ export interface SSL3Config extends BaseSSLConfig {
   maxIdleTimeout?: number;                  // Max idle timeout in milliseconds
   initialMaxStreamsBidi?: number;           // Initial max bidirectional streams
   initialMaxStreamsUni?: number;            // Initial max unidirectional streams
+  [key: string]: unknown;
 }
 
 /**
@@ -82,11 +86,11 @@ export interface ListeningOptions {
   port: number;
   protocol: string;
   trace?: boolean; // Full stack debug & trace, default: false
-  ssl?: { [key: string]: any; } & BaseSSLConfig;  // SSL配置 (推荐)
+  ssl?: { [key: string]: unknown; } & BaseSSLConfig;  // SSL配置 (推荐)
   ext?: {    
     protoFile?: string;
     schemaFile?: string;
-    [key: string]: any;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
+    [key: string]: unknown;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
   };
   connectionPool?: ConnectionPoolConfig;
 }
@@ -104,7 +108,7 @@ export interface BaseServerOptions {
   trace?: boolean; // Full stack debug & trace, default: false
   connectionPool?: ConnectionPoolConfig;
   ext?: {
-    [key: string]: any;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
+    [key: string]: unknown;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
   };
 }
 
@@ -278,24 +282,24 @@ export class ConfigHelper {
     } as HttpServerOptions;
   }
 
-  static createHttpsConfig(options: any = {
+  static createHttpsConfig(options: Partial<HttpsServerOptions> = {
     hostname: 'localhost',
     port: 443,
     protocol: 'https',
     trace: false,
     ext: {},
     connectionPool: {}
-  }): HttpsServerOptions {
+  } as unknown as HttpsServerOptions): HttpsServerOptions {
     if (!options.ext) {
       options.ext = {};
     }
-    
+
     // 向后兼容: 自动迁移 ext.ssl 到 ssl
     if (options.ext.ssl && !options.ssl) {
       this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
         migration: 'Automatically migrated to options.ssl'
       });
-      options.ssl = options.ext.ssl;
+      (options as any).ssl = options.ext.ssl;
     }
     
     // 如果两者都存在, 优先使用 options.ssl
@@ -308,9 +312,9 @@ export class ConfigHelper {
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createHttpsConfig();
     const poolConfig = PoolConfigHelper.mergeConfigs(defaultPoolConfig, options.connectionPool || {});
-    
+
     // 只使用 options.ssl
-    const sslConfig = options.ssl || {};
+    const sslConfig: SSL1Config = (options.ssl || {}) as SSL1Config;
     
     // Preserve all original options including custom fields
     const config = {
@@ -328,14 +332,14 @@ export class ConfigHelper {
     return config;
   }
 
-  static createHttp2Config(options: any = {
+  static createHttp2Config(options: Partial<Http2ServerOptions> = {
     hostname: 'localhost',
     port: 443,
     protocol: 'http2',
     trace: false,
     ext: {},
     connectionPool: {}
-  }): Http2ServerOptions {
+  } as unknown as Http2ServerOptions): Http2ServerOptions {
     if (!options.ext) {
       options.ext = {};
     }
@@ -345,7 +349,7 @@ export class ConfigHelper {
       this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
         migration: 'Automatically migrated to options.ssl'
       });
-      options.ssl = options.ext.ssl;
+      (options as any).ssl = options.ext.ssl;
     }
     
     // 如果两者都存在, 优先使用 options.ssl
@@ -360,7 +364,7 @@ export class ConfigHelper {
     const poolConfig = PoolConfigHelper.mergeConfigs(defaultPoolConfig, options.connectionPool || {});
 
     // 只使用 options.ssl
-    const sslConfig = options.ssl || {};
+    const sslConfig: SSL2Config = (options.ssl || {}) as SSL2Config;
 
     // Preserve all original options including custom fields like _underlyingProtocol
     const config =  {
@@ -379,14 +383,14 @@ export class ConfigHelper {
     return config;
   }
 
-  static createGrpcConfig(options: any = {
+  static createGrpcConfig(options: Partial<GrpcServerOptions> = {
     hostname: 'localhost',
     port: 50051,
     protocol: 'grpc',
     trace: false,
     ext: {},
     connectionPool: {}
-  }): GrpcServerOptions {
+  } as unknown as GrpcServerOptions): GrpcServerOptions {
     if (!options.ext) {
       options.ext = {};
     }
@@ -396,7 +400,7 @@ export class ConfigHelper {
       this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
         migration: 'Automatically migrated to options.ssl'
       });
-      options.ssl = options.ext.ssl;
+      (options as any).ssl = options.ext.ssl;
     }
     
     // 如果两者都存在, 优先使用 options.ssl
@@ -411,7 +415,7 @@ export class ConfigHelper {
     const poolConfig = PoolConfigHelper.mergeConfigs(defaultPoolConfig, options.connectionPool || {});
 
     // 只使用 options.ssl
-    const sslConfig = options.ssl || {};
+    const sslConfig: SSLConfig = (options.ssl || {}) as SSLConfig;
 
     // Preserve all original options including custom fields
     return {
@@ -426,24 +430,24 @@ export class ConfigHelper {
     } as GrpcServerOptions;
   }
 
-  static createHttp3Config(options: any = {
+  static createHttp3Config(options: Partial<Http3ServerOptions> = {
     hostname: 'localhost',
     port: 443,
     protocol: 'http3',
     trace: false,
     ext: {},
     connectionPool: {}
-  }): Http3ServerOptions {
+  } as unknown as Http3ServerOptions): Http3ServerOptions {
     if (!options.ext) {
       options.ext = {};
     }
-    
+
     // 向后兼容: 自动迁移 ext.ssl 到 ssl
     if (options.ext.ssl && !options.ssl) {
       this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
         migration: 'Automatically migrated to options.ssl'
       });
-      options.ssl = options.ext.ssl;
+      (options as any).ssl = options.ext.ssl;
     }
     
     // 如果两者都存在, 优先使用 options.ssl
@@ -456,10 +460,10 @@ export class ConfigHelper {
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createHttp3Config();
     const poolConfig = PoolConfigHelper.mergeConfigs(defaultPoolConfig, options.connectionPool || {});
-    
+
     // 只使用 options.ssl
-    const sslConfig = options.ssl || {};
-    
+    const sslConfig: SSL3Config = (options.ssl || {}) as SSL3Config;
+
     // Preserve all original options including custom fields
     const config =  {
       ...options,  // Preserve all incoming fields

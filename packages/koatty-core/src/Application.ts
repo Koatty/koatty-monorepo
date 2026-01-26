@@ -71,7 +71,7 @@ export class Koatty extends Koa implements KoattyApplication {
    * Value: middleware function array for that protocol
    */
   private middlewareStacks: Map<string, Function[]> = new Map();
-  
+
   /**
    * Flag to track if a protocol stack has been initialized
    */
@@ -189,37 +189,37 @@ export class Koatty extends Koa implements KoattyApplication {
     return this.use(parseExp(fn));
   }
 
-  /**
-   * Get or set configuration value by name and type.
-   * @param {string} name Configuration key name, support dot notation (e.g. 'app.port')
-   * @param {string} [type='config'] Configuration type, defaults to 'config'
-   * @param {any} [value] Configuration value to set. If provided, sets the config value
-   * @returns {any} Configuration value or null if error occurs
-   * 
-   * @example
-   * // Get single level config
-   * app.config('port');
-   * 
-   * // Get nested config
-   * app.config('database.host');
-   * 
-   * // Get all configs of specific type
-   * app.config(undefined, 'middleware');
-   * 
-   * // Set single level config
-   * app.config('port', 'config', 3000);
-   * 
-   * // Set nested config
-   * app.config('database.host', 'config', 'localhost');
-   * 
-   * // Set entire config type
-   * app.config(undefined, 'middleware', { list: ['trace'] });
-   */
-  config(name?: string, type = 'config', value?: any) {
+   /**
+    * Get or set configuration value by name and type.
+    * @param {string} name Configuration key name, support dot notation (e.g. 'app.port')
+    * @param {string} [type='config'] Configuration type, defaults to 'config'
+    * @param {any} [value] Configuration value to set. If provided, sets the config value
+    * @returns {any} Configuration value or null if error occurs
+    *
+    * @example
+    * // Get single level config
+    * app.config('port');
+    *
+    * // Get nested config
+    * app.config('database.host');
+    *
+    * // Get all configs of specific type
+    * app.config(undefined, 'middleware');
+    *
+    * // Set single level config
+    * app.config('port', 'config', 3000);
+    *
+    * // Set nested config
+    * app.config('database.host', 'config', 'localhost');
+    *
+    * // Set entire config type
+    * app.config(undefined, 'middleware', { list: ['trace'] });
+    */
+  config<T = unknown>(name?: string, type = 'config', value?: T): T | null {
     try {
       const caches = this.getMetaData('_configs')[0] || {};
       caches[type] = caches[type] || {};
-      
+
       // If value is provided, set configuration
       if (value !== undefined) {
         if (name === undefined) {
@@ -240,7 +240,7 @@ export class Koatty extends Koa implements KoattyApplication {
         }
         return value;
       }
-      
+
       // Get configuration
       if (name === undefined) return caches[type];
 
@@ -360,6 +360,19 @@ export class Koatty extends Koa implements KoattyApplication {
   }
 
   /**
+   * Get comprehensive performance metrics
+   * @returns Performance metrics including middleware stacks and connection pools
+   */
+  getPerformanceMetrics(): {
+    middlewareStacks: { global: number; protocols: Record<string, number> };
+    connectionPools?: Record<string, any>;
+  } {
+    return {
+      middlewareStacks: this.getMiddlewareStats(),
+    };
+  }
+
+  /**
    * Stop all servers gracefully.
    * - For single protocol: stops the single server
    * - For multi-protocol: stops all servers sequentially
@@ -435,7 +448,7 @@ export class Koatty extends Koa implements KoattyApplication {
 
   /**
    * Handle request with middleware.
-   * 
+   *
    * @param ctx KoattyContext instance
    * @param fnMiddleware Composed middleware function
    * @returns Promise<any>

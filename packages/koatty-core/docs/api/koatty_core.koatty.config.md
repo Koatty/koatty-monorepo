@@ -9,7 +9,7 @@ Get or set configuration value by name and type.
 **Signature:**
 
 ```typescript
-config(name?: string, type?: string, value?: any): any;
+config<T = unknown>(name?: string, type?: string, value?: T): T | null;
 ```
 
 ## Parameters
@@ -69,7 +69,7 @@ value
 
 </td><td>
 
-any
+T
 
 
 </td><td>
@@ -82,7 +82,7 @@ _(Optional)_ Configuration value to set. If provided, sets the config value
 
 **Returns:**
 
-any
+T \| null
 
 {<!-- -->any<!-- -->} Configuration value or null if error occurs
 

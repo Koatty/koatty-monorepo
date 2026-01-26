@@ -11,7 +11,7 @@ import { WebSocket } from "ws";
  * Minimal context interface for exception handling
  * This interface breaks the circular dependency with koatty_core
  * by defining only the properties needed for exception handling
- * 
+ *
  * @export
  * @interface IExceptionContext
  */
@@ -26,13 +26,13 @@ export interface IExceptionContext {
   startTime?: number;
   res: ServerResponse;
   rpc?: {
-    call?: any;
-    callback?: (error: { code: number; details: string } | null, response: any) => void;
+    call?: unknown;
+    callback?: (error: { code: number; details: string } | null, response: unknown) => void;
   };
   websocket?: WebSocket;
   encoding?: string | false;
   length?: number;
-  body?: any;
+  body?: unknown;
   set(field: string, value: string): void;
   type?: string;
 }

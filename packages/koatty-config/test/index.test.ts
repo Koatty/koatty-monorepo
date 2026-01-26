@@ -32,5 +32,70 @@ describe("TestConfig", () => {
         const ins = IOCContainer.get("ConfigTest");
         expect(ins.getBB()).toEqual(5);
     })
+
+    it("Config Validation - Valid Config", async () => {
+        const appConfig = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"]);
+        const schema = {
+            config: {
+                type: 'object',
+                required: true
+            },
+            router: {
+                type: 'object',
+                required: true
+            }
+        };
+        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        expect(result.config).toBeDefined();
+        expect(result.config.ff).toBe("999");
+        expect(result.config.aa).toBe(4);
+    });
+
+    it("Config Validation - Invalid Config Missing Required", async () => {
+        const schema = {
+            missingKey: {
+                type: 'string',
+                required: true
+            }
+        };
+        expect(() => {
+            LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        }).toThrow("Configuration validation failed");
+    });
+
+    it("Config Validation - Invalid Config Type Mismatch", async () => {
+        const schema = {
+            config: {
+                type: 'string'
+            }
+        };
+        expect(() => {
+            LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        }).toThrow("Configuration validation failed");
+    });
+
+    it("Config Validation - Apply Defaults", async () => {
+        const schema = {
+            nonExistent: {
+                type: 'string',
+                default: 'default_value'
+            }
+        };
+        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        expect(result.nonExistent).toBe("default_value");
+    });
+
+    it("Config Validation - Custom Validator", async () => {
+        const schema = {
+            config: {
+                type: 'object',
+                validator: (value: any) => {
+                    return value && typeof value === 'object' || 'Must be an object';
+                }
+            }
+        };
+        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        expect(result.config.ff).toBe("999");
+    });
 });
 

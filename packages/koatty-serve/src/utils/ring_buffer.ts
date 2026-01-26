@@ -171,7 +171,7 @@ export class RingBuffer<T = number> {
     }
     
     // For number types, we can calculate percentile directly
-    const sorted = this.toSortedArray((a: any, b: any) => a - b);
+    const sorted = this.toSortedArray((a: unknown, b: unknown) => (a as number) - (b as number));
     const index = Math.floor(sorted.length * percentile);
     return sorted[Math.min(index, sorted.length - 1)];
   }
@@ -187,7 +187,7 @@ export class RingBuffer<T = number> {
     
     let sum = 0;
     for (let i = 0; i < this.count; i++) {
-      const value = this.get(i) as any;
+      const value = this.get(i) as unknown;
       sum += Number(value) || 0;
     }
     

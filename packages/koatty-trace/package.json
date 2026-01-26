@@ -72,6 +72,7 @@
     "@rollup/plugin-terser": "^0.x.x",
     "@types/jest": "^29.x.x",
     "@types/koa": "^2.x.x",
+    "@types/koa-compress": "^4.0.7",
     "@types/lodash": "^4.x.x",
     "@types/node": "^20.x.x",
     "@types/ws": "^8.x.x",

@@ -25,7 +25,7 @@ export interface LogContext {
   sessionId?: string;       // 会话ID
   traceId?: string;         // 追踪ID
   action?: string;          // 操作类型
-  [key: string]: any;       // 其他自定义字段
+  [key: string]: unknown;       // 其他自定义字段
 }
 
 /**
@@ -36,7 +36,7 @@ export interface PerformanceMetrics {
   endTime?: number;
   duration?: number;
   memoryUsage?: NodeJS.MemoryUsage;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -87,7 +87,7 @@ export class StructuredLogger {
    * @param data Additional data to log
    * @returns Formatted message string
    */
-  private formatMessage(message: string, context?: LogContext, data?: any): string {
+  private formatMessage(message: string, context?: LogContext, data?: unknown): string {
     const mergedContext = context ? { ...this.globalContext, ...context } : this.globalContext;
     const parts: string[] = [];
     
@@ -133,7 +133,7 @@ export class StructuredLogger {
    * @param context Additional context
    * @param data Additional data
    */
-  debug(message: string, context?: LogContext, data?: any): void {
+  debug(message: string, context?: LogContext, data?: unknown): void {
     const formattedMessage = this.formatMessage(message, context, data);
     Logger.Debug(formattedMessage);
   }
@@ -144,7 +144,7 @@ export class StructuredLogger {
    * @param context Additional context
    * @param data Additional data
    */
-  info(message: string, context?: LogContext, data?: any): void {
+  info(message: string, context?: LogContext, data?: unknown): void {
     const formattedMessage = this.formatMessage(message, context, data);
     Logger.Info(formattedMessage);
   }
@@ -155,7 +155,7 @@ export class StructuredLogger {
    * @param context Additional context
    * @param data Additional data
    */
-  warn(message: string, context?: LogContext, data?: any): void {
+  warn(message: string, context?: LogContext, data?: unknown): void {
     const formattedMessage = this.formatMessage(message, context, data);
     Logger.Warn(formattedMessage);
   }
@@ -166,8 +166,8 @@ export class StructuredLogger {
    * @param context Additional context
    * @param error Error object or additional data
    */
-  error(message: string, context?: LogContext, error?: Error | any): void {
-    let errorData: any = error;
+  error(message: string, context?: LogContext, error?: Error | unknown): void {
+    let errorData: unknown = error;
     if (error instanceof Error) {
       errorData = {
         name: error.name,
@@ -301,16 +301,16 @@ export function createLogger(context?: LogContext): StructuredLogger {
 export const structuredLogger = StructuredLogger.getInstance();
 
 // Export convenience functions
-export const debug = (message: string, context?: LogContext, data?: any) => 
+export const debug = (message: string, context?: LogContext, data?: unknown) => 
   structuredLogger.debug(message, context, data);
 
-export const info = (message: string, context?: LogContext, data?: any) => 
+export const info = (message: string, context?: LogContext, data?: unknown) => 
   structuredLogger.info(message, context, data);
 
-export const warn = (message: string, context?: LogContext, data?: any) => 
+export const warn = (message: string, context?: LogContext, data?: unknown) => 
   structuredLogger.warn(message, context, data);
 
-export const error = (message: string, context?: LogContext, error?: Error | any) => 
+export const error = (message: string, context?: LogContext, error?: Error | unknown) => 
   structuredLogger.error(message, context, error);
 
 export const setGlobalContext = (context: LogContext) => 

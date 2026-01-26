@@ -63,18 +63,19 @@ export class Loader {
     this.app = app;
   }
 
-  /**
-   * Initialize application configuration and environment settings.
-   * Sets up logging levels, defines essential paths, and loads application metadata.
-   * 
-   * @param {KoattyApplication} app - The Koatty application instance
-   * @description
-   * - Sets logging level based on environment
-   * - Defines root, app and framework paths
-   * - Loads application name and version from package.json
-   * - Sets environment variables for paths
-   * - Maintains backward compatibility with legacy path variables
-   */
+   /**
+    * Initialize application configuration and environment settings.
+    * Sets up logging levels, defines essential paths, and loads application metadata.
+    *
+    * @param {KoattyApplication} app - The Koatty application instance
+    * @description
+    * - Sets logging level based on environment
+    * - Defines root, app and framework paths on app object
+    * - Loads application name and version from package.json
+    * - Sets environment variables for paths (deprecated, for backward compatibility)
+    * - Maintains backward compatibility with legacy path variables
+    * @deprecated Use app.rootPath, app.appPath, app.koattyPath instead of process.env.ROOT_PATH, etc.
+    */
   public static initialize(app: KoattyApplication) {
     if (app.env == 'development') {
       Logger.setLevel("debug");
@@ -90,7 +91,7 @@ export class Loader {
     Helper.define(app, 'appPath', appPath);
     Helper.define(app, 'koattyPath', koattyPath);
 
-    // 
+    //
     if (Helper.isEmpty(app.name)) {
       const pkg = Helper.safeRequire(`${path.dirname(appPath)}/package.json`);
       if (pkg.name) {
@@ -99,6 +100,9 @@ export class Loader {
       }
     }
 
+    // Set environment variables for backward compatibility (deprecated)
+    // Use app.rootPath, app.appPath, app.koattyPath instead
+    Logger.Warn('Using process.env for paths is deprecated. Use app.rootPath, app.appPath, app.koattyPath instead.');
     process.env.ROOT_PATH = rootPath;
     process.env.APP_PATH = appPath;
     process.env.KOATTY_PATH = koattyPath;
@@ -358,7 +362,6 @@ export class Loader {
         const protoServerOpts = { ...serveOpts, protocol: proto, port: ports[i] };
 
         // Create server with transport protocol
-        // @ts-expect-error - Type mismatch due to workspace vs node_modules version difference
         servers.push(NewServe(app, protoServerOpts));
       }
       
@@ -369,7 +372,6 @@ export class Loader {
       const singleServerOpts = { protocol: singleProto, ...serveOpts };
       
       // Create server with transport protocol
-      // @ts-expect-error - Type mismatch due to workspace vs node_modules version difference
       return NewServe(app, singleServerOpts);
     }
   }
@@ -404,7 +406,6 @@ export class Loader {
         }
         
         // Create router with original protocol name (for routing logic)
-        // @ts-expect-error - Type mismatch due to workspace vs node_modules version difference
         routers[proto] = NewRouter(app, protoRouterOpts);
       }
       
@@ -412,7 +413,6 @@ export class Loader {
     } else {
       // Single protocol: router is KoattyRouter (backward compatibility)
       const singleProto = protocols[0];
-      // @ts-expect-error - Type mismatch due to workspace vs node_modules version difference
       return NewRouter(app, { protocol: singleProto, ...routerOpts });
     }
   }
@@ -457,8 +457,7 @@ export class Loader {
     // Load Trace middleware as the first middleware
     try {
       const traceOptions = this.app.config('trace') ?? {};
-      // @ts-expect-error - Type mismatch due to workspace vs node_modules version difference
-      const tracer = Trace(traceOptions, this.app);
+      const tracer = Trace(traceOptions, this.app) as any;
       Helper.define(this.app, "tracer", tracer);
       this.app.use(tracer);
       Logger.Debug(`Load trace middleware`);
@@ -597,7 +596,7 @@ export class Loader {
   protected async LoadServices() {
     const serviceList = IOC.listClass("SERVICE");
 
-    serviceList.forEach((item: ComponentItem) => {
+    for (const item of serviceList) {
       item.id = (item.id ?? "").replace("SERVICE:", "");
       if (item.id && Helper.isClass(item.target)) {
         Logger.Debug(`Load service: ${item.id}`);
@@ -608,7 +607,7 @@ export class Loader {
           throw Error(`The service ${item.id} must implements interface 'IService'.`);
         }
       }
-    });
+    }
   }
 
   /**
@@ -626,7 +625,7 @@ export class Loader {
     const componentList = IOC.listClass("COMPONENT");
 
     const pluginList = [];
-    componentList.forEach(async (item: ComponentItem) => {
+    componentList.forEach((item: ComponentItem) => {
       item.id = (item.id ?? "").replace("COMPONENT:", "");
       if (Helper.isClass(item.target)) {
         // registering to IOC

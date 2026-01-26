@@ -8,7 +8,7 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { Koatty, KoattyRouter } from "koatty_core";
+import { KoattyApplication, KoattyRouter } from "koatty_core";
 import { Helper } from "koatty_lib";
 import { RouterFactory } from "./factory";
 import { PayloadOptions } from "../payload/interface";
@@ -85,11 +85,11 @@ export interface RouterOptions {
  * get instance of Router using Factory Pattern
  *
  * @export
- * @param {Koatty} app
+ * @param {KoattyApplication} app
  * @param {RouterOptions} options
  * @returns {*}  {KoattyRouter}
  */
-export function NewRouter(app: Koatty, opt?: RouterOptions): KoattyRouter {
+export function NewRouter(app: KoattyApplication, opt?: RouterOptions): KoattyRouter {
   const options: RouterOptions = { protocol: "http", prefix: "", ...opt };
   
   // Use RouterFactory to create router instance

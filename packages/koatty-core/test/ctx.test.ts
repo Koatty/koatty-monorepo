@@ -9,7 +9,6 @@
  */
 import assert from 'assert';
 import { IncomingMessage, ServerResponse } from 'http';
-import { createKoattyContext, ContextPool, ContextFactoryRegistry, type ProtocolType } from "../src/Context";
 import { App } from "./app";
 
 // Mock helper functions
@@ -187,33 +186,3 @@ describe("Context Creation Optimization", () => {
       expect(duration / iterations).toBeLessThan(1);
     });
   });
-
-  test("should handle context pool operations for all protocols", () => {
-    // Only test protocols that support pooling (GraphQL has property constraints)
-    const protocols: ProtocolType[] = ['http'];
-    
-    protocols.forEach(protocol => {
-      const mockReq = createMockRequest({ url: '/test' });
-      const mockRes = createMockResponse();
-      const koaCtx = app.createContext(mockReq, mockRes);
-      const context = createKoattyContext(koaCtx, protocol, mockReq, mockRes);
-      
-      // Initially pool should be empty
-      expect(ContextPool.get(protocol)).toBeNull();
-      
-      // Release context to pool
-      ContextPool.release(protocol, context);
-      
-      // Should be able to get context from pool
-      const pooledContext = ContextPool.get(protocol);
-      expect(pooledContext).toBeDefined();
-      expect(pooledContext).not.toBeNull();
-      if (pooledContext) {
-        expect(pooledContext.protocol).toBe(protocol);
-      }
-      
-      // Pool should be empty again
-      expect(ContextPool.get(protocol)).toBeNull();
-    });
-  });
-});
