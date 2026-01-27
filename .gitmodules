@@ -13,3 +13,6 @@
 [submodule "packages/koatty-loader"]
 	path = packages/koatty-loader
 	url = https://github.com/koatty/koatty_loader.git
+[submodule "packages/koatty-logger"]
+	path = packages/koatty-logger
+	url = https://github.com/koatty/koatty_logger.git
