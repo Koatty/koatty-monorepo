@@ -17,7 +17,7 @@ import { Application } from "koatty_container";
 /**
  * Middleware function type
  */
-export type MiddlewareFunction = (ctx: KoattyContext, next: KoattyNext) => Promise<any> | any;
+export type MiddlewareFunction = <T = unknown>(ctx: KoattyContext, next: KoattyNext) => Promise<T> | T;
 
 /**
  * Middleware configuration
@@ -29,10 +29,10 @@ export interface MiddlewareConfig {
   priority?: number;
   enabled?: boolean;
   conditions?: MiddlewareCondition[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // 用于中间件类的配置参数
   middlewareConfig?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -43,6 +43,14 @@ export interface MiddlewareCondition {
   type: 'path' | 'method' | 'header' | 'custom';
   value: string | RegExp | ((ctx: KoattyContext) => boolean);
   operator?: 'equals' | 'contains' | 'matches' | 'custom';
+}
+
+/**
+ * Instance ID configuration
+ */
+interface InstanceIdConfig {
+  route: string;
+  method?: string;
 }
 
 /**
@@ -262,14 +270,14 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
   /**
    * Generate unique instance ID using middleware name and route
    */
-  private generateInstanceId(name: string, config?: any): string {
+  private generateInstanceId(name: string, config?: InstanceIdConfig): string {
     if (config && config.route) {
       // 使用中间件名和路由组合作为唯一标识
       const route = config.route.replace(/[^a-zA-Z0-9\/\-_]/g, '_'); // 清理路由中的特殊字符
       const method = config.method || 'ALL';
       return `${name}@${route}#${method}`;
     }
-    
+
     // 如果没有路由信息，使用时间戳作为后备方案
     const timestamp = Date.now();
     return `${name}_${timestamp}`;
@@ -877,7 +885,7 @@ export class MiddlewareBuilder {
     return this;
   }
 
-  public metadata(key: string, value: any): this {
+  public metadata(key: string, value: unknown): this {
     if (!this.config.metadata) {
       this.config.metadata = {};
     }
@@ -903,7 +911,7 @@ export class MiddlewareBuilder {
  * Decorator for auto-registering middlewares
  */
 export function RegisterMiddleware(app: Application, config: Omit<MiddlewareConfig, 'middleware'>) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: object, propertyKey: string, descriptor: PropertyDescriptor) {
     const middleware = descriptor.value;
 
     if (typeof middleware !== 'function') {

@@ -18,7 +18,7 @@ import { randomBytes, randomUUID } from "crypto";
  * @param visited - Set to track visited objects for circular reference detection
  * @returns {boolean} True if objects are deeply equal, false otherwise
  */
-export function deepEqual(obj1: any, obj2: any, visited = new WeakSet()): boolean {
+export function deepEqual(obj1: unknown, obj2: unknown, visited = new WeakSet()): boolean {
   if (obj1 === obj2) return true;
   if (obj1 == null || obj2 == null) return false;
   if (typeof obj1 !== typeof obj2) return false;
@@ -27,7 +27,7 @@ export function deepEqual(obj1: any, obj2: any, visited = new WeakSet()): boolea
     // Handle circular references
     if (visited.has(obj1)) return true;
     visited.add(obj1);
-    
+
     // Check if both are arrays or both are objects
     const isArray1 = Array.isArray(obj1);
     const isArray2 = Array.isArray(obj2);
@@ -37,7 +37,7 @@ export function deepEqual(obj1: any, obj2: any, visited = new WeakSet()): boolea
     const keys2 = Object.keys(obj2);
     if (keys1.length !== keys2.length) return false;
 
-    const result = keys1.every(key => deepEqual(obj1[key], obj2[key], visited));
+    const result = keys1.every(key => deepEqual((obj1 as Record<string, unknown>)[key], (obj2 as Record<string, unknown>)[key], visited));
     visited.delete(obj1);
     return result;
   }

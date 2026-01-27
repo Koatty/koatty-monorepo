@@ -8,7 +8,7 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { Koatty, KoattyRouter } from "koatty_core";
+import { KoattyApplication, KoattyRouter } from "koatty_core";
 import { DefaultLogger as Logger } from "koatty_logger";
 import { GraphQLRouter } from "./graphql";
 import { GrpcRouter } from "./grpc";
@@ -20,7 +20,7 @@ import { WebsocketRouter } from "./ws";
  * Router factory interface
  */
 export interface IRouterFactory {
-  create(protocol: string, app: Koatty, options: RouterOptions): KoattyRouter;
+  create(protocol: string, app: KoattyApplication, options: RouterOptions): KoattyRouter;
   register(protocol: string, routerClass: RouterConstructor): void;
   getSupportedProtocols(): string[];
 }
@@ -28,7 +28,7 @@ export interface IRouterFactory {
 /**
  * Router constructor type
  */
-export type RouterConstructor = new (app: Koatty, options?: RouterOptions) => KoattyRouter;
+export type RouterConstructor = new (app: KoattyApplication, options?: RouterOptions) => KoattyRouter;
 
 /**
  * Router factory implementation
@@ -71,7 +71,7 @@ export class RouterFactory implements IRouterFactory {
   /**
    * Create router instance
    */
-  public create(protocol: string, app: Koatty, options: RouterOptions): KoattyRouter {
+  public create(protocol: string, app: KoattyApplication, options: RouterOptions): KoattyRouter {
     const normalizedProtocol = protocol.toLowerCase();
     const RouterClass = this.routerRegistry.get(normalizedProtocol);
     

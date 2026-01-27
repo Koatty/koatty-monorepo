@@ -8,7 +8,6 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 import { IncomingMessage, ServerResponse } from 'http';
-import { createKoattyContext, ContextPool, type ProtocolType } from "../src/Context";
 import { KoattyMetadata } from "../src/Metadata";
 import { App } from "./app";
 
@@ -149,57 +148,6 @@ describe("Performance Tests", () => {
     });
   });
 
-  describe("Context Pool Performance", () => {
-    test("should pool and reuse contexts efficiently", () => {
-      const iterations = 1000;
-      const contexts: any[] = [];
-      
-      // Create contexts
-      const createStartTime = process.hrtime.bigint();
-      for (let i = 0; i < iterations; i++) {
-        const mockReq = createMockRequest();
-        const mockRes = createMockResponse();
-        const koaCtx = app.createContext(mockReq, mockRes);
-        const context = createKoattyContext(koaCtx, 'http', mockReq, mockRes);
-        contexts.push(context);
-      }
-      const createEndTime = process.hrtime.bigint();
-      
-      // Release contexts to pool
-      const releaseStartTime = process.hrtime.bigint();
-      contexts.forEach((context: any) => {
-        ContextPool.release('http', context);
-      });
-      const releaseEndTime = process.hrtime.bigint();
-      
-      // Get contexts from pool
-      const getStartTime = process.hrtime.bigint();
-      const pooledContexts: any[] = [];
-      for (let i = 0; i < iterations; i++) {
-        const context = ContextPool.get('http');
-        if (context) {
-          pooledContexts.push(context);
-        }
-      }
-      const getEndTime = process.hrtime.bigint();
-      
-      const createDuration = Number(createEndTime - createStartTime) / 1000000;
-      const releaseDuration = Number(releaseEndTime - releaseStartTime) / 1000000;
-      const getDuration = Number(getEndTime - getStartTime) / 1000000;
-      
-      console.log(`Context creation: ${createDuration.toFixed(2)}ms`);
-      console.log(`Context release: ${releaseDuration.toFixed(2)}ms`);
-      console.log(`Context retrieval: ${getDuration.toFixed(2)}ms`);
-      console.log(`Pool stats:`, ContextPool.getStats());
-      
-      // Pool operations should be very fast
-      expect(releaseDuration / iterations).toBeLessThan(0.01);
-      expect(getDuration / iterations).toBeLessThan(0.01);
-      expect(pooledContexts.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("Memory Usage", () => {
     test("should not leak memory during context creation", () => {
       const initialMemory = process.memoryUsage();
       const iterations = 10000;

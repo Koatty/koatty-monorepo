@@ -26,3 +26,10 @@ export {
   type KoattyProtocol,
   type ListeningOptions
 } from "./config/config";
+
+export {
+  registerConnectionPoolMetrics,
+  unregisterConnectionPoolMetrics
+} from "./pool-metrics-integration";
+
+export { ServePlugin } from "./ServePlugin";

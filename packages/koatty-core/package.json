@@ -3,23 +3,15 @@
   "version": "2.0.8",
   "description": "Koatty framework core",
   "scripts": {
-    "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp && npm run build:fix",
+    "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
     "build:cp": "npx copyfiles package.json LICENSE README.md dist/ && node scripts/postBuild",
-    "build:fix": "node scripts/fixWorkspaceDeps",
     "build:js": "npx rollup --bundleConfigAsCjs -c .rollup.config.js",
     "build:doc": "npx api-documenter markdown --input temp --output docs/api",
     "build:dts": "npx tsc && npx api-extractor run --local --verbose",
     "eslint": "eslint --ext .ts,.js ./",
     "lock": "npx del-cli --force node_modules && npm i --package-lock-only && npx pnpm i",
-    "prepublishOnly": "echo 'Skipping prepublishOnly in monorepo'",
-    "prerelease": "npm run lock && npm test && npm run build",
-    "release": "standard-version",
-    "release:pre": "npm run release -- --prerelease",
-    "release:major": "npm run release -- --release-as major",
-    "release:minor": "npm run release -- --release-as minor",
     "test": "npm run eslint && jest --passWithNoTests --forceExit",
-    "test:cov": "jest --collectCoverage --detectOpenHandles",
-    "version": "conventional-changelog -p angular -i CHANGELOG.md -s"
+    "test:cov": "jest --collectCoverage --detectOpenHandles"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -57,7 +49,6 @@
     "@types/ws": "^8.x.x",
     "@typescript-eslint/eslint-plugin": "^8.x.x",
     "@typescript-eslint/parser": "^8.x.x",
-    "conventional-changelog-cli": "^5.x.x",
     "eslint": "^8.x.x",
     "eslint-plugin-jest": "^28.x.x",
     "husky": "^4.x.x",
@@ -68,7 +59,6 @@
     "rollup": "^4.x.x",
     "rollup-plugin-delete": "^2.x.x",
     "rollup-plugin-typescript2": "^0.x.x",
-    "standard-version": "^9.x.x",
     "supertest": "^7.x.x",
     "ts-jest": "^29.x.x",
     "ts-node": "^10.x.x",
@@ -76,17 +66,12 @@
     "typescript": "^5.x.x"
   },
   "dependencies": {
+    "koa": "^2.16.0 || ^3.0.0",
     "koa-compose": "^4.1.0",
     "koatty_container": "^1.x.x",
     "koatty_exception": "workspace:*",
     "koatty_lib": "^1.x.x",
     "koatty_logger": "^2.x.x",
     "on-finished": "^2.4.1"
-  },
-  "peerDependencies": {
-    "koa": "^2.16.0 || ^3.0.0",
-    "koatty_container": "^1.x.x",
-    "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x"
   }
 }

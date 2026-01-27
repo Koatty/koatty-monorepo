@@ -92,9 +92,9 @@ export function payload(options?: PayloadOptions) {
  * Parse and merge query parameters and route parameters from context
  * @param {KoattyContext} ctx Koatty context object
  * @param {PayloadOptions} [_options] Optional payload configuration
- * @returns {any} Merged object containing query and route parameters
+ * @returns {Record<string, unknown>} Merged object containing query and route parameters
  */
-export function queryParser(ctx: KoattyContext, _options?: PayloadOptions): any {
+export function queryParser(ctx: KoattyContext, _options?: PayloadOptions): Record<string, unknown> {
   // 性能优化：避免不必要的对象创建
   const query = ctx.query;
   const params = ctx.params;

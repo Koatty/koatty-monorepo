@@ -1,0 +1,178 @@
+{
+  "project": "Koatty核心组件插件化重构",
+  "created_at": "2026-01-26T10:00:00Z",
+  "updated_at": "2026-01-26T10:00:00Z",
+  "features": [
+    {
+      "id": 1,
+      "name": "添加依赖类型定义",
+      "description": "在packages/koatty-core/src/Component.ts中添加PluginDependencyType枚举、IPluginDependency接口、IPluginCapability接口",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [],
+      "notes": ""
+    },
+    {
+      "id": 2,
+      "name": "添加插件错误类",
+      "description": "在packages/koatty-core/src/Errors.ts中添加PluginDependencyError、PluginConflictError、PluginContractError错误类",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [],
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "name": "扩展Plugin接口",
+      "description": "扩展IPluginOptions和IPlugin接口，支持dependencies、provides、conflicts属性",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [1],
+      "notes": ""
+    },
+    {
+      "id": 4,
+      "name": "扩展AppEvent枚举",
+      "description": "在IApplication.ts中扩展AppEvent枚举，添加configLoaded、beforeComponentLoad等组件生命周期事件",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [],
+      "notes": ""
+    },
+    {
+      "id": 5,
+      "name": "创建ComponentManager基础结构",
+      "description": "创建packages/koatty-core/src/ComponentManager.ts，定义PluginMeta、DependencyValidationResult等接口和类基础结构",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [1, 2, 3],
+      "notes": ""
+    },
+    {
+      "id": 6,
+      "name": "实现discoverPlugins方法",
+      "description": "在ComponentManager中实现discoverPlugins方法，从IOC容器发现和分类插件",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [5],
+      "notes": ""
+    },
+    {
+      "id": 7,
+      "name": "实现依赖验证工具方法",
+      "description": "实现normalizeDependency、normalizeCapability、checkContractDependency等工具方法",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [5],
+      "notes": ""
+    },
+    {
+      "id": 8,
+      "name": "实现validatePluginDependencies方法",
+      "description": "实现插件依赖验证方法，检查REQUIRED、OPTIONAL、CONTRACT三种依赖类型",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [7],
+      "notes": ""
+    },
+    {
+      "id": 9,
+      "name": "实现checkCoreDependencies方法",
+      "description": "实现checkCoreDependencies方法，提供明确的依赖错误信息和解决方案建议",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [8],
+      "notes": "关键任务：确保依赖错误信息清晰明确"
+    },
+    {
+      "id": 10,
+      "name": "实现registerCorePluginHooks方法",
+      "description": "实现registerCorePluginHooks方法，注册核心插件的事件钩子",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [9],
+      "notes": ""
+    },
+    {
+      "id": 11,
+      "name": "实现loadUserPlugins方法",
+      "description": "实现loadUserPlugins方法，加载用户自定义插件",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [6],
+      "notes": ""
+    },
+    {
+      "id": 12,
+      "name": "创建RouterPlugin",
+      "description": "在packages/koatty-router/src/创建RouterPlugin.ts，实现零依赖的路由插件",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [10],
+      "notes": "提供router能力契约"
+    },
+    {
+      "id": 13,
+      "name": "创建ServePlugin",
+      "description": "在packages/koatty-serve/src/创建ServePlugin.ts，实现契约依赖的服务器插件",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [10],
+      "notes": "使用CONTRACT依赖router能力"
+    },
+    {
+      "id": 14,
+      "name": "创建TracePlugin",
+      "description": "在packages/koatty-trace/src/创建TracePlugin.ts，实现零依赖的追踪插件",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [10],
+      "notes": "提供trace能力契约"
+    },
+    {
+      "id": 15,
+      "name": "修改Loader集成ComponentManager",
+      "description": "修改packages/koatty/src/core/Loader.ts，在LoadAllComponents中集成ComponentManager",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [10, 11],
+      "notes": ""
+    },
+    {
+      "id": 16,
+      "name": "修改Bootstrap添加事件发射",
+      "description": "修改packages/koatty/src/core/Bootstrap.ts，在executeBootstrap中添加事件发射",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [15],
+      "notes": ""
+    },
+    {
+      "id": 17,
+      "name": "实现自动注册机制",
+      "description": "修改packages/koatty/src/index.ts，添加核心插件自动注册机制",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [12, 13, 14],
+      "notes": ""
+    },
+    {
+      "id": 18,
+      "name": "创建plugin配置文件",
+      "description": "在packages/koatty/src/config/创建plugin.ts默认配置文件",
+      "status": "completed",
+      "priority": 2,
+      "dependencies": [],
+      "notes": ""
+    },
+    {
+      "id": 19,
+      "name": "导出ComponentManager",
+      "description": "在packages/koatty-core/src/index.ts中导出ComponentManager",
+      "status": "completed",
+      "priority": 1,
+      "dependencies": [5],
+      "notes": ""
+    }
+  ]
+}

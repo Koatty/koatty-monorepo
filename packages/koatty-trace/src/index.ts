@@ -10,3 +10,4 @@
  */
 
 export * from "./trace/trace";
+export { TracePlugin } from "./TracePlugin";

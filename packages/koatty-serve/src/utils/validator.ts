@@ -14,7 +14,7 @@ import { KoattyProtocol, ListeningOptions } from "../config/config";
 export interface ValidationError {
   field: string;
   message: string;
-  value?: any;
+  value?: unknown;
 }
 
 /**

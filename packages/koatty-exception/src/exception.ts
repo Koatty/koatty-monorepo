@@ -20,23 +20,37 @@ import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_URL_FULL
 export interface ExceptionConfig {
   enableStackTrace?: boolean;
   logFormat?: 'json' | 'text';
-  customErrorFormat?: (error: Exception) => any;
+  customErrorFormat?: (error: Exception) => unknown;
   maxStackLength?: number;
+}
+
+/**
+ * Log data interface for text formatting
+ */
+interface LogData {
+  timestamp: string;
+  level: string;
+  type: string;
+  message: string;
+  code: number;
+  status: number;
+  context?: Partial<ErrorContext>;
+  stack?: string;
 }
 
 /**
  * Error context interface
  */
-export interface ErrorContext {
+interface ErrorContext {
   requestId: string;
-  path: string;
+  url: string;
   method: string;
   userAgent?: string;
   startTime: number;
   endTime: number;
   duration: number;
   // 允许任意额外字段
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // 全局配置
@@ -81,7 +95,7 @@ export function getExceptionConfig(): ExceptionConfig {
  * @returns {ClassDecorator}
  */
 export function ExceptionHandler(): ClassDecorator {
-  return (target: any) => {
+  return (target: Function) => {
     const identifier = IOCContainer.getIdentifier(target);
     // if (identifier === "Exception") {
     //     throw new Error("class name cannot be `Exception`");
@@ -217,13 +231,13 @@ export class Exception extends Error {
   /**
    * @description: Default exception handler
    * @param {IExceptionContext} ctx
-   * @return {Promise<any>}
+   * @return {Promise<unknown>}
    */
-  async handler(ctx: IExceptionContext): Promise<any> {
+  async handler(ctx: IExceptionContext): Promise<unknown> {
     try {
       // 设置响应状态
       ctx.status = this.status || ctx.status;
-      
+
       // 设置错误上下文
       this.setContext({
         requestId: ctx.requestId,
@@ -234,17 +248,17 @@ export class Exception extends Error {
         endTime: Date.now(),
         duration: Date.now() - ctx.startTime
       });
-      
+
       // 记录日志
       this.log(ctx);
-      
+
       // 设置响应类型
       ctx.type = ctx.encoding !== false ? `application/json; charset=${ctx.encoding}` : 'application/json';
-      
+
       return this.output(ctx);
     } catch (error) {
       Logger.Error('Exception handler failed:', error);
-      
+
       // 降级处理 - 返回基本错误响应
       return this.fallbackOutput(ctx, error);
     }
@@ -254,12 +268,12 @@ export class Exception extends Error {
    * @description: 降级输出处理
    * @param {IExceptionContext} ctx
    * @param {unknown} _error
-   * @return {any}
+   * @return {unknown}
    */
-  private fallbackOutput(ctx: IExceptionContext, _error: unknown): any {
+  private fallbackOutput(ctx: IExceptionContext, _error: unknown): unknown {
     const isGrpc = ctx.protocol === 'grpc';
     const isWebSocket = ctx.protocol === 'ws' || ctx.protocol === 'wss';
-    
+
     const fallbackResponse: { code: number; message: string; data: null } = {
       code: 500,
       message: "Internal Server Error",
@@ -321,22 +335,22 @@ export class Exception extends Error {
 
   /**
    * Format log as text
-   * 
-   * @param {any} logData - Log data object
+   *
+   * @param {LogData} logData - Log data object
    * @returns {string} Formatted text log
    */
-  private formatTextLog(logData: any): string {
+  private formatTextLog(logData: LogData): string {
     const { timestamp, level, type, message, code, status, context, stack } = logData;
     let log = `[${timestamp}] ${level}: ${type} - ${message} (code: ${code}, status: ${status})`;
-    
+
     if (context) {
       log += `\n  Context: ${JSON.stringify(context)}`;
     }
-    
+
     if (stack) {
       log += `\n  Stack: ${stack}`;
     }
-    
+
     return log;
   }
 
@@ -362,15 +376,15 @@ export class Exception extends Error {
   /**
    * @description: 输出处理
    * @param {IExceptionContext} ctx
-   * @return {any}
+   * @return {unknown}
    */
-  protected output(ctx: IExceptionContext): any {
+  protected output(ctx: IExceptionContext): unknown {
     const config = getExceptionConfig();
     const isGrpc = ctx.protocol === 'grpc';
     const isWebSocket = ctx.protocol === 'ws' || ctx.protocol === 'wss';
-    
+
     // 使用自定义格式或默认格式
-    const responseBody = config.customErrorFormat 
+    const responseBody = config.customErrorFormat
       ? config.customErrorFormat(this)
       : this.message || "";
 

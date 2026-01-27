@@ -17,11 +17,7 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm build && changeset publish",
-    "pkg:release": "bash scripts/release.sh",
-    "pkg:release:minor": "bash scripts/release.sh",
-    "pkg:release:major": "bash scripts/release.sh",
-    "pkg:release:pre": "bash scripts/release.sh",
-    "pkg:sync": "bash scripts/sync-standalone.sh"
+    "doctor": "node scripts/doctor.js"
   },
   "keywords": [
     "koatty",
@@ -40,7 +36,6 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
-    "standard-version": "^9.5.0",
     "turbo": "^2.5.8"
   }
 }

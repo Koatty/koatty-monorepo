@@ -6,7 +6,9 @@
  */
 export * from "./Application";
 export * from "./Component";
+export * from "./ComponentManager";
 export * from "./Context";
+export * from "./Errors";
 export * from "./IApplication";
 export * from "./IContext";
 export * from "./Metadata";
