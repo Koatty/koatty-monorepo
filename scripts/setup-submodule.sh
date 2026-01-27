@@ -1,21 +1,47 @@
 #!/bin/bash
 set -e
 
-SUBMODULE_URL="https://github.com/Koatty/koatty_container.git"
-SUBMODULE_PATH="packages/koatty-container"
+SUBMODULE_URL="https://github.com/thinkkoa/koatty.git"
+SUBMODULE_PATH="packages/koatty"
+SUBMODULE_NAME="koatty"
 
 echo "======================================"
 echo "Koatty Submodule 配置脚本"
 echo "======================================"
 echo ""
 
-# 检查是否已经在 packages/$SUBMODULE_PATH 目录中
-if [ -d "$SUBMODULE_PATH/.git" ]; then
+# 检查 gitmodules 和 submodule 状态
+if git submodule status 2>/dev/null | grep -q "$SUBMODULE_PATH"; then
     echo "✓ $SUBMODULE_PATH 已经是 submodule"
     echo ""
     echo "Submodule 信息:"
     git submodule status
+    echo ""
+    echo "当前配置:"
+    echo "  路径: $SUBMODULE_PATH"
+    echo "  仓库: $SUBMODULE_URL"
+    echo ""
     exit 0
+fi
+
+# 检查 $SUBMODULE_PATH 是否在 git index 中（不是 submodule）
+if git ls-files --error-unmatch "$SUBMODULE_PATH" &> /dev/null; then
+    echo "检测到 $SUBMODULE_PATH 在 git index 中（非 submodule）"
+    echo "正在从 git index 中删除..."
+    git rm -r --cached "$SUBMODULE_PATH"
+    echo "✓ 已从 git index 中删除"
+fi
+
+# 清理本地的 submodule git 目录
+if [ -d ".git/modules/$SUBMODULE_PATH" ]; then
+    echo "清理本地的 submodule git 目录..."
+    rm -rf ".git/modules/$SUBMODULE_PATH"
+    echo "✓ 已清理"
+fi
+
+# 暂存 .gitmodules 更改（如果存在）
+if [ -f ".gitmodules" ]; then
+    git add .gitmodules 2>/dev/null || true
 fi
 
 # 检查是否已有备份目录
@@ -67,7 +93,7 @@ echo "Submodule 信息:"
 git submodule status
 echo ""
 echo "后续步骤："
-echo "1. 如果备份了代码，请手动从 $SUBMODULE_NAME.backup 合并到 $SUBMODULE_PATH"
+echo "1. 如果备份了代码，请手动从 $SUBMODULE_PATH.backup 合并到 $SUBMODULE_PATH"
 echo "2. 在 CI/CD 中确保启用 submodule 检出"
 echo "3. 使用 'git submodule update --remote' 更新 submodule 到最新版本"
 echo ""
