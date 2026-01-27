@@ -8,7 +8,12 @@ const colors = {
   green: (text) => `\x1b[32m${text}\x1b[0m`,
   yellow: (text) => `\x1b[33m${text}\x1b[0m`,
   red: (text) => `\x1b[31m${text}\x1b[0m`,
-  bold: (text) => `\x1b[1m${text}\x1b[0m`,
+  bold: {
+    cyan: (text) => `\x1b[1;36m${text}\x1b[0m`,
+    green: (text) => `\x1b[1;32m${text}\x1b[0m`,
+    yellow: (text) => `\x1b[1;33m${text}\x1b[0m`,
+    red: (text) => `\x1b[1;31m${text}\x1b[0m`,
+  },
   gray: (text) => `\x1b[90m${text}\x1b[0m`
 };
 
@@ -35,7 +40,7 @@ function getPackageVersion(packageName) {
 }
 
 function checkDependencyConflicts() {
-  console.log(chalk.cyan('\n🔍 Checking dependency conflicts...\n'));
+  console.log(colors.cyan('\n🔍 Checking dependency conflicts...\n'));
 
   const packages = fs.readdirSync(packagesDir).filter(
     name => fs.statSync(path.join(packagesDir, name)).isDirectory()
@@ -68,22 +73,22 @@ function checkDependencyConflicts() {
   });
 
   if (conflicts.length > 0) {
-    console.log(chalk.red('❌ Found dependency conflicts:\n'));
+    console.log(colors.red('❌ Found dependency conflicts:\n'));
     conflicts.forEach(conflict => {
-      console.log(chalk.red(`  - Package: ${conflict.package}`));
-      console.log(chalk.red(`    Dependency: ${conflict.dependency}`));
-      console.log(chalk.red(`    Issue: ${conflict.issue}`));
-      console.log(chalk.red(`    Current version: ${conflict.currentVersion}\n`));
+      console.log(colors.red(`  - Package: ${conflict.package}`));
+      console.log(colors.red(`    Dependency: ${conflict.dependency}`));
+      console.log(colors.red(`    Issue: ${conflict.issue}`));
+      console.log(colors.red(`    Current version: ${conflict.currentVersion}\n`));
     });
   } else {
-    console.log(chalk.green('✅ No dependency conflicts found\n'));
+    console.log(colors.green('✅ No dependency conflicts found\n'));
   }
 
   return !hasConflicts;
 }
 
 function checkVersionConsistency() {
-  console.log(chalk.cyan('🔍 Checking version consistency...\n'));
+  console.log(colors.cyan('🔍 Checking version consistency...\n'));
 
   const packages = fs.readdirSync(packagesDir).filter(
     name => fs.statSync(path.join(packagesDir, name)).isDirectory()
@@ -99,7 +104,7 @@ function checkVersionConsistency() {
 
   console.log('Package versions:');
   Object.entries(packageVersions).sort().forEach(([name, version]) => {
-    console.log(`  ${chalk.green(name)}: ${chalk.yellow(version)}`);
+    console.log(`  ${colors.green(name)}: ${colors.yellow(version)}`);
   });
   console.log();
 
@@ -107,24 +112,24 @@ function checkVersionConsistency() {
 }
 
 function checkEngineCompatibility() {
-  console.log(chalk.cyan('🔍 Checking engine compatibility...\n'));
+  console.log(colors.cyan('🔍 Checking engine compatibility...\n'));
 
   const rootPkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
   const nodeVersion = process.version;
   const requiredNodeVersion = rootPkg.engines?.node;
 
   if (requiredNodeVersion) {
-    console.log(`Node.js version: ${chalk.yellow(nodeVersion)}`);
-    console.log(`Required: ${chalk.green(requiredNodeVersion)}\n`);
+    console.log(`Node.js version: ${colors.yellow(nodeVersion)}`);
+    console.log(`Required: ${colors.green(requiredNodeVersion)}\n`);
 
     const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
     const requiredMajor = parseInt(requiredNodeVersion.replace('>=', '').split('.')[0]);
 
     if (majorVersion >= requiredMajor) {
-      console.log(chalk.green('✅ Node.js version compatible\n'));
+      console.log(colors.green('✅ Node.js version compatible\n'));
       return true;
     } else {
-      console.log(chalk.red(`❌ Node.js version incompatible. Required: ${requiredNodeVersion}\n`));
+      console.log(colors.red(`❌ Node.js version incompatible. Required: ${requiredNodeVersion}\n`));
       return false;
     }
   }
@@ -133,7 +138,7 @@ function checkEngineCompatibility() {
 }
 
 function checkWorkspaceDeps() {
-  console.log(chalk.cyan('🔍 Checking workspace dependencies...\n'));
+  console.log(colors.cyan('🔍 Checking workspace dependencies...\n'));
 
   const packages = fs.readdirSync(packagesDir).filter(
     name => fs.statSync(path.join(packagesDir, name)).isDirectory()
@@ -169,21 +174,21 @@ function checkWorkspaceDeps() {
   });
 
   if (issues.length > 0) {
-    console.log(chalk.red('❌ Found workspace dependency issues:\n'));
+    console.log(colors.red('❌ Found workspace dependency issues:\n'));
     issues.forEach(issue => {
-      console.log(chalk.red(`  - Package: ${issue.package}`));
-      console.log(chalk.red(`    Dependency: ${issue.dependency}`));
-      console.log(chalk.red(`    Issue: ${issue.issue}\n`));
+      console.log(colors.red(`  - Package: ${issue.package}`));
+      console.log(colors.red(`    Dependency: ${issue.dependency}`));
+      console.log(colors.red(`    Issue: ${issue.issue}\n`));
     });
   } else {
-    console.log(chalk.green('✅ All workspace dependencies are valid\n'));
+    console.log(colors.green('✅ All workspace dependencies are valid\n'));
   }
 
   return !hasIssues;
 }
 
 function generateCompatibilityMatrix() {
-  console.log(chalk.cyan('🔍 Generating compatibility matrix...\n'));
+  console.log(colors.cyan('🔍 Generating compatibility matrix...\n'));
 
   const packages = fs.readdirSync(packagesDir).filter(
     name => fs.statSync(path.join(packagesDir, name)).isDirectory()
@@ -207,17 +212,17 @@ function generateCompatibilityMatrix() {
     });
   });
 
-  console.log(chalk.bold('Koatty Package Compatibility Matrix:\n'));
+  console.log(colors.bold.cyan('Koatty Package Compatibility Matrix:\n'));
 
   matrix.sort((a, b) => a.name.localeCompare(b.name)).forEach(pkg => {
-    console.log(chalk.green(`📦 ${pkg.name}`));
-    console.log(`   Version: ${chalk.yellow(pkg.version)}`);
-    console.log(`   Engines: ${chalk.cyan(pkg.engines.node || 'Not specified')}`);
+    console.log(colors.green(`📦 ${pkg.name}`));
+    console.log(`   Version: ${colors.yellow(pkg.version)}`);
+    console.log(`   Engines: ${colors.cyan(pkg.engines.node || 'Not specified')}`);
 
     if (Object.keys(pkg.dependencies).length > 0) {
       console.log('   Koatty Dependencies:');
       Object.entries(pkg.dependencies).forEach(([dep, ver]) => {
-        console.log(`     - ${chalk.cyan(dep)}: ${ver}`);
+        console.log(`     - ${colors.cyan(dep)}: ${ver}`);
       });
     }
     console.log();
@@ -232,7 +237,7 @@ function generateCompatibilityMatrix() {
   }
   fs.writeFileSync(matrixPath, matrixContent);
 
-  console.log(chalk.green(`✅ Compatibility matrix saved to ${matrixPath}\n`));
+  console.log(colors.green(`✅ Compatibility matrix saved to ${matrixPath}\n`));
 
   return true;
 }
@@ -261,8 +266,8 @@ function generateMarkdownMatrix(matrix) {
 }
 
 async function main() {
-  console.log(chalk.bold.cyan('\n🩺 Koatty Doctor - Health Check Tool\n'));
-  console.log(chalk.gray('='.repeat(50)) + '\n');
+  console.log(colors.bold.cyan('\n🩺 Koatty Doctor - Health Check Tool\n'));
+  console.log(colors.gray('='.repeat(50)) + '\n');
 
   const checks = [
     checkEngineCompatibility,
@@ -278,22 +283,22 @@ async function main() {
       const result = await check();
       results.push(result);
     } catch (error) {
-      console.error(chalk.red(`❌ Error running check: ${error.message}\n`));
+      console.error(colors.red(`❌ Error running check: ${error.message}\n`));
       results.push(false);
     }
   }
 
-  console.log(chalk.bold.cyan('\n' + '='.repeat(50)));
-  console.log(chalk.bold.cyan('📊 Summary\n'));
+  console.log(colors.bold.cyan('\n' + '='.repeat(50)));
+  console.log(colors.bold.cyan('📊 Summary\n'));
 
   const passed = results.filter(r => r).length;
   const total = results.length;
 
   if (passed === total) {
-    console.log(chalk.green(`\n✅ All checks passed! (${passed}/${total})\n`));
+    console.log(colors.green(`\n✅ All checks passed! (${passed}/${total})\n`));
     process.exit(0);
   } else {
-    console.log(chalk.yellow(`\n⚠️  Some checks failed. Passed: ${passed}/${total}\n`));
+    console.log(colors.yellow(`\n⚠️  Some checks failed. Passed: ${passed}/${total}\n`));
     process.exit(1);
   }
 }

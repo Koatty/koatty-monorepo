@@ -13,7 +13,6 @@
 - [项目结构](#项目结构)
 - [开发指南](#开发指南)
 - [版本管理](#版本管理)
-- [自动同步](#自动同步)
 - [文档](#文档)
 
 ## 简介
@@ -99,9 +98,6 @@ koatty-monorepo/
 │   ├── koatty-trace/      # 追踪
 │   └── koatty-config/     # 配置
 ├── scripts/               # 工具脚本
-│   ├── sync-to-repos.sh
-│   ├── check-sync-status.sh
-│   └── release.sh
 ├── .changeset/            # 版本管理
 ├── .github/workflows/     # CI/CD
 ├── package.json
@@ -140,41 +136,25 @@ pnpm install
 
 ## 版本管理
 
-使用 [Changesets](https://github.com/changesets/changesets) 管理版本：
+使用 [Changesets](https://github.com/changesets/changesets) 统一管理所有包的版本：
 
 ```bash
-# 1. 创建 changeset
+# 1. 创建 changeset（记录变更）
 pnpm changeset
 
-# 2. 更新版本号
+# 2. 更新版本号（应用 changesets）
 pnpm changeset version
 
-# 3. 发布
+# 3. 构建并发布到 npm
 pnpm release
 ```
 
-## 自动同步
+### 独立仓库状态
 
-Monorepo 中的更改会自动同步到独立仓库，保持向后兼容。
-
-### GitHub Actions
-
-- **同步到独立仓库**: 推送到 main/master 分支时自动触发
-- **反向同步**: 手动触发，从独立仓库同步回 monorepo
-
-### 手动同步
-
-```bash
-# 检查同步状态
-./scripts/check-sync-status.sh
-
-# 手动同步
-./scripts/sync-standalone.sh
-```
-
-## 文档
-
-- [同步策略](RELEASE-GUIDE.md)
+之前的独立仓库已归档，不再主动维护：
+- 新版本发布统一通过 `koatty-monorepo`
+- 独立仓库仅作存档参考
+- 如需访问旧版本，请查看各包的历史版本
 
 
 ## License
