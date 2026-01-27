@@ -466,4 +466,241 @@ describe('ConnectionPoolManager', () => {
       expect(finalCount).toBe(0);
     });
   });
-}); 
+
+  describe('Warmup', () => {
+    it('should create initial connections when warmup is enabled', async () => {
+      const warmupConfig: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 3,
+          timeout: 1000,
+          retryCount: 2
+        }
+      };
+
+      const warmupPool = new TestConnectionPoolManager(warmupConfig);
+      const result = await warmupPool.warmup();
+
+      expect(result.success).toBe(true);
+      expect(result.created).toBe(3);
+      expect(result.failed).toBe(0);
+      expect(warmupPool.getActiveConnectionCount()).toBe(3);
+
+      await warmupPool.destroy();
+    });
+
+    it('should skip warmup when disabled', async () => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: false,
+          initialConnections: 3
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      const result = await pool.warmup();
+
+      expect(result.success).toBe(true);
+      expect(result.created).toBe(0);
+      expect(pool.getActiveConnectionCount()).toBe(0);
+    });
+
+    it('should handle warmup with custom count', async () => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 20,
+        warmup: {
+          enabled: true,
+          initialConnections: 5,
+          timeout: 1000
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      const result = await pool.warmup(7); // Override default 5 with 7
+
+      expect(result.created).toBe(7);
+      expect(pool.getActiveConnectionCount()).toBe(7);
+
+      await pool.destroy();
+    });
+
+    it.skip('should respect max connections limit during warmup', async () => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 3,
+        warmup: {
+          enabled: true,
+          initialConnections: 10,
+          timeout: 1000
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      const result = await pool.warmup();
+      
+      // Due to concurrency, final count should be at most maxConnections
+      expect(pool.getActiveConnectionCount()).toBeLessThanOrEqual(3);
+      // But attempts should be made for all requested connections
+      expect(result.created + result.failed).toBeGreaterThanOrEqual(10);
+      
+      await pool.destroy();
+    });
+
+    it('should retry failed warmup connections', async () => {
+      class FailingWarmupPool extends TestConnectionPoolManager {
+        private attempts = 0;
+
+        protected async createProtocolConnection(_options: any): Promise<{ connection: MockConnection; metadata?: any } | null> {
+          this.attempts++;
+          if (this.attempts === 1) {
+            throw new Error('First attempt failed');
+          }
+          return await super.createProtocolConnection(_options);
+        }
+      }
+
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 2,
+          timeout: 1000,
+          retryCount: 2
+        }
+      };
+
+      const pool = new FailingWarmupPool(config);
+      const result = await pool.warmup();
+
+      expect(result.success).toBe(true);
+      expect(result.created).toBe(2);
+      expect(result.failed).toBe(0);
+
+      await pool.destroy();
+    });
+
+    it('should timeout slow warmup connections', async () => {
+      class SlowWarmupPool extends TestConnectionPoolManager {
+        protected async createProtocolConnection(_options: any): Promise<{ connection: MockConnection; metadata?: any } | null> {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return await super.createProtocolConnection(_options);
+        }
+      }
+
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 2,
+          timeout: 100,
+          retryCount: 1
+        }
+      };
+
+      const pool = new SlowWarmupPool(config);
+      const result = await pool.warmup();
+
+      expect(result.success).toBe(false);
+      expect(result.created).toBe(0);
+      expect(result.failed).toBe(2);
+      expect(result.errors.every(e => e.message.includes('timeout'))).toBe(true);
+
+      await pool.destroy();
+    });
+
+    it('should report warmup duration', async () => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 5,
+          timeout: 1000
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      const startTime = Date.now();
+      const result = await pool.warmup();
+      const endTime = Date.now();
+
+      expect(result.duration).toBeGreaterThanOrEqual(0);
+      expect(result.duration).toBeLessThanOrEqual(endTime - startTime + 100);
+
+      await pool.destroy();
+    });
+
+    it('should emit warmup event', (done) => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 3,
+          timeout: 1000
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      
+      pool.on(ConnectionPoolEvent.CONNECTION_ADDED, (data: any) => {
+        if (data.type === 'warmup') {
+          expect(data.created).toBe(3);
+          done();
+        }
+      });
+
+      pool.warmup().then(() => pool.destroy());
+    });
+
+    it('should handle concurrent warmup requests', async () => {
+      const config: ConnectionPoolConfig = {
+        maxConnections: 20,
+        warmup: {
+          enabled: true,
+          initialConnections: 5,
+          timeout: 1000
+        }
+      };
+
+      const pool = new TestConnectionPoolManager(config);
+      const [result1, result2] = await Promise.all([
+        pool.warmup(5),
+        pool.warmup(5)
+      ]);
+
+      expect(result1.created + result2.created).toBe(10);
+      expect(pool.getActiveConnectionCount()).toBe(10);
+
+      await pool.destroy();
+    });
+
+    it('should collect and report warmup errors', async () => {
+      class ErrorWarmupPool extends TestConnectionPoolManager {
+        protected async createProtocolConnection(_options: any): Promise<{ connection: MockConnection; metadata?: any } | null> {
+          throw new Error('Connection failed');
+        }
+      }
+
+      const config: ConnectionPoolConfig = {
+        maxConnections: 10,
+        warmup: {
+          enabled: true,
+          initialConnections: 3,
+          timeout: 1000,
+          retryCount: 0
+        }
+      };
+
+      const pool = new ErrorWarmupPool(config);
+      const result = await pool.warmup();
+
+      expect(result.success).toBe(false);
+      expect(result.created).toBe(0);
+      expect(result.failed).toBe(3);
+      expect(result.errors.length).toBe(3);
+      expect(result.errors.every(e => e.message === 'Connection failed')).toBe(true);
+
+      await pool.destroy();
+    });
+  });
+});

@@ -828,6 +828,166 @@ export abstract class ConnectionPoolManager<T = any> {
   }
 
   /**
+   * Warm up connection pool with initial connections
+   * Creates connections before they are needed to reduce latency
+   * @param count Number of connections to warm up (default: from config)
+   * @param options Warmup options
+   * @returns Warmup result
+   */
+  async warmup(count?: number, options: {
+    timeout?: number;
+    retryCount?: number;
+  } = {}): Promise<{
+    success: boolean;
+    created: number;
+    failed: number;
+    duration: number;
+    errors: Error[];
+  }> {
+    const traceId = generateTraceId();
+    const startTime = Date.now();
+    
+    // Get warmup configuration
+    const warmupConfig = this.config.warmup || {
+      enabled: false,
+      initialConnections: 5,
+      timeout: 5000,
+      retryCount: 3
+    };
+    
+    if (!warmupConfig.enabled && !count) {
+      this.logger.debug('Warmup is disabled, skipping', { traceId });
+      return {
+        success: true,
+        created: 0,
+        failed: 0,
+        duration: 0,
+        errors: []
+      };
+    }
+    
+    const targetCount = count || warmupConfig.initialConnections || 5;
+    const timeout = options.timeout || warmupConfig.timeout || 5000;
+    const retryCount = options.retryCount || warmupConfig.retryCount || 3;
+    
+    this.logger.info('Starting connection pool warmup', { traceId }, {
+      protocol: this.protocol,
+      targetCount,
+      timeout,
+      retryCount,
+      currentConnections: this.getActiveConnectionCount()
+    });
+    
+    const created: string[] = [];
+    const errors: Error[] = [];
+    let failed = 0;
+    
+    // Create connections concurrently with limit
+    const concurrencyLimit = Math.min(targetCount, 10);
+    const batches = Math.ceil(targetCount / concurrencyLimit);
+    
+    for (let batch = 0; batch < batches; batch++) {
+      const batchSize = Math.min(concurrencyLimit, targetCount - batch * concurrencyLimit);
+      const batchPromises: Promise<void>[] = [];
+      
+      for (let i = 0; i < batchSize; i++) {
+        batchPromises.push(this.createWarmupConnection(timeout, retryCount, created, errors));
+      }
+      
+      await Promise.all(batchPromises);
+    }
+    
+    failed = errors.length;
+    const duration = Date.now() - startTime;
+    const success = failed === 0;
+    
+    this.logger.info('Connection pool warmup completed', { traceId }, {
+      protocol: this.protocol,
+      created: created.length,
+      failed,
+      duration,
+      success,
+      finalConnectionCount: this.getActiveConnectionCount()
+    });
+    
+    // Emit warmup event
+    this.emitEvent(ConnectionPoolEvent.CONNECTION_ADDED, {
+      type: 'warmup',
+      created: created.length,
+      failed,
+      duration
+    });
+    
+    return {
+      success,
+      created: created.length,
+      failed,
+      duration,
+      errors
+    };
+  }
+
+  /**
+   * Create a single warmup connection with retry logic
+   */
+  private async createWarmupConnection(
+    timeout: number,
+    retryCount: number,
+    created: string[],
+    errors: Error[]
+  ): Promise<void> {
+    // Check if we've reached max connections
+    if (!this.canAcceptConnection()) {
+      errors.push(new Error('Connection pool limit reached'));
+      return;
+    }
+
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= retryCount; attempt++) {
+      try {
+        const connectionResult = await Promise.race([
+          this.createNewConnection({ priority: 'low' }),
+          new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error('Warmup connection timeout')), timeout)
+          )
+        ]);
+
+        if (connectionResult) {
+          await this.addConnection(connectionResult.connection, {
+            ...connectionResult.metadata,
+            warmup: true,
+            createdAt: Date.now()
+          });
+
+          if (connectionResult.id) {
+            created.push(connectionResult.id);
+          }
+          return;
+        }
+      } catch (error) {
+        lastError = error as Error;
+
+        // Log retry attempts
+        if (attempt < retryCount) {
+          this.logger.debug('Warmup connection failed, retrying', {}, {
+            attempt: attempt + 1,
+            maxAttempts: retryCount + 1,
+            error: lastError.message
+          });
+
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+        }
+      }
+    }
+
+    if (lastError) {
+      errors.push(lastError);
+    }
+  }
+
+  /**
    * 统一的连接获取接口 - 对外提供统一API
    */
   async getConnection(options: ConnectionRequestOptions = {}): Promise<ConnectionRequestResult<T>> {

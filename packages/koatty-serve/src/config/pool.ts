@@ -44,6 +44,14 @@ export interface ConnectionPoolConfig {
     pongTimeout?: number;
     heartbeatInterval?: number;
   };
+
+  // 连接预热配置
+  warmup?: {
+    enabled?: boolean;           // 是否启用预热
+    initialConnections?: number;  // 预热连接数
+    timeout?: number;             // 预热超时时间 (毫秒)
+    retryCount?: number;          // 失败重试次数
+  };
 }
 
 /**
@@ -59,13 +67,25 @@ export class PoolConfigHelper {
     headersTimeout?: number;
     requestTimeout?: number;
     connectionTimeout?: number;
+    warmup?: {
+      enabled?: boolean;
+      initialConnections?: number;
+      timeout?: number;
+      retryCount?: number;
+    };
   } = {}): ConnectionPoolConfig {
     return {
       maxConnections: options.maxConnections || 1000,
       connectionTimeout: options.connectionTimeout || 30000,
       keepAliveTimeout: options.keepAliveTimeout || 5000,
       requestTimeout: options.requestTimeout || 30000,
-      headersTimeout: options.headersTimeout || 10000
+      headersTimeout: options.headersTimeout || 10000,
+      warmup: options.warmup || {
+        enabled: true,
+        initialConnections: 5,
+        timeout: 5000,
+        retryCount: 3
+      }
     };
   }
 
@@ -97,6 +117,12 @@ export class PoolConfigHelper {
     pongTimeout?: number;
     heartbeatInterval?: number;
     connectionTimeout?: number;
+    warmup?: {
+      enabled?: boolean;
+      initialConnections?: number;
+      timeout?: number;
+      retryCount?: number;
+    };
   } = {}): ConnectionPoolConfig {
     return {
       maxConnections: options.maxConnections || 1000,
@@ -105,6 +131,12 @@ export class PoolConfigHelper {
         pingInterval: options.pingInterval || 30000,
         pongTimeout: options.pongTimeout || 5000,
         heartbeatInterval: options.heartbeatInterval || 60000
+      },
+      warmup: options.warmup || {
+        enabled: false,
+        initialConnections: 3,
+        timeout: 10000,
+        retryCount: 3
       }
     };
   }
