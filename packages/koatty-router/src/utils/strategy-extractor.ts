@@ -12,13 +12,14 @@ import { Koatty, KoattyContext } from "koatty_core";
 import { ParamMetadata, ParamSourceType } from "./inject";
 import {
   ClassValidator,
-  convertParamsType,
   plainToClass,
   ValidOtpions,
-  ValidRules
+  ValidRules,
+  convertParamsType
 } from "koatty_validation";
 import { DefaultLogger as Logger } from "koatty_logger";
 import { bodyParser } from "../payload/payload";
+import { IOC } from "koatty_container";
 
 /**
  * Parameter extraction strategy enum
@@ -183,14 +184,14 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
  * Validate parameter
  * Reused from inject.ts to avoid duplication
  */
-async function validateParam(
-  app: Koatty,
-  ctx: KoattyContext,
-  value: unknown,
-  opt: ParamOptions,
-  compiledValidator?: (value: unknown) => void,
-  compiledTypeConverter?: ((value: unknown) => unknown) | null
-): Promise<unknown> {
+  async function validateParam(
+    app: Koatty,
+    ctx: KoattyContext,
+    value: unknown,
+    opt: ParamOptions,
+    compiledValidator?: (value: unknown) => void,
+    compiledTypeConverter?: ((value: unknown) => unknown) | null
+  ): Promise<unknown> {
   try {
     if (opt.isDto) {
       let validatedValue;
@@ -211,7 +212,7 @@ async function validateParam(
       let convertedValue = value;
       if (compiledTypeConverter) {
         convertedValue = compiledTypeConverter(value);
-      } else if (needsConversion) {
+      } else if (opt.type && opt.type !== 'string') {
         convertedValue = convertParamsType(value, opt.type);
       }
 
@@ -227,7 +228,8 @@ async function validateParam(
     }
     return convertedValue;
   } catch (err) {
-    throw new Error((err as Error).message || `ValidatorError: invalid arguments.`);
+    const errorMessage = (err as Error).message || '';
+    throw new Error(errorMessage.trim() ? errorMessage : `ValidatorError: invalid arguments.`);
   }
 }
 
@@ -575,13 +577,33 @@ export class StrategyHandlerFactory {
     const param = params[0];
     const clazz = param.clazz;
     const dtoCheck = param.dtoCheck;
+    const type = param.type;
+    const extractor = param.precompiledExtractor;
+    const fn = param.fn;
 
     return async (ctx: KoattyContext) => {
-      const body = await bodyParser(ctx, param.options);
+      // Handle clazz undefined by getting it from IOC container
+      let actualClazz = clazz;
+      if (!actualClazz) {
+        actualClazz = IOC.getClass(type, "COMPONENT");
+        if (!actualClazz) {
+          throw Error(`Failed to obtain class ${type}, because class is not registered in container.`);
+        }
+      }
+
+      // Use precompiled extractor if available, otherwise use custom fn, then bodyParser
+      let body: unknown;
+      if (extractor) {
+        body = await extractor(ctx);
+      } else if (fn && typeof fn === 'function') {
+        body = await fn(ctx, param.options);
+      } else {
+        body = await bodyParser(ctx, param.options);
+      }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(clazz, body, true)
-        : plainToClass(clazz as new (...args: unknown[]) => unknown, body, true);
+        ? await ClassValidator.valid(actualClazz, body, true)
+        : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];
     };
@@ -680,13 +702,33 @@ export class StrategyHandlerFactory {
     const param = params[0];
     const clazz = param.clazz;
     const dtoCheck = param.dtoCheck;
+    const type = param.type;
+    const extractor = param.precompiledExtractor;
+    const fn = param.fn;
 
     return async (ctx: KoattyContext) => {
-      const body = await bodyParser(ctx, param.options);
+      // Handle clazz undefined by getting it from IOC container
+      let actualClazz = clazz;
+      if (!actualClazz) {
+        actualClazz = IOC.getClass(type, "COMPONENT");
+        if (!actualClazz) {
+          throw Error(`Failed to obtain class ${type}, because class is not registered in container.`);
+        }
+      }
+
+      // Use precompiled extractor if available, otherwise use custom fn, then bodyParser
+      let body: unknown;
+      if (extractor) {
+        body = await extractor(ctx);
+      } else if (fn && typeof fn === 'function') {
+        body = await fn(ctx, param.options);
+      } else {
+        body = await bodyParser(ctx, param.options);
+      }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(clazz, body, true)
-        : plainToClass(clazz as new (...args: unknown[]) => unknown, body, true);
+        ? await ClassValidator.valid(actualClazz, body, true)
+        : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];
     };

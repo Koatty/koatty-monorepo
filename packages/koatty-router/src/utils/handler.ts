@@ -56,8 +56,16 @@ export async function Handler(app: Koatty, ctx: KoattyContext, ctl: any,
 
   // 添加Handler作为最后一个中间件
   middlewareFns.push(async (ctx: KoattyContext, next: KoattyNext) => {
-    // 使用优化的策略提取器
-    const args = ctlParams ? await extractParameters(app, ctx, ctlParams) : [];
+    // 使用预定义值或优化的策略提取器
+    let args: unknown[];
+    if (ctlParamsValue !== undefined && ctlParamsValue !== null) {
+      // 使用预定义的参数值（遗留功能，保持兼容性）
+      Logger.Debug(`Handler: Using predefined parameter values`);
+      args = ctlParamsValue;
+    } else {
+      // 使用优化的策略提取器
+      args = ctlParams ? await extractParameters(app, ctx, ctlParams) : [];
+    }
     // 执行方法
     const res = await ctl[method](...args);
     if (Helper.isError(res)) {
