@@ -35,3 +35,8 @@ reports/
 .opencode/*.md
 .opencode/*.txt
 .opencode/*.json
+.opencode/.evolution_mode_active
+**/.opencode/*.md
+**/.opencode/*.txt
+**/.opencode/*.json
+**/.opencode/.evolution_mode_active

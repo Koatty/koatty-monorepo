@@ -14,3 +14,6 @@
 [submodule "packages/koatty-lib"]
 	path = packages/koatty-lib
 	url = https://github.com/koatty/koatty_lib.git
+[submodule "packages/koatty-validation"]
+	path = packages/koatty-validation
+	url = https://github.com/koatty/koatty_validation.git
