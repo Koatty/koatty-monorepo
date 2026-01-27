@@ -1,6 +1,3 @@
 [submodule "packages/koatty"]
 	path = packages/koatty
-	url = https://github.com/Koatty/koatty.git
-[submodule "packages/koatty-container"]
-	path = packages/koatty-container
-	url = https://github.com/Koatty/koatty_container.git
+	url = https://github.com/thinkkoa/koatty.git
