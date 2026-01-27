@@ -4,3 +4,6 @@
 [submodule "packages/test-submodule"]
 	path = packages/test-submodule
 	url = https://github.com/thinkkoa/koatty_container.git
+[submodule "packages/koatty-container"]
+	path = packages/koatty-container
+	url = https://github.com/thinkkoa/koatty_container.git
