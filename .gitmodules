@@ -1,0 +1,3 @@
+[submodule "packages/koatty"]
+	path = packages/koatty
+	url = https://github.com/Koatty/koatty.git
