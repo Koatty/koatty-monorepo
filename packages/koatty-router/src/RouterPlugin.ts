@@ -78,7 +78,7 @@ export class RouterPlugin implements IPlugin {
     },
   };
 
-  async uninstall(app: KoattyApplication): Promise<void> {
+  async uninstall(_app: KoattyApplication): Promise<void> {
     Logger.Debug('RouterPlugin uninstalled');
   }
 }

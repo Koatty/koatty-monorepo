@@ -32,3 +32,6 @@ Thumbs.db
 # Reports
 reports/
 
+.opencode/*.md
+.opencode/*.txt
+.opencode/*.json
