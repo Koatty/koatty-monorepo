@@ -7,3 +7,6 @@
 [submodule "packages/koatty-container"]
 	path = packages/koatty-container
 	url = https://github.com/thinkkoa/koatty_container.git
+[submodule "packages/koatty-lib"]
+	path = packages/koatty-lib
+	url = https://github.com/thinkkoa/koatty_lib.git
