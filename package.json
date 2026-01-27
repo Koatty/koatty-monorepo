@@ -15,8 +15,9 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "changeset": "changeset",
-    "version": "changeset version",
+    "changeset:version": "changeset version",
     "release": "pnpm build && changeset publish",
+    "release:submodule": "cd packages/koatty && pnpm release",
     "doctor": "node scripts/doctor.js"
   },
   "keywords": [
