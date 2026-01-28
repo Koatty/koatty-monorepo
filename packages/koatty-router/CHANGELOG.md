@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.6
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_proto@1.3.2
+
 ## 2.0.5
 
 ### Patch Changes
