@@ -4,7 +4,7 @@
   "description": "Koatty framework core",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
-    "build:cp": "npx copyfiles package.json LICENSE README.md dist/ && node scripts/postBuild",
+    "build:cp": "copyfiles package.json LICENSE README.md dist/ && node scripts/postBuild",
     "build:js": "npx rollup --bundleConfigAsCjs -c .rollup.config.js",
     "build:doc": "npx api-documenter markdown --input temp --output docs/api",
     "build:dts": "npx tsc && npx api-extractor run --local --verbose",
@@ -49,6 +49,7 @@
     "@types/ws": "^8.x.x",
     "@typescript-eslint/eslint-plugin": "^8.x.x",
     "@typescript-eslint/parser": "^8.x.x",
+    "copyfiles": "^2.x.x",
     "eslint": "^8.x.x",
     "eslint-plugin-jest": "^28.x.x",
     "husky": "^4.x.x",

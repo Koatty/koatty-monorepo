@@ -9,7 +9,7 @@ Plugin decorator for registering plugin components. The decorated class must hav
 **Signature:**
 
 ```typescript
-export declare function Plugin(identifier?: string, options?: Record<string, any>): ClassDecorator;
+export declare function Plugin(identifier?: string, options?: IPluginOptions): ClassDecorator;
 ```
 
 ## Parameters
@@ -53,7 +53,7 @@ options
 
 </td><td>
 
-Record&lt;string, any&gt;
+[IPluginOptions](./koatty_core.ipluginoptions.md)
 
 
 </td><td>

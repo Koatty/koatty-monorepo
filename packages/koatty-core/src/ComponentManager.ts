@@ -10,7 +10,7 @@
 
 import { IOC } from "koatty_container";
 import { Helper } from "koatty_lib";
-import { Logger } from "koatty_logger";
+import { DefaultLogger as Logger } from "koatty_logger";
 import {
   IPlugin,
   IPluginOptions,
@@ -18,15 +18,19 @@ import {
   IPluginCapability,
   PluginDependencyType,
   implementsPluginInterface,
+  PLUGIN_OPTIONS
+} from './Component';
+import {
   AppEvent,
   AppEventArr,
-  PLUGIN_OPTIONS,
   KoattyApplication,
-  EventHookFunc,
+  EventHookFunc
+} from './IApplication';
+import {
   PluginDependencyError,
   PluginConflictError,
   PluginContractError
-} from './Component';
+} from './Errors';
 
 interface PluginMeta {
   name: string;
@@ -367,7 +371,8 @@ export class ComponentManager {
 
       const deps = plugin.instance.dependencies || plugin.options.dependencies || [];
       for (const dep of deps) {
-        visit(dep);
+        const depName = typeof dep === 'string' ? dep : dep.name;
+        visit(depName);
       }
 
       visiting.delete(name);

@@ -4,8 +4,6 @@
 
 ## IPlugin interface
 
-Interface for Plugin class
-
 **Signature:**
 
 ```typescript
@@ -37,7 +35,83 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[run](./koatty_core.iplugin.run.md)
+[conflicts?](./koatty_core.iplugin.conflicts.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string\[\]
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[dependencies?](./koatty_core.iplugin.dependencies.md)
+
+
+</td><td>
+
+
+</td><td>
+
+(string \| [IPluginDependency](./koatty_core.iplugindependency.md)<!-- -->)\[\]
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[events?](./koatty_core.iplugin.events.md)
+
+
+</td><td>
+
+
+</td><td>
+
+{ \[K in [AppEvent](./koatty_core.appevent.md)<!-- -->\]?: [EventHookFunc](./koatty_core.eventhookfunc.md)<!-- -->; }
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[provides?](./koatty_core.iplugin.provides.md)
+
+
+</td><td>
+
+
+</td><td>
+
+(string \| [IPluginCapability](./koatty_core.iplugincapability.md)<!-- -->)\[\]
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[run?](./koatty_core.iplugin.run.md)
 
 
 </td><td>
@@ -49,6 +123,27 @@ Description
 
 
 </td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[uninstall?](./koatty_core.iplugin.uninstall.md)
+
+
+</td><td>
+
+
+</td><td>
+
+(app: [KoattyApplication](./koatty_core.koattyapplication.md)<!-- -->) =&gt; Promise&lt;void&gt;
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

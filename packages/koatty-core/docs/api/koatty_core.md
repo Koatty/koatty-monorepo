@@ -19,23 +19,21 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentManager](./koatty_core.componentmanager.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [ContextFactoryRegistry](./koatty_core.contextfactoryregistry.md)
 
 
 </td><td>
 
 Context factory registry
-
-
-</td></tr>
-<tr><td>
-
-[ContextPool](./koatty_core.contextpool.md)
-
-
-</td><td>
-
-Context pool for reusing context objects
 
 
 </td></tr>
@@ -58,6 +56,33 @@ Koatty Application   Koatty  {<!-- -->Koa<!-- -->}  {<!-- -->BaseApp<!-- -->}
 </td><td>
 
 A class for managing metadata with key-value pairs storage. Provides methods to set, get, add, remove, merge, and clone metadata. Values are stored as arrays to support multiple values for a single key. Supports Buffer values and handles their cloning appropriately. Can be serialized to JSON and created from plain objects.
+
+
+</td></tr>
+<tr><td>
+
+[PluginConflictError](./koatty_core.pluginconflicterror.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[PluginContractError](./koatty_core.plugincontracterror.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[PluginDependencyError](./koatty_core.plugindependencyerror.md)
+
+
+</td><td>
 
 
 </td></tr>
@@ -97,6 +122,15 @@ app event
 </td><td>
 
 Protocol types supported by the controller.
+
+
+</td></tr>
+<tr><td>
+
+[PluginDependencyType](./koatty_core.plugindependencytype.md)
+
+
+</td><td>
 
 
 </td></tr>
@@ -597,6 +631,33 @@ InitOptions
 <tr><td>
 
 [IPlugin](./koatty_core.iplugin.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IPluginCapability](./koatty_core.iplugincapability.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IPluginDependency](./koatty_core.iplugindependency.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IPluginOptions](./koatty_core.ipluginoptions.md)
 
 
 </td><td>
