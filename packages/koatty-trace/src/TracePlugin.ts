@@ -13,10 +13,16 @@ import {
   IPlugin,
   AppEvent,
   KoattyApplication,
+  Koatty,
   IPluginCapability
 } from 'koatty_core';
 import { DefaultLogger as Logger } from 'koatty_logger';
 import { Trace } from './trace/trace';
+
+// Extend KoattyApplication interface to include tracer property
+interface KoattyApplicationWithTracer extends KoattyApplication {
+  tracer?: any;
+}
 
 @Plugin('TracePlugin', {
   type: 'core',
@@ -27,7 +33,7 @@ import { Trace } from './trace/trace';
       name: 'trace',
       version: '2.0.0',
       description: 'OpenTelemetry tracing capability',
-      validate: (app) => !!app.tracer
+      validate: (app) => !!(app as KoattyApplicationWithTracer).tracer
     }
   ]
 })
@@ -36,7 +42,7 @@ export class TracePlugin implements IPlugin {
     {
       name: 'trace',
       version: '2.0.0',
-      validate: (app) => !!app.tracer
+      validate: (app) => !!(app as KoattyApplicationWithTracer).tracer
     }
   ];
 
@@ -46,9 +52,10 @@ export class TracePlugin implements IPlugin {
 
       Logger.Log('Koatty', '', 'Initializing trace middleware...');
 
-      const tracer = Trace(traceOptions, app) as any;
+      const tracer = Trace(traceOptions, app as Koatty);
 
-      app.tracer = tracer;
+      const appWithTracer = app as KoattyApplicationWithTracer;
+      appWithTracer.tracer = tracer;
       app.use(tracer);
 
       Logger.Log('Koatty', '', '✓ Trace middleware initialized');
@@ -56,7 +63,8 @@ export class TracePlugin implements IPlugin {
   };
 
   async uninstall(app: KoattyApplication): Promise<void> {
-    const tracer = app.tracer;
+    const appWithTracer = app as KoattyApplicationWithTracer;
+    const tracer = appWithTracer.tracer;
     if (tracer && typeof tracer.shutdown === 'function') {
       Logger.Log('Koatty', '', 'Shutting down tracer...');
       await tracer.shutdown();
