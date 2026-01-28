@@ -478,7 +478,7 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
       const protocolUpper = this.options.protocol.toUpperCase();
       const underlyingProtocol = this.options.ext?._underlyingProtocol;
       // For URL, always use the underlying protocol (http2/https), not graphql
-      const urlProtocol = underlyingProtocol ? underlyingProtocol.toLowerCase() : this.options.protocol.toLowerCase();
+      const urlProtocol = (underlyingProtocol as string | undefined)?.toLowerCase() ?? this.options.protocol.toLowerCase();
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${this.options.port}/`;
       
       // 输出 Koatty 格式的启动日志

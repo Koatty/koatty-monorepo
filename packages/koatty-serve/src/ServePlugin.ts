@@ -106,15 +106,15 @@ export class ServePlugin implements IPlugin {
   };
 
   async uninstall(app: KoattyApplication): Promise<void> {
-    const server = app.server;
+    const server = app.server as any;
     if (server) {
       Logger.Log('Koatty', '', 'Closing server connections...');
       if (Helper.isArray(server)) {
         for (const s of server) {
-          await s.close?.();
+          await s.Stop?.();
         }
       } else {
-        await server.close?.();
+        await server.Stop?.();
       }
     }
   }

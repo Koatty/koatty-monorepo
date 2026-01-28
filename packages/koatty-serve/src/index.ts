@@ -32,4 +32,6 @@ export {
   unregisterConnectionPoolMetrics
 } from "./pool-metrics-integration";
 
+export { RingBuffer, DynamicRingBuffer } from "./utils/ring_buffer";
+
 export { ServePlugin } from "./ServePlugin";

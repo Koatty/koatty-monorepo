@@ -15,8 +15,8 @@ import { ConnectionPoolFactory } from "./pools/factory";
  * @returns {void}
  */
 export function registerConnectionPoolMetrics(app: KoattyApplication): void {
-  if (typeof app.setConnectionPoolMetricsCallback === 'function') {
-    app.setConnectionPoolMetricsCallback(() => {
+  if (typeof (app as any).setConnectionPoolMetricsCallback === 'function') {
+    (app as any).setConnectionPoolMetricsCallback(() => {
       return ConnectionPoolFactory.getAllMetrics();
     });
   }
@@ -29,7 +29,7 @@ export function registerConnectionPoolMetrics(app: KoattyApplication): void {
  * @returns {void}
  */
 export function unregisterConnectionPoolMetrics(app: KoattyApplication): void {
-  if (typeof app.setConnectionPoolMetricsCallback === 'function') {
-    app.setConnectionPoolMetricsCallback(() => ({}));
+  if (typeof (app as any).setConnectionPoolMetricsCallback === 'function') {
+    (app as any).setConnectionPoolMetricsCallback(() => ({}));
   }
 }

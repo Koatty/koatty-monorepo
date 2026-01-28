@@ -742,7 +742,3 @@ export class DynamicRingBuffer<T = number> {
     }
   };
 }
-
-// Re-export RingBuffer for backward compatibility
-export { RingBuffer };
-

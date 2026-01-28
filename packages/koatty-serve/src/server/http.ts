@@ -336,7 +336,7 @@ export class HttpServer extends BaseServer<HttpServerOptions> {
       const protocolUpper = this.options.protocol.toUpperCase();
       const underlyingProtocol = this.options.ext?._underlyingProtocol;
       // For URL, always use the underlying protocol (http/https), not graphql
-      const urlProtocol = underlyingProtocol ? underlyingProtocol.toLowerCase() : this.options.protocol.toLowerCase();
+      const urlProtocol = (underlyingProtocol as string | undefined)?.toLowerCase() ?? this.options.protocol.toLowerCase();
 
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${this.options.port}/`;
 
