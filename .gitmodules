@@ -20,3 +20,6 @@
 [submodule "packages/koatty-cacheable"]
 	path = packages/koatty-cacheable
 	url = https://github.com/koatty/koatty_cacheable.git
+[submodule "packages/koatty-store"]
+	path = packages/koatty-store
+	url = https://github.com/koatty/koatty_store.git
