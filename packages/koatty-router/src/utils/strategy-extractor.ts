@@ -225,8 +225,9 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
           `Check application logs for compilation errors.`
         );
       }
+      
+      return convertedValue;
     }
-    return convertedValue;
   } catch (err) {
     const errorMessage = (err as Error).message || '';
     throw new Error(errorMessage.trim() ? errorMessage : `ValidatorError: invalid arguments.`);
