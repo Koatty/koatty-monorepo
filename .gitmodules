@@ -23,3 +23,6 @@
 [submodule "packages/koatty-store"]
 	path = packages/koatty-store
 	url = https://github.com/koatty/koatty_store.git
+[submodule "packages/koatty-schedule"]
+	path = packages/koatty-schedule
+	url = https://github.com/koatty/koatty_schedule.git
