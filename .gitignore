@@ -41,3 +41,4 @@ reports/
 **/.opencode/*.json
 **/.opencode/.evolution_mode_active
 
+.opencode/progress.txt
