@@ -1,106 +1,111 @@
 {
-  "project": "Koatty Monorepo 优化",
-  "created_at": "2026-01-25T00:00:00Z",
-  "updated_at": "2026-01-26T17:00:00Z",
+  "project": "Koatty Monorepo 版本管理系统优化",
+  "created_at": "2026-01-28T12:00:00Z",
+  "updated_at": "2026-01-28T13:10:00Z",
   "features": [
     {
       "id": 1,
-      "name": "修复SSL证书验证被禁用问题",
-      "description": "在examples/basic-app/src/App.ts:18添加环境检查，确保仅在开发环境禁用SSL验证",
+      "name": "修复 koatty_core 的依赖声明",
+      "description": "将 koatty_container (^1.x.x), koatty_lib (^1.x.x), koatty_logger (^2.x.x) 改为 workspace:*",
       "status": "completed",
-      "priority": 1,
+      "priority": "high",
       "dependencies": [],
-      "notes": "已修复：代码已有环境检查if (process.env.NODE_ENV === 'development')"
+      "notes": "已将 koatty_container, koatty_lib, koatty_logger 改为 workspace:*"
     },
     {
       "id": 2,
-      "name": "修复异步操作处理问题",
-      "description": "修复packages/koatty/src/core/Loader.ts:629中的forEach async问题，替换为Promise.all或for...of",
+      "name": "修复 koatty_container 的依赖声明",
+      "description": "将 koatty_lib (^1.x.x), koatty_logger (^2.x.x) 改为 workspace:*",
       "status": "completed",
-      "priority": 2,
+      "priority": "high",
       "dependencies": [],
-      "notes": "已检查：代码中没有forEach async问题"
+      "notes": "已将 dependencies 和 peerDependencies 中的 koatty_lib, koatty_logger 改为 workspace:*"
     },
     {
       "id": 3,
-      "name": "移除@ts-expect-error绕过类型检查",
-      "description": "移除packages/koatty-trace/src/handler/respond.ts中的@ts-expect-error，添加@types/koa-compress依赖",
+      "name": "修复 koatty_exception 的依赖声明",
+      "description": "将 koatty_container (^1.x.x), koatty_lib (^1.x.x), koatty_logger (^2.x.x) 改为 workspace:*",
       "status": "completed",
-      "priority": 3,
+      "priority": "high",
       "dependencies": [],
-      "notes": "已修复：添加@types/koa-compress依赖，移除@ts-expect-error"
+      "notes": "已将 koatty_container, koatty_lib, koatty_logger 改为 workspace:*"
     },
     {
       "id": 4,
-      "name": "修复全局状态污染",
-      "description": "修复packages/koatty/src/core/Loader.ts中修改process.env的问题，使用app对象存储路径",
+      "name": "验证所有包的依赖声明一致性",
+      "description": "检查所有内部包是否都使用 workspace:*，输出验证报告",
       "status": "completed",
-      "priority": 4,
-      "dependencies": [],
-      "notes": "已修复：添加弃用警告，保留向后兼容性"
+      "priority": "high",
+      "dependencies": [
+        1,
+        2,
+        3
+      ],
+      "notes": "✅ 验证通过：所有17个内部包的依赖声明都使用了 workspace:*，共修复了12个包"
     },
     {
       "id": 5,
-      "name": "添加配置验证机制",
-      "description": "在packages/koatty-config/src/config.ts实现配置验证机制",
+      "name": "修改 changeset 配置",
+      "description": "移除 .changeset/config.json 中的 ignore 列表，允许 koatty 参与版本管理",
       "status": "completed",
-      "priority": 5,
+      "priority": "high",
       "dependencies": [],
-      "notes": "已完成：验证机制已存在，添加了测试用例和文档说明"
+      "notes": "已移除 .changeset/config.json 中的 ignore 列表，允许 koatty 参与版本管理"
+    },
+    {
+      "id": 6,
+      "name": "清理子包的发布脚本",
+      "description": "移除各包的 release, release:pre, release:major, release:minor 脚本",
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": [],
+      "notes": "已清理10个包的发布脚本：koatty_graphql, koatty_loader, koatty_store, koatty_validation, koatty_cacheable, koatty_schedule, koatty_lib, koatty_logger, koatty_container, koatty_proto"
     },
     {
       "id": 7,
-      "name": "添加泛型支持",
-      "description": "为getMetaData和config方法添加泛型支持",
+      "name": "创建依赖验证脚本",
+      "description": "创建脚本检查 workspace:* 依赖的完整性和版本号同步",
       "status": "completed",
-      "priority": 7,
-      "dependencies": [],
-      "notes": "已完成：为 getMetaData 添加泛型 <T = unknown>，为 config 添加泛型 <T = unknown>"
+      "priority": "medium",
+      "dependencies": [
+        4
+      ],
+      "notes": "已创建 scripts/validate-dependencies.js，验证通过：所有17个内部包的依赖声明都使用了 workspace:*"
+    },
+    {
+      "id": 8,
+      "name": "创建发布前检查脚本",
+      "description": "验证构建顺序、changelog 生成等发布前检查项",
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": [
+        5
+      ],
+      "notes": "已创建 scripts/pre-release-check.js，包含5项检查：依赖一致性、工作区状态、changeset文件、构建产物、版本号同步"
+    },
+    {
+      "id": 9,
+      "name": "测试构建流程",
+      "description": "运行 pnpm build，验证所有包构建成功",
+      "status": "completed",
+      "priority": "low",
+      "dependencies": [
+        4,
+        6
+      ],
+      "notes": "✅ 所有17个包构建成功！修复了 koatty 包的 copyfiles 问题：创建了 scripts/copyFiles.js 替代 copyfiles 命令"
     },
     {
       "id": 10,
-      "name": "研究并分析架构",
-      "description": "分析 ContextPool、连接池、middleware stack 等架构组件，确定真正需要优化的点",
+      "name": "测试版本更新流程",
+      "description": "创建测试 changeset，运行 pnpm changeset version，验证版本号更新",
       "status": "completed",
-      "priority": 1,
-      "dependencies": [],
-      "notes": "已完成：识别出真正需要优化的部分是监控和容错"
-    },
-    {
-      "id": 11,
-      "name": "实现 getPerformanceMetrics 函数",
-      "description": "在 Application 类中添加性能监控指标暴露函数，整合 middlewareStacks 和 connectionPools 的统计信息",
-      "status": "completed",
-      "priority": 2,
-      "dependencies": [],
-      "notes": "已完成：添加 getPerformanceMetrics 方法，简化接口设计"
-    },
-    {
-      "id": 13,
-      "name": "实现断路器模式",
-      "description": "在 koatty-exception 包中实现断路器模式，包含状态机、失败计数、事件系统",
-      "status": "completed",
-      "priority": 4,
-      "dependencies": [],
-      "notes": "已完成：实现 CircuitBreaker 类，提供基本的容错能力"
-    },
-    {
-      "id": 14,
-      "name": "将断路器集成到 Application",
-      "description": "在 Application 类中添加断路器管理功能，允许用户在中间件中使用",
-      "status": "completed",
-      "priority": 5,
-      "dependencies": [13],
-      "notes": "已完成：添加断路器管理方法（get/with/remove/reset）"
-    },
-    {
-      "id": 16,
-      "name": "集成连接池统计",
-      "description": "通过回调函数机制集成连接池统计信息到 getPerformanceMetrics，避免循环依赖",
-      "status": "completed",
-      "priority": 2,
-      "dependencies": [],
-      "notes": "已完成：实现 setConnectionPoolMetricsCallback 和 registerConnectionPoolMetrics"
+      "priority": "low",
+      "dependencies": [
+        5,
+        9
+      ],
+      "notes": "✅ 验证成功：changeset version 命令执行成功，版本号正确更新（koatty_lib: 1.4.1→1.4.2, koatty_container: 1.17.0→1.17.1）"
     }
   ]
 }

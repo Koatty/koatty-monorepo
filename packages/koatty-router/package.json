@@ -1,6 +1,6 @@
 {
   "name": "koatty_router",
-  "version": "2.0.3",
+  "version": "2.0.5",
   "description": "Koatty routing component, adapt to http1/2, websocket, gRPC.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
@@ -83,14 +83,14 @@
     "graphql-http": "^1.22.4",
     "inflation": "^2.1.0",
     "koa-compose": "^4.1.0",
-    "koatty_container": "^1.x.x",
+    "koatty_container": "workspace:*",
     "koatty_core": "workspace:*",
     "koatty_exception": "workspace:*",
-    "koatty_graphql": "^1.x.x",
-    "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x",
-    "koatty_proto": "^1.x.x",
-    "koatty_validation": "^1.x.x",
+    "koatty_graphql": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*",
+    "koatty_proto": "workspace:*",
+    "koatty_validation": "workspace:*",
     "lru-cache": "^11.2.2",
     "on-finished": "^2.4.1",
     "raw-body": "^3.0.1"
