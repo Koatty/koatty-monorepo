@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.0.7
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_container@1.17.4
+  - koatty_core@2.0.14
+  - koatty_exception@2.0.10
+  - koatty_lib@1.4.5
+  - koatty_logger@2.3.4
+  - koatty_proto@1.3.5
+  - koatty_validation@1.6.6
+
+## 3.0.6
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_container@1.17.3
+  - koatty_core@2.0.13
+  - koatty_exception@2.0.9
+  - koatty_lib@1.4.4
+  - koatty_logger@2.3.3
+  - koatty_proto@1.3.4
+  - koatty_validation@1.6.5
+
 ## 3.0.5
 
 ### Patch Changes

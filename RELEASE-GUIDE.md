@@ -40,15 +40,34 @@
 
 ### Changesets 工作流
 
+#### 方式一：标准流程（推荐）
+
 ```bash
 # 1. 创建 changeset（记录变更）
 pnpm changeset
 
-# 2. 更新版本号（应用 changesets）
+# 2. 更新版本号并自动提交（应用 changesets）
 pnpm changeset version
 
-# 3. 构建并发布到 npm
+# 3. 推送变更
+git push origin master
+
+# 4. 构建并发布到 npm
 pnpm release
+```
+
+#### 方式二：快速版本更新（支持指定版本类型）
+
+```bash
+# 直接创建并应用指定类型的版本更新（所有包）
+pnpm changeset:version:patch   # patch 版本
+pnpm changeset:version:minor   # minor 版本
+pnpm changeset:version:major   # major 版本
+pnpm changeset:version:pre     # pre-release 版本
+
+# 指定特定包
+node scripts/create-and-version.js minor koatty koatty-core
+node scripts/create-and-version.js patch koatty-router
 ```
 
 ---
@@ -70,7 +89,9 @@ pnpm changeset
 
 这会在 `.changeset/` 目录下创建一个 Markdown 文件。
 
-### Step 2: 应用版本变更
+### Step 2: 应用版本变更（自动提交）
+
+#### 方式一：使用已有的 changeset
 
 ```bash
 pnpm changeset version
@@ -81,12 +102,34 @@ pnpm changeset version
 2. 更新相关包的版本号
 3. 删除已应用的 changesets
 4. 生成 CHANGELOG.md
+5. **自动提交所有版本变更**（包括 package.json 和 CHANGELOG.md）
 
-### Step 3: 提交变更
+#### 方式二：直接指定版本类型（快速）
 
 ```bash
-git add .
-git commit -m "chore: version packages"
+# 更新所有包为 patch 版本
+pnpm changeset:version:patch
+
+# 更新所有包为 minor 版本
+pnpm changeset:version:minor
+
+# 更新所有包为 major 版本
+pnpm changeset:version:major
+
+# 更新所有包为 pre-release 版本
+pnpm changeset:version:pre
+
+# 更新指定包
+node scripts/create-and-version.js minor koatty koatty-core
+```
+
+**注意**：
+- 如果需要手动提交，可以使用：`pnpm changeset:version:no-commit`
+- 快速版本更新会自动创建 changeset 并立即应用，适合快速发布场景
+
+### Step 3: 推送变更
+
+```bash
 git push origin master
 ```
 
@@ -117,19 +160,14 @@ pnpm changeset
 # 选择版本类型（例如 minor）
 # 添加变更描述
 
-# 4. 应用版本变更
+# 4. 应用版本变更（自动提交）
 pnpm changeset version
+# 这会自动提交所有版本变更
 
-# 5. 查看变更
-git status
-git diff
-
-# 6. 提交变更
-git add .
-git commit -m "chore: version packages"
+# 5. 推送变更
 git push origin master
 
-# 7. 发布到 npm
+# 6. 发布到 npm
 pnpm release
 ```
 
