@@ -17,3 +17,6 @@
 [submodule "packages/koatty-validation"]
 	path = packages/koatty-validation
 	url = https://github.com/koatty/koatty_validation.git
+[submodule "packages/koatty-cacheable"]
+	path = packages/koatty-cacheable
+	url = https://github.com/koatty/koatty_cacheable.git
