@@ -32,3 +32,6 @@
 [submodule "packages/koatty-graphql"]
 	path = packages/koatty-graphql
 	url = https://github.com/koatty/koatty_graphql.git
+[submodule "packages/koatty-doc"]
+	path = packages/koatty-doc
+	url = https://github.com/koatty/koatty_doc.git
