@@ -28,11 +28,35 @@ export const COMPONENT_EVENTS = "COMPONENT_EVENTS";
 
 export type IOCScope = 'Singleton' | 'Prototype';
 
+/**
+ * Component configuration options
+ * 
+ * @example
+ * ```ts
+ * @Component('RouterComponent', {
+ *   scope: 'core',
+ *   priority: 100,
+ *   version: '1.0.0',
+ *   description: 'HTTP/gRPC routing for Koatty',
+ *   requires: ['ServeComponent'],
+ * })
+ * export class RouterComponent implements IComponent { }
+ * ```
+ */
 export interface IComponentOptions {
+  /** Whether this component is enabled (default: true) */
   enabled?: boolean;
+  /** Priority for loading order, higher = earlier (default: 0) */
   priority?: number;
+  /** Component scope: 'core' for framework components, 'user' for application components */
   scope?: ComponentScope;
+  /** List of component names that this component depends on */
   requires?: string[];
+  /** Component version (for plugin metadata) */
+  version?: string;
+  /** Component description (for plugin metadata) */
+  description?: string;
+  /** Additional custom options */
   [key: string]: any;
 }
 
@@ -393,7 +417,7 @@ export function Component(identifier?: string, options?: IComponentOptions): Cla
  * ```
  */
 export function OnEvent(event: AppEvent): MethodDecorator {
-  return (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+  return (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) => {
     const targetClass = target.constructor;
 
     // 通过 IOC.getType() 获取元数据中的类型
@@ -416,7 +440,7 @@ export function OnEvent(event: AppEvent): MethodDecorator {
     }
     events[event].push(propertyKey);
     Reflect.defineMetadata(COMPONENT_EVENTS, events, targetClass);
-    return descriptor;
+    return descriptor as any;
   };
 }
 
@@ -467,6 +491,9 @@ export function implementsServiceInterface(cls: any): cls is IService {
  * @returns True if the class implements IPlugin interface, false otherwise
  */
 export function implementsPluginInterface(cls: any): cls is IPlugin {
+  if (!cls || typeof cls !== 'object') {
+    return false;
+  }
   return (
     ('run' in cls && Helper.isFunction(cls.run)) ||
     ('events' in cls && Helper.isObject(cls.events))

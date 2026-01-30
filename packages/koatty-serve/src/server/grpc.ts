@@ -488,8 +488,8 @@ export class GrpcServer extends BaseServer<GrpcServerOptions> {
    * Start Server with enhanced connection management
    */
   Start(listenCallback?: () => void): NativeServer {
-    const traceId = generateTraceId();
-    this.logger.info('Server starting', { traceId }, {
+    // Simple startup log - no traceId needed
+    this.logger.info('Server starting', {}, {
       hostname: this.options.hostname,
       port: this.options.port,
       protocol: this.options.protocol
@@ -502,7 +502,9 @@ export class GrpcServer extends BaseServer<GrpcServerOptions> {
     
     this.server.bindAsync(bindAddress, credentials, (err, port) => {
       if (err) {
-        this.logger.error('Server startup error', { traceId }, err);
+        // Error logs keep traceId for troubleshooting
+        const errorTraceId = generateTraceId();
+        this.logger.error('Server startup error', { traceId: errorTraceId }, err);
         // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
         setImmediate(() => {
           throw err;
@@ -514,7 +516,9 @@ export class GrpcServer extends BaseServer<GrpcServerOptions> {
       // gRPC Server 内部继承自 EventEmitter，使用类型断言
       if (typeof (this.server as any).on === 'function') {
         (this.server as any).on('error', (error: Error) => {
-          this.logger.error('Server runtime error', { traceId }, error);
+          // Error logs keep traceId for troubleshooting
+          const runtimeErrorTraceId = generateTraceId();
+          this.logger.error('Server runtime error', { traceId: runtimeErrorTraceId }, error);
           // Don't exit on runtime errors
         });
       }
@@ -526,10 +530,11 @@ export class GrpcServer extends BaseServer<GrpcServerOptions> {
       const urlProtocol = this.options.protocol.toLowerCase();
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${port}/`;
       
-      // 输出 Koatty 格式的启动日志
-      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, { traceId });
+      // 输出 Koatty 格式的启动日志 - no traceId needed for simple status log
+      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, {});
       
-      this.logger.info('Server started', { traceId }, {
+      // Simple completion log - no traceId needed
+      this.logger.info('Server started', {}, {
         address: bindAddress,
         actualPort: port,
         hostname: this.options.hostname,

@@ -26,11 +26,22 @@ import {
   KoattyApplication,
 } from './IApplication';
 
-interface ComponentMeta {
+/**
+ * Component metadata structure
+ * Contains all information about a registered component
+ */
+export interface ComponentMeta {
+  /** Unique component name/identifier */
   name: string;
-  instance: IPlugin;
+  /** Component instance (lazy-loaded) */
+  instance: IPlugin | null;
+  /** Component class reference */
+  target?: any;
+  /** Component configuration options */
   options: IComponentOptions;
+  /** Component scope: 'core' or 'user' */
   scope: ComponentScope;
+  /** Event bindings from @OnEvent decorators */
   events: Record<string, string[]>;
 }
 
@@ -102,8 +113,8 @@ export class ComponentManager {
 
       options = options || { enabled: true, priority: 0, scope: 'user' };
 
-      const pluginConfig = this.app.config('plugin') || {};
-      const configOptions = pluginConfig.config?.[identifier] || {};
+      const pluginConfig = this.app.config('config', 'plugin') || {};
+      const configOptions = pluginConfig?.[identifier] || {};
 
       if (configOptions.enabled === false) {
         options.enabled = false;
@@ -114,17 +125,28 @@ export class ComponentManager {
         continue;
       }
 
-      const instance = IOC.getInsByClass(item.target);
-      if (!implementsPluginInterface(instance)) {
-        Logger.Warn(`Component ${identifier} does not implement IPlugin interface, skipping`);
-        continue;
+      const events = getComponentEvents(item.target);
+      
+      // Check if component has @OnEvent bindings or could have run() method
+      const hasEventBindings = Object.keys(events).length > 0;
+      
+      if (!hasEventBindings) {
+        // If no @OnEvent, check if it might have a run() method
+        // We defer checking run() until instance is created during registration
+        const instance = IOC.getInsByClass(item.target);
+        const hasRunMethod = implementsPluginInterface(instance);
+        
+        if (!hasRunMethod) {
+          Logger.Warn(`Component ${identifier} has neither run() method nor @OnEvent bindings, skipping`);
+          continue;
+        }
       }
 
-      const events = getComponentEvents(item.target);
-
+      // Store target class, instance will be retrieved during event registration
       const meta: ComponentMeta = {
         name: identifier,
-        instance,
+        instance: null as any, // Will be set during registerComponentEvents
+        target: item.target,   // Store target class
         options: { ...options, ...configOptions },
         scope: options.scope || 'user',
         events,
@@ -190,6 +212,16 @@ export class ComponentManager {
   }
 
   private registerComponentEvents(name: string, meta: ComponentMeta): void {
+    // Get or create instance if not already set
+    if (!meta.instance && meta.target) {
+      meta.instance = IOC.getInsByClass(meta.target);
+    }
+    
+    if (!meta.instance) {
+      Logger.Warn(`Component ${name} instance not found, skipping event registration`);
+      return;
+    }
+    
     const events = meta.events;
     const hasRunMethod = Helper.isFunction(meta.instance.run);
     const hasEventBindings = Object.keys(events).length > 0;
@@ -269,14 +301,13 @@ export class ComponentManager {
   async loadUserComponents(): Promise<string[]> {
     Logger.Log('Koatty', '', '============ Loading User Components ============');
 
-    const pluginConfig = this.app.config('plugin') || {};
-    const configList = pluginConfig.list || [];
+    const pluginList = this.app.config('list', 'plugin') || [];
 
     const loadOrder: string[] = [];
     const remaining = new Set(this.userComponents.keys());
 
     // 配置中指定的顺序优先
-    for (const name of configList) {
+    for (const name of pluginList) {
       if (this.userComponents.has(name)) {
         loadOrder.push(name);
         remaining.delete(name);
@@ -348,5 +379,118 @@ export class ComponentManager {
       totalComponents: this.coreComponents.size + this.userComponents.size,
       registeredEvents: this.registeredEvents.size,
     };
+  }
+
+  // ============================================================
+  // Plugin Query API (unified management)
+  // ============================================================
+
+  /**
+   * Get all registered components (both core and user)
+   * @returns Array of component metadata
+   */
+  getAllComponents(): ComponentMeta[] {
+    return [
+      ...Array.from(this.coreComponents.values()),
+      ...Array.from(this.userComponents.values()),
+    ];
+  }
+
+  /**
+   * Get all core components
+   * @returns Array of core component metadata
+   */
+  getCoreComponents(): ComponentMeta[] {
+    return Array.from(this.coreComponents.values());
+  }
+
+  /**
+   * Get all user components
+   * @returns Array of user component metadata
+   */
+  getUserComponents(): ComponentMeta[] {
+    return Array.from(this.userComponents.values());
+  }
+
+  /**
+   * Get component metadata by name
+   * @param name Component name
+   * @returns Component metadata or undefined
+   */
+  getComponent(name: string): ComponentMeta | undefined {
+    return this.coreComponents.get(name) || this.userComponents.get(name);
+  }
+
+  /**
+   * Get all components sorted by priority (higher priority first)
+   * @returns Sorted array of component metadata
+   */
+  getComponentsSortedByPriority(): ComponentMeta[] {
+    return this.getAllComponents()
+      .sort((a, b) => (b.options.priority || 0) - (a.options.priority || 0));
+  }
+
+  /**
+   * Get component names
+   * @returns Array of component names
+   */
+  getComponentNames(): string[] {
+    return [
+      ...Array.from(this.coreComponents.keys()),
+      ...Array.from(this.userComponents.keys()),
+    ];
+  }
+
+  /**
+   * Get components with version info (for debugging/monitoring)
+   * @returns Array of component info objects
+   */
+  getComponentsInfo(): Array<{
+    name: string;
+    version?: string;
+    description?: string;
+    scope: ComponentScope;
+    priority: number;
+    enabled: boolean;
+  }> {
+    return this.getAllComponents().map(meta => ({
+      name: meta.name,
+      version: meta.options.version,
+      description: meta.options.description,
+      scope: meta.scope,
+      priority: meta.options.priority || 0,
+      enabled: meta.options.enabled !== false,
+    }));
+  }
+
+  /**
+   * Print component registry summary (for debugging)
+   */
+  printSummary(): void {
+    const info = this.getComponentsInfo();
+    Logger.Log('Koatty', '', '============ Component Registry Summary ============');
+    Logger.Log('Koatty', '', `Total: ${info.length} components`);
+    
+    const coreInfo = info.filter(i => i.scope === 'core');
+    const userInfo = info.filter(i => i.scope === 'user');
+    
+    if (coreInfo.length > 0) {
+      Logger.Log('Koatty', '', `Core Components (${coreInfo.length}):`);
+      for (const c of coreInfo) {
+        const ver = c.version ? ` v${c.version}` : '';
+        const desc = c.description ? ` - ${c.description}` : '';
+        Logger.Log('Koatty', '', `  ✓ ${c.name}${ver}${desc}`);
+      }
+    }
+    
+    if (userInfo.length > 0) {
+      Logger.Log('Koatty', '', `User Components (${userInfo.length}):`);
+      for (const c of userInfo) {
+        const ver = c.version ? ` v${c.version}` : '';
+        Logger.Log('Koatty', '', `  • ${c.name}${ver}`);
+      }
+    }
+    
+    Logger.Log('Koatty', '', '====================================================');
   }
 }

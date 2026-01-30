@@ -19,8 +19,9 @@ import { extensionOptions, TraceOptions } from "./itrace";
 import { initSDK, startTracer } from "../opentelemetry/sdk";
 import { TopologyAnalyzer } from "../opentelemetry/topology";
 import { getRequestId, getTraceId } from '../utils/utils';
-import { collectRequestMetrics } from '../opentelemetry/prometheus';
+import { collectRequestMetrics, initPrometheusExporter } from '../opentelemetry/prometheus';
 import { DefaultLogger as Logger } from "koatty_logger";
+import { initializeRequestProperties } from '../utils/contextInit';
 
 /** 
  * defaultOptions
@@ -179,18 +180,89 @@ export function Trace(options: TraceOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
   const geh: any = IOCContainer.getClass("ExceptionHandler", "COMPONENT");
 
+  // ============================================
+  // 应用级别初始化（在 middleware 创建时完成）
+  // ============================================
   let spanManager: SpanManager | undefined;
-  let tracer: any;
+  let sdk: any;
+  let metricsProvider: any;
 
-  if (options.enableTrace) {
-    spanManager = app.getMetaData("spanManager")[0] || new SpanManager(options);
-    tracer = app.getMetaData("tracer")[0] || initSDK(app, options);
-    app.once(AppEvent.appStart, async () => {
-      await startTracer(tracer, app, options);
-    });
+  // 1. 初始化 Prometheus Metrics
+  if (options.enableTrace && options.metricsConf?.metricsEndpoint) {
+    try {
+      metricsProvider = initPrometheusExporter(app, options);
+      if (metricsProvider) {
+        Logger.Debug('[Trace] Prometheus metrics initialized');
+      }
+    } catch (error) {
+      Logger.Error('[Trace] Failed to initialize Prometheus:', error);
+    }
   }
 
-  // ✅ 创建静态配置对象（只创建一次）
+  // 2. 初始化 SpanManager
+  if (options.enableTrace) {
+    try {
+      spanManager = new SpanManager(options);
+      Helper.define(app, 'spanManager', spanManager);
+      Logger.Debug('[Trace] Span Manager initialized');
+    } catch (error) {
+      Logger.Error('[Trace] Failed to initialize SpanManager:', error);
+    }
+  }
+
+  // 3. 初始化 OpenTelemetry SDK
+  if (options.enableTrace) {
+    try {
+      sdk = initSDK(app, options);
+      Helper.define(app, 'otelSDK', sdk);
+      Logger.Debug('[Trace] OpenTelemetry SDK initialized');
+
+      // 4. 在 appStart 事件启动 Tracer
+      app.once(AppEvent.appStart, async () => {
+        try {
+          await startTracer(sdk, app, options);
+          const tracer = sdk.getTracer();
+          Helper.define(app, 'otelTracer', tracer);
+          Logger.Debug('[Trace] Tracer started');
+        } catch (error) {
+          Logger.Error('[Trace] Failed to start tracer:', error);
+        }
+      });
+    } catch (error) {
+      Logger.Error('[Trace] Failed to initialize OpenTelemetry SDK:', error);
+    }
+  }
+
+  // 5. 监听 appStop 事件清理资源
+  app.once(AppEvent.appStop, async () => {
+    Logger.Debug('[Trace] Shutting down tracing infrastructure...');
+    
+    try {
+      // 清理 SpanManager
+      if (spanManager) {
+        spanManager.destroy();
+        Logger.Debug('[Trace] Span Manager destroyed');
+      }
+
+      // 关闭 OpenTelemetry SDK
+      if (sdk) {
+        await sdk.shutdown();
+        Logger.Debug('[Trace] OpenTelemetry SDK shutdown');
+      }
+
+      // 关闭 Prometheus Metrics
+      if (metricsProvider) {
+        // MeterProvider shutdown if needed
+        Logger.Debug('[Trace] Metrics provider shutdown');
+      }
+
+      Logger.Debug('[Trace] Tracing infrastructure shutdown completed');
+    } catch (error) {
+      Logger.Error('[Trace] Error shutting down tracing:', error);
+    }
+  });
+
+  // 创建静态配置对象（只创建一次）
   const staticExt = {
     debug: app.appDebug,
     timeout: options.timeout,
@@ -199,9 +271,7 @@ export function Trace(options: TraceOptions, app: Koatty) {
   };
 
   return async (ctx: KoattyContext, next: KoattyNext) => {
-    Helper.define(ctx, 'startTime', Date.now());
-
-    // Handle server shutdown case
+    // Handle server shutdown case first
     if ((app.server as any)?.status === 503) {
       ctx.status = 503;
       ctx.set('Connection', 'close');
@@ -209,15 +279,19 @@ export function Trace(options: TraceOptions, app: Koatty) {
       return;
     }
 
-    // Generate or get request ID
+    // Initialize common request properties (prevent redefinition in multi-protocol scenarios)
     const requestId = getRequestId(ctx, options);
-    Helper.define(ctx, 'requestId', requestId);
+    initializeRequestProperties(ctx, requestId);
 
-    // Create span if tracing is enabled
-    if (options.enableTrace && tracer) {
-      const serviceName = app.name || "unknownKoattyProject";
-      spanManager.createSpan(tracer, ctx, serviceName);
-      // Note: Span cleanup is handled by SpanManager.destroy() on app stop
+    // Create span if tracing is enabled and infrastructure is ready
+    // 使用闭包中初始化的资源
+    if (options.enableTrace && spanManager) {
+      const tracer = (app as any).otelTracer;
+      if (tracer) {
+        const serviceName = app.name || "unknownKoattyProject";
+        spanManager.createSpan(tracer, ctx, serviceName);
+        // Note: Span cleanup is handled by SpanManager.destroy() on app stop
+      }
     }
 
     // Record topology if enabled
@@ -229,7 +303,7 @@ export function Trace(options: TraceOptions, app: Koatty) {
       topology.recordServiceDependency(app.name, serviceName);
     }
 
-    // ✅ 使用原型链继承静态配置，只添加动态属性
+    // 使用原型链继承静态配置，只添加动态属性
     const ext = Object.create(staticExt) as extensionOptions;
     ext.requestId = requestId;
     ext.terminated = false;

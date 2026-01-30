@@ -32,6 +32,8 @@ import { NewServe } from './server/serve';
 @Component('ServeComponent', {
   scope: 'core',
   priority: 100,
+  version: '1.0.0',
+  description: 'HTTP/HTTPS/HTTP2/gRPC/WebSocket server for Koatty',
   requires: [], // Router is optional dependency, not enforced
 })
 export class ServeComponent implements IComponent {
@@ -41,18 +43,11 @@ export class ServeComponent implements IComponent {
    */
   @OnEvent(AppEvent.loadServe)
   async initServer(app: KoattyApplication): Promise<void> {
-    const serveOpts = app.config('server') || { protocol: "http" };
+    const serveOpts = app.config(undefined, 'server') || { protocol: "http" };
     const protocol = serveOpts.protocol ?? "http";
     const protocols = Helper.isArray(protocol) ? protocol : [protocol];
 
     Logger.Log('Koatty', '', `Creating servers for protocols: ${protocols.join(', ')}`);
-
-    // Check if router is available
-    const hasRouter = !!app.router;
-    if (!hasRouter) {
-      Logger.Warn('Koatty', '', 'Router not available. Server will run in standalone mode.');
-      Logger.Warn('Koatty', '', '  → To enable routing, install and enable RouterComponent');
-    }
 
     if (protocols.length > 1) {
       // Multi-protocol servers

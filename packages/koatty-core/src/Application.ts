@@ -19,7 +19,7 @@ import {
 } from "./IApplication";
 import { KoattyContext, RequestType, ResponseType } from "./IContext";
 import { KoattyMetadata } from "./Metadata";
-import { bindProcessEvent, isPrevent, parseExp } from "./Utils";
+import { bindProcessEvent, isPrevent, isPrototypePollution, parseExp } from "./Utils";
 
 /**
  * Koatty Application 
@@ -57,6 +57,12 @@ export class Koatty extends Koa implements KoattyApplication {
   koattyPath: string;
   logsPath: string;
   appDebug: boolean;
+  
+  /**
+   * Silent mode flag - when true, suppresses startup logs and console output
+   * Used primarily in test environments to reduce noise
+   */
+  silent: boolean;
 
   context: KoattyContext;
   private handledResponse: boolean = false;
@@ -100,6 +106,7 @@ export class Koatty extends Koa implements KoattyApplication {
     const { appDebug, appPath, rootPath, koattyPath } = this.options;
     const envArg = (process.execArgv ?? []).join(",");
     this.appDebug = appDebug || (envArg.includes('ts-node') || envArg.includes('--debug'));
+    this.silent = false; // Initialize silent mode to false by default
     if (this.appDebug) {
       this.env = "development";
     } else {
@@ -131,8 +138,14 @@ export class Koatty extends Koa implements KoattyApplication {
    * Set metadata value by key.
    * @param key The key of metadata. If key starts with "_", it will be defined as private property.
    * @param value The value to be set.
+   * @throws {Error} When prototype pollution attempt is detected
    */
   setMetaData(key: string, value: any) {
+    // Security check: prevent prototype pollution
+    if (isPrototypePollution(key)) {
+      throw new Error(`Prototype pollution attempt detected: ${key}`);
+    }
+    
     // private
     if (key.startsWith("_")) {
       Helper.define(this, key, value);
@@ -216,42 +229,128 @@ export class Koatty extends Koa implements KoattyApplication {
     */
   config<T = unknown>(name?: string, type = 'config', value?: T): T | null {
     try {
+      // Security check: prevent prototype pollution
+      if (name && Helper.isString(name) && isPrototypePollution(name)) {
+        Logger.Error(`Security: Prototype pollution attempt blocked for key "${name}"`);
+        return null;
+      }
+
       const caches = this.getMetaData('_configs')[0] || {};
       caches[type] = caches[type] || {};
 
       // If value is provided, set configuration
       if (value !== undefined) {
-        if (name === undefined) {
-          // Set entire config type
-          caches[type] = value;
-        } else if (Helper.isString(name)) {
-          const keys = name.split('.');
-          if (keys.length === 1) {
-            // Set single level
-            caches[type][name] = value;
-          } else {
-            // Set nested config
-            caches[type][keys[0]] = caches[type][keys[0]] || {};
-            caches[type][keys[0]][keys[1]] = value;
-          }
-        } else {
-          caches[type][name] = value;
-        }
-        return value;
+        return this.setConfig(caches[type], name, value);
       }
 
       // Get configuration
-      if (name === undefined) return caches[type];
-
-      if (Helper.isString(name)) {
-        const keys = name.split('.');
-        return keys.length === 1 ? caches[type][name] : caches[type][keys[0]]?.[keys[1]];
-      }
-      return caches[type][name];
+      return this.getConfig(caches[type], name);
     } catch (err) {
-      Logger.Error(err);
+      Logger.Error(`Config error [name: ${name}, type: ${type}]:`, err);
       return null;
     }
+  }
+
+  /**
+   * Parse config path and filter empty segments
+   * Handles edge cases like '.', '..', 'a..b', leading/trailing dots
+   * @private
+   */
+  private parseConfigPath(name: string): string[] {
+    return name.split('.')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+
+  /**
+   * Set configuration value
+   * @private
+   */
+  private setConfig<T>(caches: any, name: string | undefined, value: T): T | null {
+    // Set entire config type
+    if (name === undefined) {
+      Object.keys(caches).forEach(k => delete caches[k]);
+      Object.assign(caches, value);
+      return value;
+    }
+
+    if (!Helper.isString(name)) {
+      // Non-string name (edge case)
+      Logger.Warn(`Config key should be string, got ${typeof name}`);
+      caches[name] = value;
+      return value;
+    }
+
+    const keys = this.parseConfigPath(name);
+    
+    if (keys.length === 0) {
+      Logger.Error('Config key cannot be empty');
+      return null;
+    }
+
+    if (keys.length === 1) {
+      // Set single level
+      caches[name] = value;
+      return value;
+    }
+
+    // Handle 2+ levels (use first 2)
+    if (keys.length > 2) {
+      Logger.Warn(
+        `Config key "${name}" has ${keys.length} levels. ` +
+        `Only 2 levels are supported, using first 2: "${keys[0]}.${keys[1]}"`
+      );
+    }
+
+    // Type conflict detection
+    const firstKey = keys[0];
+    const existingValue = caches[firstKey];
+    
+    if (existingValue !== undefined && 
+        (typeof existingValue !== 'object' || existingValue === null || Array.isArray(existingValue))) {
+      Logger.Error(
+        `Config type conflict: "${firstKey}" is ${typeof existingValue}, ` +
+        `cannot set nested property "${name}". Please use different key or remove existing value first.`
+      );
+      return null;
+    }
+    
+    caches[firstKey] = caches[firstKey] || {};
+    caches[firstKey][keys[1]] = value;
+    return value;
+  }
+
+  /**
+   * Get configuration value
+   * @private
+   */
+  private getConfig<T>(caches: any, name: string | undefined): T | null {
+    // Get entire config type
+    if (name === undefined) {
+      return caches as T;
+    }
+
+    if (!Helper.isString(name)) {
+      return caches[name] as T;
+    }
+
+    const keys = this.parseConfigPath(name);
+    
+    if (keys.length === 0) {
+      return null;
+    }
+
+    if (keys.length === 1) {
+      return caches[name] as T;
+    }
+
+    // Access up to 2 levels
+    const firstLevel = caches[keys[0]];
+    if (!firstLevel || typeof firstLevel !== 'object') {
+      return null;
+    }
+    
+    return firstLevel[keys[1]] as T;
   }
 
   /**
@@ -311,18 +410,22 @@ export class Koatty extends Koa implements KoattyApplication {
     Logger.Log('Koatty', '', 'Bind App Stop event ...');
     bindProcessEvent(this, 'appStop');
     
+    // Wrap callback to pass app instance
+    // listenCallback expects (app: KoattyApplication) but Server.Start calls callback with no args
+    const wrappedCallback = listenCallback ? () => listenCallback(this) : undefined;
+    
     // Start server(s)
     if (Array.isArray(this.server)) {
       // Multi-protocol: start all servers
       const serverArray = this.server;
       const servers = serverArray.map((srv, index) => {
         const isLast = index === serverArray.length - 1;
-        return srv.Start(isLast ? listenCallback : undefined);
+        return srv.Start(isLast ? wrappedCallback : undefined);
       });
       return servers as any;
     } else {
       // Single protocol: start single server
-      const server = this.server.Start(listenCallback);
+      const server = this.server.Start(wrappedCallback);
       return server as any;
     }
   }

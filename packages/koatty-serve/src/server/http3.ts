@@ -600,8 +600,8 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
   // ============= 实现KoattyServer接口 =============
 
   Start(listenCallback?: () => void): NativeServer {
-    const traceId = generateTraceId();
-    this.logger.info('HTTP/3 server starting', { traceId }, {
+    // Simple startup log - no traceId needed
+    this.logger.info('HTTP/3 server starting', {}, {
       hostname: this.options.hostname,
       port: this.options.port,
       protocol: this.options.protocol,
@@ -615,7 +615,9 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
       }
       if (typeof this.server.on === 'function') {
         this.server.on('error', (error: Error) => {
-          this.logger.error('Server runtime error', { traceId }, error);
+          // Error logs keep traceId for troubleshooting
+          const runtimeErrorTraceId = generateTraceId();
+          this.logger.error('Server runtime error', { traceId: runtimeErrorTraceId }, error);
           // Don't exit on runtime errors
         });
       }
@@ -627,10 +629,11 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
       const urlProtocol = this.options.protocol.toLowerCase();
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${this.options.port}/`;
       
-      // 输出 Koatty 格式的启动日志
-      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, { traceId });
+      // 输出 Koatty 格式的启动日志 - no traceId needed for simple status log
+      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, {});
       
-      this.logger.info('HTTP/3 server started successfully', { traceId }, {
+      // Simple completion log - no traceId needed
+      this.logger.info('HTTP/3 server started successfully', {}, {
         address: `${this.options.hostname}:${this.options.port}`,
         hostname: this.options.hostname,
         port: this.options.port,
@@ -654,7 +657,9 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
 
     // Http3ServerAdapter API: listen(callback) - async
     this.server.listen(startCallback).catch((error: Error) => {
-      this.logger.error('Failed to start HTTP/3 server', { traceId }, error);
+      // Error logs keep traceId for troubleshooting
+      const errorTraceId = generateTraceId();
+      this.logger.error('Failed to start HTTP/3 server', { traceId: errorTraceId }, error);
       // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
       setImmediate(() => {
         throw error;

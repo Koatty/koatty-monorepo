@@ -29,7 +29,7 @@ export class SingleProtocolServer implements KoattyServer {
   server: NativeServer | null = null; // Native server instance
   private logger = createLogger({ module: 'KoattyServer' });
 
-  readonly protocol: string = 'http';
+  readonly protocol: string;
   readonly options: ListeningOptions;
   status: number = 0; // Server status
   listenCallback?: () => void;
@@ -42,7 +42,9 @@ export class SingleProtocolServer implements KoattyServer {
       protocol: 'http',
       ...opt
     };
-
+    
+    // Set protocol from options
+    this.protocol = this.options.protocol;
     this.status = 0;
 
     this.logger.info('Single protocol server initialized', {}, {
@@ -76,7 +78,6 @@ export class SingleProtocolServer implements KoattyServer {
    * This allows RegisterService to be called before Start()
    */
   private initializeServerInstance(): void {
-    const traceId = generateTraceId();
     const protocolType = this.options.protocol;
     const port = this.options.port;
     
@@ -93,7 +94,8 @@ export class SingleProtocolServer implements KoattyServer {
     };
 
     try {
-      this.logger.info('Initializing server instance', { traceId }, {
+      // Simple initialization log - no traceId needed
+      this.logger.info('Initializing server instance', {}, {
         protocol: protocolType,
         port: port
       });
@@ -104,24 +106,24 @@ export class SingleProtocolServer implements KoattyServer {
       }
 
       // Handle router specific options
-      const routerExt = this.app.config("ext", "router") || {};
+      const routerExt = this.app.config("config.RouterComponent", "plugin") || {ext: {}};
       
       if (protocolType === "graphql") {
-        const schemaFile = routerExt.schemaFile || options.ext.schemaFile;
+        const schemaFile = routerExt.ext?.graphql?.schemaFile || options.ext.schemaFile;
         if (schemaFile) {
           options.ext.schemaFile = schemaFile;
         }
       }
 
       if (protocolType === "grpc") {
-        const protoFile = routerExt.protoFile || options.ext.protoFile;
+        const protoFile = routerExt.ext?.grpc?.protoFile || options.ext.protoFile;
         if (protoFile) {
           options.ext.protoFile = protoFile;
         }
       }
       
-      // Handle SSL specific options
-      ConfigHelper.configureSSLForProtocol(protocolType, options, traceId);
+      // Handle SSL specific options (pass undefined for traceId since it's optional)
+      ConfigHelper.configureSSLForProtocol(protocolType, options, undefined);
 
       // For GraphQL, set the underlying protocol
       if (protocolType === "graphql") {
@@ -137,14 +139,17 @@ export class SingleProtocolServer implements KoattyServer {
       const server = this.createServerInstance(protocolType, options);
       this.serverInstance = server;
       
-      this.logger.info('Server instance initialized', { traceId }, {
+      // Simple completion log - no traceId needed
+      this.logger.info('Server instance initialized', {}, {
         protocol: protocolType,
         hasRegisterService: typeof (server as any).RegisterService === 'function'
       });
 
     } catch (error) {
+      // Error logs keep traceId for troubleshooting
+      const errorTraceId = generateTraceId();
       this.logger.error('Failed to initialize server instance', { 
-        traceId, 
+        traceId: errorTraceId, 
         protocol: protocolType, 
         port: port 
       }, error);
@@ -156,11 +161,11 @@ export class SingleProtocolServer implements KoattyServer {
    * Start server
    */
   Start(listenCallback?: () => void): any {
-    const traceId = generateTraceId();
     this.listenCallback = listenCallback;
     
     try {
-      this.logger.info('Server starting', { traceId }, {
+      // Simple startup log - no traceId needed for single-line status
+      this.logger.info('Server starting', {}, {
         protocol: this.options.protocol,
         hostname: this.options.hostname,
         port: this.options.port
@@ -181,7 +186,8 @@ export class SingleProtocolServer implements KoattyServer {
           // Update status to indicate server is running
           this.status = 200;
           
-          this.logger.info('Server started', { traceId }, {
+          // Simple completion log - no traceId needed
+          this.logger.info('Server started', {}, {
             protocol: this.options.protocol,
             port: this.options.port
           });
@@ -190,14 +196,18 @@ export class SingleProtocolServer implements KoattyServer {
             this.listenCallback();
           }
         } catch (error) {
-          this.logger.error('Error in server start callback', { traceId }, error);
+          // Error logs keep traceId for troubleshooting
+          const errorTraceId = generateTraceId();
+          this.logger.error('Error in server start callback', { traceId: errorTraceId }, error);
           this.status = 500;
         }
       });
       
       return this;
     } catch (error) {
-      this.logger.error('Server start error', { traceId }, error);
+      // Error logs keep traceId for troubleshooting
+      const errorTraceId = generateTraceId();
+      this.logger.error('Server start error', { traceId: errorTraceId }, error);
       throw error;
     }
   }
@@ -206,8 +216,8 @@ export class SingleProtocolServer implements KoattyServer {
    * Stop server
    */
   Stop(callback?: () => void): void {
-    const traceId = generateTraceId();
-    this.logger.info('Server stopping', { traceId }, {
+    // Simple stop log - no traceId needed
+    this.logger.info('Server stopping', {}, {
       protocol: this.options.protocol,
       port: this.options.port
     });
@@ -217,11 +227,11 @@ export class SingleProtocolServer implements KoattyServer {
         this.serverInstance = null;
         this.server = null;
         this.status = 0;
-        this.logger.info('Server stopped', { traceId });
+        this.logger.info('Server stopped', {});
         if (callback) callback();
       });
     } else {
-      this.logger.warn('Server has no Stop method', { traceId });
+      this.logger.warn('Server has no Stop method', {});
       this.serverInstance = null;
       this.server = null;
       this.status = 0;

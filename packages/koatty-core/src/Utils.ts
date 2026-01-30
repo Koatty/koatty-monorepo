@@ -58,6 +58,36 @@ export async function asyncEvent(event: EventEmitter, eventName: string): Promis
 export function isPrevent(err: Error): boolean {
   return Helper.isError(err) && err.message === "PREVENT_NEXT_PROCESS";
 }
+
+/**
+ * Check if the key name contains prototype pollution keywords
+ * Prevents security vulnerabilities by blocking attempts to modify Object prototype
+ * 
+ * @param {string} name - The key name to check
+ * @returns {boolean} - Returns true if the name contains dangerous keywords
+ * 
+ * @example
+ * isPrototypePollution('__proto__.isAdmin')        // true
+ * isPrototypePollution('constructor.prototype')    // true
+ * isPrototypePollution('prototype.polluted')       // true
+ * isPrototypePollution('normal.key')               // false
+ */
+export function isPrototypePollution(name: string): boolean {
+  if (!name || typeof name !== 'string') {
+    return false;
+  }
+  
+  const lowerName = name.toLowerCase();
+  const dangerousKeywords = ['__proto__', 'prototype', 'constructor'];
+  
+  return dangerousKeywords.some(keyword => {
+    // Check for exact match or as part of path
+    return lowerName === keyword || 
+           lowerName.includes(`.${keyword}.`) ||
+           lowerName.startsWith(`${keyword}.`) ||
+           lowerName.endsWith(`.${keyword}`);
+  });
+}
 /**
  * Bind event to the process
  *

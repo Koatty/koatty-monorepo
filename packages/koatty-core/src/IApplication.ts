@@ -65,6 +65,12 @@ export interface KoattyApplication extends Koa {
   logsPath: string;
 
   appDebug: boolean;
+  
+  /**
+   * Silent mode flag - when true, suppresses startup logs and console output
+   * Used primarily in test environments to reduce noise
+   */
+  silent: boolean;
 
   context: KoattyContext;
 
@@ -335,11 +341,11 @@ export const AppEventArr = [
   "loadMiddleware",
   "loadService",
   "loadController",
-  "loadRouter",
-  "loadServe",
+  "loadRouter",     // RouterComponent.initRouter() initializes router here
+  "loadServe",      // ServeComponent.initServer() creates server using router
   "appReady",
   "appStart",
-  "appStop",
+  // Note: "appStop" is NOT in startup sequence - it's triggered only on process termination
 ];
 
 // type EventHookFunc
