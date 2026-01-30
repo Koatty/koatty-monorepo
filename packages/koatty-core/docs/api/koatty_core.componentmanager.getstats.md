@@ -8,13 +8,13 @@
 
 ```typescript
 getStats(): {
-        corePlugins: number;
-        userPlugins: number;
-        totalPlugins: number;
+        coreComponents: number;
+        userComponents: number;
+        totalComponents: number;
         registeredEvents: number;
     };
 ```
 **Returns:**
 
-{ corePlugins: number; userPlugins: number; totalPlugins: number; registeredEvents: number; }
+{ coreComponents: number; userComponents: number; totalComponents: number; registeredEvents: number; }
 

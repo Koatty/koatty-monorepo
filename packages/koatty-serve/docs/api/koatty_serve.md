@@ -100,10 +100,16 @@ Features: - O(1) write operations (no array shifts or slices) - O(1) amortized r
 </td></tr>
 <tr><td>
 
-[ServePlugin](./koatty_serve.serveplugin.md)
+[ServeComponent](./koatty_serve.servecomponent.md)
 
 
 </td><td>
+
+Serve Component Responsible for initializing and managing server
+
+Implements IComponent interface (base interface)
+
+Event bindings: - loadServe: Initialize server - appStop: Gracefully shutdown server
 
 
 </td></tr>

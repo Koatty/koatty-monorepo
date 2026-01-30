@@ -30,8 +30,8 @@ export {
 export {
   registerConnectionPoolMetrics,
   unregisterConnectionPoolMetrics
-} from "./pool-metrics-integration";
+} from "./pools/pool-metrics-integration";
 
 export { RingBuffer, DynamicRingBuffer } from "./utils/ring_buffer";
 
-export { ServePlugin } from "./ServePlugin";
+export { ServeComponent } from "./ServeComponent";

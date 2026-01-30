@@ -19,10 +19,16 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[TracePlugin](./koatty_trace.traceplugin.md)
+[TraceComponent](./koatty_trace.tracecomponent.md)
 
 
 </td><td>
+
+Trace Component Responsible for initializing OpenTelemetry tracing
+
+Implements IComponent interface (base interface)
+
+Event bindings: - loadMiddleware: Initialize trace middleware (higher priority to load before other middleware) - appStop: Shutdown tracer, flush data
 
 
 </td></tr>

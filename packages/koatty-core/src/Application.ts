@@ -13,14 +13,13 @@ import { DefaultLogger as Logger } from "koatty_logger";
 import onFinished from "on-finished";
 import { createKoattyContext } from "./Context";
 import {
-  AppEvent,
   InitOptions,
   KoattyApplication,
   KoattyRouter, KoattyServer,
 } from "./IApplication";
 import { KoattyContext, RequestType, ResponseType } from "./IContext";
 import { KoattyMetadata } from "./Metadata";
-import { asyncEvent, bindProcessEvent, isPrevent, parseExp } from "./Utils";
+import { bindProcessEvent, isPrevent, parseExp } from "./Utils";
 
 /**
  * Koatty Application 
@@ -304,11 +303,9 @@ export class Koatty extends Koa implements KoattyApplication {
    * @returns {NativeServer} The native server instance
    */
   listen(listenCallback?: any) {//:NativeServer {
-    const callbackFuncAndEmit = () => {
-      Logger.Log('Koatty', '', 'Emit App Start ...');
-      asyncEvent(this, AppEvent.appStart);
-      listenCallback?.(this);
-    };
+    // binding event "appStop"
+    Logger.Log('Koatty', '', 'Bind App Stop event ...');
+    bindProcessEvent(this, 'appStop');
 
     // binding event "appStop"
     Logger.Log('Koatty', '', 'Bind App Stop event ...');
@@ -320,12 +317,12 @@ export class Koatty extends Koa implements KoattyApplication {
       const serverArray = this.server;
       const servers = serverArray.map((srv, index) => {
         const isLast = index === serverArray.length - 1;
-        return srv.Start(isLast ? callbackFuncAndEmit : undefined);
+        return srv.Start(isLast ? listenCallback : undefined);
       });
       return servers as any;
     } else {
       // Single protocol: start single server
-      const server = this.server.Start(callbackFuncAndEmit);
+      const server = this.server.Start(listenCallback);
       return server as any;
     }
   }

@@ -310,56 +310,36 @@ export interface KoattyRouter {
 }
 
 /**
- * app event
- *
- * @export
+ * Application lifecycle events
  * @enum AppEvent
  */
 export enum AppEvent {
   appBoot = "appBoot",
+  loadConfigure = "loadConfigure",
+  loadComponent = "loadComponent",
+  loadPlugin = "loadPlugin",
+  loadMiddleware = "loadMiddleware",
+  loadService = "loadService",
+  loadController = "loadController",
+  loadRouter = "loadRouter",
+  loadServe = "loadServe",
   appReady = "appReady",
   appStart = "appStart",
   appStop = "appStop",
-  configLoaded = "configLoaded",
-  beforeComponentLoad = "beforeComponentLoad",
-  componentLoading = "componentLoading",
-  afterComponentLoad = "afterComponentLoad",
-  beforeMiddlewareLoad = "beforeMiddlewareLoad",
-  middlewareLoading = "middlewareLoading",
-  afterMiddlewareLoad = "afterMiddlewareLoad",
-  beforeServiceLoad = "beforeServiceLoad",
-  afterServiceLoad = "afterServiceLoad",
-  beforeControllerLoad = "beforeControllerLoad",
-  afterControllerLoad = "afterControllerLoad",
-  beforeRouterLoad = "beforeRouterLoad",
-  afterRouterLoad = "afterRouterLoad",
-  beforeServerStart = "beforeServerStart",
-  afterServerStart = "afterServerStart",
-  beforeServerStop = "beforeServerStop",
-  afterServerStop = "afterServerStop",
 }
 export const AppEventArr = [
   "appBoot",
-  "configLoaded",
-  "beforeComponentLoad",
-  "componentLoading",
-  "afterComponentLoad",
-  "beforeMiddlewareLoad",
-  "middlewareLoading",
-  "afterMiddlewareLoad",
-  "beforeServiceLoad",
-  "afterServiceLoad",
-  "beforeControllerLoad",
-  "afterControllerLoad",
-  "beforeRouterLoad",
-  "afterRouterLoad",
+  "loadConfigure",
+  "loadComponent",
+  "loadPlugin",
+  "loadMiddleware",
+  "loadService",
+  "loadController",
+  "loadRouter",
+  "loadServe",
   "appReady",
-  "beforeServerStart",
-  "afterServerStart",
   "appStart",
-  "beforeServerStop",
   "appStop",
-  "afterServerStop",
 ];
 
 // type EventHookFunc

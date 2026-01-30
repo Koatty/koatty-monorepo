@@ -13,63 +13,78 @@ import { Helper } from "koatty_lib";
 import { DefaultLogger as Logger } from "koatty_logger";
 import {
   IPlugin,
-  IPluginOptions,
-  IPluginDependency,
-  IPluginCapability,
-  PluginDependencyType,
+  IComponentOptions,
+  ComponentScope,
+  COMPONENT_OPTIONS,
+  getComponentEvents,
   implementsPluginInterface,
   PLUGIN_OPTIONS
 } from './Component';
 import {
-  AppEvent,
   AppEventArr,
+  AppEvent,
   KoattyApplication,
-  EventHookFunc
 } from './IApplication';
-import {
-  PluginDependencyError,
-  PluginConflictError,
-  PluginContractError
-} from './Errors';
 
-interface PluginMeta {
+interface ComponentMeta {
   name: string;
   instance: IPlugin;
-  options: IPluginOptions;
-  type: 'user' | 'core';
-  version?: string;
-  dependencies: IPluginDependency[];
-  provides: IPluginCapability[];
-  conflicts: string[];
-}
-
-interface DependencyValidationResult {
-  satisfied: boolean;
-  missingDependencies: IPluginDependency[];
-  conflicts: string[];
-  contractErrors: Array<{
-    dependency: IPluginDependency;
-    reason: string;
-  }>;
+  options: IComponentOptions;
+  scope: ComponentScope;
+  events: Record<string, string[]>;
 }
 
 export class ComponentManager {
   private app: KoattyApplication;
-  private userPlugins: Map<string, PluginMeta> = new Map();
-  private corePlugins: Map<string, PluginMeta> = new Map();
+  private coreComponents: Map<string, ComponentMeta> = new Map();
+  private userComponents: Map<string, ComponentMeta> = new Map();
   private registeredEvents: Set<string> = new Set();
 
   constructor(app: KoattyApplication) {
     this.app = app;
   }
 
-  discoverPlugins(): void {
+  /**
+   * Register App class event handlers.
+   * App class is manually registered with type 'COMPONENT' in Bootstrap.
+   * This method loads its @OnEvent decorated methods.
+   * 
+   * @param target The App class
+   */
+  registerAppEvents(target: any): void {
+    const instance = IOC.getInsByClass(target);
+    if (!instance) {
+      Logger.Warn('App instance not found in IOC');
+      return;
+    }
+
+    const events = getComponentEvents(target);
+    if (Object.keys(events).length === 0) {
+      Logger.Debug('App class has no @OnEvent decorators');
+      return;
+    }
+
+    const meta: ComponentMeta = {
+      name: target.name || 'App',
+      instance,
+      options: { enabled: true, priority: 0, scope: 'core' as const },
+      scope: 'core',
+      events,
+    };
+
+    this.registerComponentEvents(meta.name, meta);
+  }
+
+  discoverComponents(): void {
     const componentList = IOC.listClass("COMPONENT") || [];
 
     for (const item of componentList) {
       const identifier = (item.id ?? "").replace("COMPONENT:", "");
 
-      if (!identifier.endsWith("Plugin")) {
+      // Check if the class is marked as COMPONENT type instead of using suffix
+      const componentType = IOC.getType(item.target);
+
+      if (componentType !== 'COMPONENT') {
         continue;
       }
 
@@ -77,17 +92,15 @@ export class ComponentManager {
         continue;
       }
 
-      const pluginOptions = IOC.getPropertyData(PLUGIN_OPTIONS, item.target, identifier) || {};
+      let options: IComponentOptions = IOC.getPropertyData(
+        COMPONENT_OPTIONS, item.target, identifier
+      );
 
-      const options: IPluginOptions = {
-        type: 'user',
-        enabled: true,
-        priority: 0,
-        dependencies: [],
-        provides: [],
-        conflicts: [],
-        ...pluginOptions
-      };
+      if (!options) {
+        options = IOC.getPropertyData(PLUGIN_OPTIONS, item.target, identifier);
+      }
+
+      options = options || { enabled: true, priority: 0, scope: 'user' };
 
       const pluginConfig = this.app.config('plugin') || {};
       const configOptions = pluginConfig.config?.[identifier] || {};
@@ -97,449 +110,242 @@ export class ComponentManager {
       }
 
       if (options.enabled === false) {
-        Logger.Warn(`Plugin ${identifier} is registered but disabled`);
+        Logger.Warn(`Component ${identifier} is disabled`);
         continue;
       }
 
       const instance = IOC.getInsByClass(item.target);
       if (!implementsPluginInterface(instance)) {
-        throw new Error(
-          `Plugin ${identifier} must implement IPlugin interface (have run() or events)`
-        );
-      }
-
-      const dependencies: IPluginDependency[] = [
-        ...(instance.dependencies || []),
-        ...(options.dependencies || [])
-      ].map(dep => this.normalizeDependency(dep));
-
-      const provides: IPluginCapability[] = [
-        ...(instance.provides || []),
-        ...(options.provides || [])
-      ].map(cap => this.normalizeCapability(cap));
-
-      const conflicts: string[] = [
-        ...(instance.conflicts || []),
-        ...(options.conflicts || [])
-      ];
-
-      const version = this.getPluginVersion(item.target);
-
-      const meta: PluginMeta = {
-        name: identifier,
-        instance,
-        options: { ...options, ...configOptions },
-        type: options.type || 'user',
-        version,
-        dependencies,
-        provides,
-        conflicts,
-      };
-
-      if (meta.type === 'core') {
-        this.corePlugins.set(identifier, meta);
-        Logger.Log('Koatty', '', `✓ Discovered core plugin: ${identifier}${version ? ` v${version}` : ''}`);
-
-        if (provides.length > 0) {
-          Logger.Debug(`  Provides: ${provides.map(c => c.name).join(', ')}`);
-        }
-
-        if (dependencies.length > 0) {
-          const depStr = dependencies.map(d => {
-            const typeLabel = d.type === PluginDependencyType.REQUIRED ? '' :
-                            d.type === PluginDependencyType.OPTIONAL ? '(optional)' : '(contract)';
-            return `${d.name}${typeLabel}`;
-          }).join(', ');
-          Logger.Debug(`  Depends on: ${depStr}`);
-        }
-      } else {
-        this.userPlugins.set(identifier, meta);
-        Logger.Debug(`Discovered user plugin: ${identifier}`);
-      }
-    }
-  }
-
-  private getPluginVersion(target: any): string | undefined {
-    try {
-      const targetPath = target.prototype?.constructor?.toString() || '';
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private normalizeDependency(dep: string | IPluginDependency): IPluginDependency {
-    if (typeof dep === 'string') {
-      return {
-        name: dep,
-        type: PluginDependencyType.REQUIRED,
-      };
-    }
-    return dep;
-  }
-
-  private normalizeCapability(cap: string | IPluginCapability): IPluginCapability {
-    if (typeof cap === 'string') {
-      return {
-        name: cap,
-        version: '1.0.0',
-      };
-    }
-    return cap;
-  }
-
-  private getAvailableCapabilities(): Map<string, IPluginCapability[]> {
-    const capabilities = new Map<string, IPluginCapability[]>();
-
-    for (const meta of this.corePlugins.values()) {
-      for (const cap of meta.provides) {
-        if (!capabilities.has(cap.name)) {
-          capabilities.set(cap.name, []);
-        }
-        capabilities.get(cap.name)!.push(cap);
-      }
-    }
-
-    return capabilities;
-  }
-
-  private checkContractDependency(
-    dependency: IPluginDependency,
-    app: KoattyApplication,
-    capabilities: Map<string, IPluginCapability[]>
-  ): { satisfied: boolean; reason?: string } {
-    const providers = capabilities.get(dependency.name);
-
-    if (!providers || providers.length === 0) {
-      return {
-        satisfied: false,
-        reason: `No plugin provides capability '${dependency.name}'`
-      };
-    }
-
-    if (dependency.validate) {
-      try {
-        const isValid = dependency.validate(app);
-        if (!isValid) {
-          return {
-            satisfied: false,
-            reason: `Contract validation failed for '${dependency.name}'`
-          };
-        }
-      } catch (error) {
-        return {
-          satisfied: false,
-          reason: `Contract validation error: ${error.message}`
-        };
-      }
-    }
-
-    return { satisfied: true };
-  }
-
-  private validatePluginDependencies(
-    pluginName: string,
-    meta: PluginMeta,
-    capabilities: Map<string, IPluginCapability[]>
-  ): DependencyValidationResult {
-    const result: DependencyValidationResult = {
-      satisfied: true,
-      missingDependencies: [],
-      conflicts: [],
-      contractErrors: [],
-    };
-
-    for (const dep of meta.dependencies) {
-      switch (dep.type) {
-        case PluginDependencyType.REQUIRED:
-          if (!this.corePlugins.has(dep.name)) {
-            result.satisfied = false;
-            result.missingDependencies.push(dep);
-          }
-          break;
-
-        case PluginDependencyType.OPTIONAL:
-          if (!this.corePlugins.has(dep.name)) {
-            Logger.Warn(
-              `Plugin ${pluginName} has optional dependency ${dep.name} which is not available`
-            );
-          }
-          break;
-
-        case PluginDependencyType.CONTRACT:
-          const contractCheck = this.checkContractDependency(dep, this.app, capabilities);
-          if (!contractCheck.satisfied) {
-            result.satisfied = false;
-            result.contractErrors.push({
-              dependency: dep,
-              reason: contractCheck.reason!,
-            });
-          }
-          break;
-      }
-    }
-
-    for (const conflictPlugin of meta.conflicts) {
-      if (this.corePlugins.has(conflictPlugin)) {
-        result.satisfied = false;
-        result.conflicts.push(conflictPlugin);
-      }
-    }
-
-    return result;
-  }
-
-  private checkCoreDependencies(): void {
-    const capabilities = this.getAvailableCapabilities();
-    const errors: string[] = [];
-
-    for (const [name, meta] of this.corePlugins) {
-      const validation = this.validatePluginDependencies(name, meta, capabilities);
-
-      if (!validation.satisfied) {
-        const errorMessages: string[] = [];
-
-        if (validation.missingDependencies.length > 0) {
-          for (const dep of validation.missingDependencies) {
-            const message = dep.errorMessage ||
-              `Plugin '${name}' requires plugin '${dep.name}' but it is not registered or is disabled`;
-            errorMessages.push(message);
-
-            errorMessages.push(
-              `  → Solution: Enable '${dep.name}' in config/plugin.ts or remove dependency from '${name}'`
-            );
-          }
-        }
-
-        if (validation.contractErrors.length > 0) {
-          for (const err of validation.contractErrors) {
-            const message = err.dependency.errorMessage ||
-              `Plugin '${name}' requires capability '${err.dependency.name}' but it is not satisfied`;
-            errorMessages.push(`${message}: ${err.reason}`);
-
-            errorMessages.push(
-              `  → Solution: Enable a plugin that provides '${err.dependency.name}' capability`
-            );
-          }
-        }
-
-        if (validation.conflicts.length > 0) {
-          for (const conflict of validation.conflicts) {
-            errorMessages.push(
-              `Plugin '${name}' conflicts with plugin '${conflict}'`
-            );
-            errorMessages.push(
-              `  → Solution: Disable either '${name}' or '${conflict}' in config/plugin.ts`
-            );
-          }
-        }
-
-        errors.push(...errorMessages);
-      }
-    }
-
-    if (errors.length > 0) {
-      const errorMessage = [
-        '╔════════════════════════════════════════════════════════════════╗',
-        '║            Plugin Dependency Validation Failed                 ║',
-        '╚════════════════════════════════════════════════════════════════╝',
-        '',
-        ...errors,
-        '',
-        'Please fix the above issues and restart the application.',
-      ].join('\n');
-
-      throw new Error(errorMessage);
-    }
-  }
-
-  private resolveCorePluginOrder(): string[] {
-    const order: string[] = [];
-    const visiting = new Set<string>();
-    const visited = new Set<string>();
-
-    const visit = (name: string) => {
-      if (visited.has(name)) return;
-      if (visiting.has(name)) {
-        throw new Error(`Circular dependency detected for core plugin: ${name}`);
-      }
-
-      visiting.add(name);
-
-      const plugin = this.corePlugins.get(name);
-      if (!plugin) return;
-
-      const deps = plugin.instance.dependencies || plugin.options.dependencies || [];
-      for (const dep of deps) {
-        const depName = typeof dep === 'string' ? dep : dep.name;
-        visit(depName);
-      }
-
-      visiting.delete(name);
-      visited.add(name);
-      order.push(name);
-    };
-
-    for (const name of this.corePlugins.keys()) {
-      visit(name);
-    }
-
-    return order;
-  }
-
-  registerCorePluginHooks(): void {
-    Logger.Log('Koatty', '', '============ Registering Core Plugin Hooks ============');
-
-    this.checkCoreDependencies();
-
-    const pluginOrder = this.resolveCorePluginOrder();
-
-    Logger.Log('Koatty', '', `Core plugin order: ${pluginOrder.join(' -> ')}`);
-
-    for (const name of pluginOrder) {
-      const meta = this.corePlugins.get(name)!;
-
-      const events = meta.instance.events || meta.options.events || {};
-
-      if (Object.keys(events).length === 0) {
-        Logger.Warn(`Core plugin ${name} has no event hooks defined`);
+        Logger.Warn(`Component ${identifier} does not implement IPlugin interface, skipping`);
         continue;
       }
 
-      let registeredCount = 0;
+      const events = getComponentEvents(item.target);
 
-      for (const [eventName, handler] of Object.entries(events)) {
-        if (!AppEventArr.includes(eventName)) {
-          Logger.Warn(`Core plugin ${name} registers unknown event: ${eventName}`);
-          continue;
-        }
+      const meta: ComponentMeta = {
+        name: identifier,
+        instance,
+        options: { ...options, ...configOptions },
+        scope: options.scope || 'user',
+        events,
+      };
 
-        if (!Helper.isFunction(handler)) {
-          Logger.Warn(`Core plugin ${name} event handler for ${eventName} is not a function`);
-          continue;
-        }
-
-        const wrappedHandler = async () => {
-          try {
-            Logger.Debug(`[${name}] Handling event: ${eventName}`);
-            await handler(this.app);
-          } catch (error) {
-            Logger.Error(`[${name}] Error handling event ${eventName}:`, error);
-            throw error;
-          }
-        };
-
-        this.app.once(eventName, wrappedHandler);
-        registeredCount++;
-
-        this.registeredEvents.add(`${name}:${eventName}`);
+      if (meta.scope === 'core') {
+        this.coreComponents.set(identifier, meta);
+        Logger.Log('Koatty', '', `✓ Discovered core component: ${identifier}`);
+      } else {
+        this.userComponents.set(identifier, meta);
+        Logger.Debug(`Discovered user component: ${identifier}`);
       }
-
-      Logger.Log('Koatty', '', `✓ Core plugin ${name} registered ${registeredCount} event hooks`);
     }
-
-    Logger.Log('Koatty', '', '============ Core Plugin Hooks Registered ============');
   }
 
-  async loadUserPlugins(): Promise<string[]> {
-    Logger.Log('Koatty', '', '============ Loading User Plugins ============');
+  private checkDependencies(): void {
+    const allComponents = new Set([
+      ...this.coreComponents.keys(),
+      ...this.userComponents.keys()
+    ]);
+
+    const checkComponent = (name: string, meta: ComponentMeta) => {
+      const requires = meta.options.requires || [];
+      for (const dep of requires) {
+        if (!allComponents.has(dep)) {
+          throw new Error(
+            `Component '${name}' requires '${dep}' but it is not available.\n` +
+            `  → Solution: Enable '${dep}' in config/plugin.ts`
+          );
+        }
+      }
+    };
+
+    for (const [name, meta] of this.coreComponents) {
+      checkComponent(name, meta);
+    }
+
+    for (const [name, meta] of this.userComponents) {
+      checkComponent(name, meta);
+    }
+  }
+
+  private sortByPriority(components: Map<string, ComponentMeta>): string[] {
+    return Array.from(components.entries())
+      .sort((a, b) => (b[1].options.priority || 0) - (a[1].options.priority || 0))
+      .map(([name]) => name);
+  }
+
+  registerCoreComponentHooks(): void {
+    Logger.Log('Koatty', '', '============ Registering Core Component Hooks ============');
+
+    this.checkDependencies();
+
+    const componentOrder = this.sortByPriority(this.coreComponents);
+    Logger.Log('Koatty', '', `Core component order: ${componentOrder.join(' -> ')}`);
+
+    for (const name of componentOrder) {
+      const meta = this.coreComponents.get(name)!;
+      this.registerComponentEvents(name, meta);
+    }
+
+    Logger.Log('Koatty', '', '============ Core Component Hooks Registered ============');
+  }
+
+  private registerComponentEvents(name: string, meta: ComponentMeta): void {
+    const events = meta.events;
+    const hasRunMethod = Helper.isFunction(meta.instance.run);
+    const hasEventBindings = Object.keys(events).length > 0;
+
+    let registeredCount = 0;
+
+    // 规则1：如果有 @OnEvent 绑定，注册这些事件
+    if (hasEventBindings) {
+      for (const [eventName, methodNames] of Object.entries(events)) {
+        if (!AppEventArr.includes(eventName)) {
+          Logger.Warn(`Component ${name} registers unknown event: ${eventName}`);
+          continue;
+        }
+
+        for (const methodName of methodNames) {
+          const handler = (meta.instance as any)[methodName];
+          if (!Helper.isFunction(handler)) {
+            Logger.Warn(`Component ${name} event handler ${methodName} is not a function`);
+            continue;
+          }
+
+          const wrappedHandler = async () => {
+            try {
+              Logger.Debug(`[${name}] Handling event: ${eventName} via ${String(methodName)}`);
+              await handler.call(meta.instance, this.app);
+            } catch (error) {
+              Logger.Error(`[${name}] Error handling event ${eventName}:`, error);
+              throw error;
+            }
+          };
+
+          this.app.once(eventName, wrappedHandler);
+          registeredCount++;
+          this.registeredEvents.add(`${name}:${eventName}`);
+        }
+      }
+    }
+
+    // 规则2：如果有 run 方法，检查是否需要默认绑定
+    if (hasRunMethod) {
+      // 检查 run 是否已经被 @OnEvent 标记
+      const runAlreadyBound = Object.values(events).some(
+        methods => methods.includes('run')
+      );
+
+      // 如果 run 没有被 @OnEvent 标记，绑定到默认事件
+      if (!runAlreadyBound) {
+        const defaultEvent = AppEvent.appReady;
+        Logger.Debug(`Component ${name}.run() auto-binds to ${defaultEvent}`);
+        this.bindRunMethod(name, meta, defaultEvent);
+      }
+    }
+
+    if (registeredCount > 0) {
+      Logger.Log('Koatty', '', `✓ Component ${name} registered ${registeredCount} event hooks`);
+    }
+  }
+
+  /**
+   * 绑定 run 方法到指定事件
+   */
+  private bindRunMethod(name: string, meta: ComponentMeta, eventName: string): void {
+    const wrappedHandler = async () => {
+      try {
+        Logger.Debug(`[${name}] Executing run() on ${eventName}`);
+        await meta.instance.run!(meta.options, this.app);
+      } catch (error) {
+        Logger.Error(`[${name}] Error in run():`, error);
+        throw error;
+      }
+    };
+
+    this.app.once(eventName, wrappedHandler);
+    this.registeredEvents.add(`${name}:${eventName}:run`);
+  }
+
+  async loadUserComponents(): Promise<string[]> {
+    Logger.Log('Koatty', '', '============ Loading User Components ============');
 
     const pluginConfig = this.app.config('plugin') || {};
     const configList = pluginConfig.list || [];
 
     const loadOrder: string[] = [];
-    const remaining = new Set(this.userPlugins.keys());
+    const remaining = new Set(this.userComponents.keys());
 
+    // 配置中指定的顺序优先
     for (const name of configList) {
-      if (this.userPlugins.has(name)) {
+      if (this.userComponents.has(name)) {
         loadOrder.push(name);
         remaining.delete(name);
       }
     }
 
-    const remainingPlugins = Array.from(remaining)
-      .map(name => ({
-        name,
-        priority: this.userPlugins.get(name)!.options.priority || 0
-      }))
-      .sort((a, b) => b.priority - a.priority)
-      .map(p => p.name);
-
-    loadOrder.push(...remainingPlugins);
+    // 剩余的按优先级排序
+    const remainingOrder = this.sortByPriority(
+      new Map(Array.from(remaining).map(n => [n, this.userComponents.get(n)!]))
+    );
+    loadOrder.push(...remainingOrder);
 
     const loaded: string[] = [];
 
     for (const name of loadOrder) {
-      const meta = this.userPlugins.get(name);
+      const meta = this.userComponents.get(name);
       if (!meta) continue;
 
-      if (!Helper.isFunction(meta.instance.run)) {
-        Logger.Warn(`User plugin ${name} missing run() method, skipping`);
-        continue;
-      }
+      // 注册事件（包括 run 方法的默认绑定）
+      this.registerComponentEvents(name, meta);
 
-      try {
-        Logger.Log('Koatty', '', `Loading user plugin: ${name}`);
+      // 检查是否有需要手动执行的初始化逻辑
+      // 如果组件只有 @OnEvent 绑定，不需要额外调用 run
+      // 如果组件有 run 方法，已经被 registerComponentEvents 自动绑定到 appReady
+      const hasEventBindings = Object.keys(meta.events).length > 0;
+      const hasRunMethod = Helper.isFunction(meta.instance.run);
 
-        await meta.instance.run(meta.options, this.app);
+      if (!hasEventBindings && hasRunMethod) {
+        try {
+          Logger.Log('Koatty', '', `Loading user component: ${name}`);
+          await meta.instance.run(meta.options, this.app);
+          loaded.push(name);
+          Logger.Log('Koatty', '', `✓ User component ${name} loaded`);
+        } catch (error) {
+          Logger.Error(`Failed to load user component ${name}:`, error);
+          throw error;
+        }
+      } else if (hasEventBindings) {
+        // 有事件绑定，自动处理
         loaded.push(name);
-
-        Logger.Log('Koatty', '', `✓ User plugin ${name} loaded`);
-      } catch (error) {
-        Logger.Error(`Failed to load user plugin ${name}:`, error);
-        throw error;
       }
     }
 
-    Logger.Log('Koatty', '', `============ Loaded ${loaded.length} User Plugins ============`);
-
+    Logger.Log('Koatty', '', `============ Loaded ${loaded.length} User Components ============`);
     return loaded;
   }
 
-  async unloadPlugins(): Promise<void> {
-    Logger.Log('Koatty', '', 'Unloading plugins...');
+  async unloadComponents(): Promise<void> {
+    Logger.Log('Koatty', '', 'Unloading components...');
 
-    for (const [name, meta] of this.userPlugins) {
-      if (!meta.instance.uninstall) continue;
-
-      try {
-        Logger.Debug(`Unloading user plugin: ${name}`);
-        await meta.instance.uninstall(this.app);
-      } catch (error) {
-        Logger.Warn(`Failed to unload user plugin ${name}:`, error);
-      }
-    }
-
-    for (const [name, meta] of this.corePlugins) {
-      if (!meta.instance.uninstall) continue;
-
-      try {
-        Logger.Debug(`Unloading core plugin: ${name}`);
-        await meta.instance.uninstall(this.app);
-      } catch (error) {
-        Logger.Warn(`Failed to unload core plugin ${name}:`, error);
-      }
-    }
-
-    this.corePlugins.clear();
-    this.userPlugins.clear();
+    this.coreComponents.clear();
+    this.userComponents.clear();
     this.registeredEvents.clear();
   }
 
   getPlugin<T = IPlugin>(name: string): T | undefined {
-    const meta = this.corePlugins.get(name) || this.userPlugins.get(name);
+    const meta = this.coreComponents.get(name) || this.userComponents.get(name);
     return meta?.instance as T;
   }
 
   hasPlugin(name: string): boolean {
-    return this.corePlugins.has(name) || this.userPlugins.has(name);
+    return this.coreComponents.has(name) || this.userComponents.has(name);
   }
 
   getStats() {
     return {
-      corePlugins: this.corePlugins.size,
-      userPlugins: this.userPlugins.size,
-      totalPlugins: this.corePlugins.size + this.userPlugins.size,
+      coreComponents: this.coreComponents.size,
+      userComponents: this.userComponents.size,
+      totalComponents: this.coreComponents.size + this.userComponents.size,
       registeredEvents: this.registeredEvents.size,
     };
   }

@@ -59,33 +59,6 @@ A class for managing metadata with key-value pairs storage. Provides methods to 
 
 
 </td></tr>
-<tr><td>
-
-[PluginConflictError](./koatty_core.pluginconflicterror.md)
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[PluginContractError](./koatty_core.plugincontracterror.md)
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[PluginDependencyError](./koatty_core.plugindependencyerror.md)
-
-
-</td><td>
-
-
-</td></tr>
 </tbody></table>
 
 ## Enumerations
@@ -108,9 +81,7 @@ Description
 
 </td><td>
 
-app event
-
-  AppEvent
+Application lifecycle events  AppEvent
 
 
 </td></tr>
@@ -122,15 +93,6 @@ app event
 </td><td>
 
 Protocol types supported by the controller.
-
-
-</td></tr>
-<tr><td>
-
-[PluginDependencyType](./koatty_core.plugindependencytype.md)
-
-
-</td><td>
 
 
 </td></tr>
@@ -217,6 +179,17 @@ Bind event to the process
 </td></tr>
 <tr><td>
 
+[Component(identifier, options)](./koatty_core.component.md)
+
+
+</td><td>
+
+Component decorator, used to mark a class as a component. Components are lifecycle-aware units that can listen to application events.
+
+
+</td></tr>
+<tr><td>
+
 [Controller(path, options)](./koatty_core.controller.md)
 
 
@@ -234,6 +207,17 @@ Controller decorator for registering controller class. Used to mark a class as a
 </td><td>
 
 Create Koatty context instance based on protocol type.
+
+
+</td></tr>
+<tr><td>
+
+[getComponentEvents(target)](./koatty_core.getcomponentevents.md)
+
+
+</td><td>
+
+Get component event bindings
 
 
 </td></tr>
@@ -426,23 +410,23 @@ Middleware decorator, used to mark a class as a middleware component.
 </td></tr>
 <tr><td>
 
+[OnEvent(event)](./koatty_core.onevent.md)
+
+
+</td><td>
+
+ONLY for  and  classes (type === "COMPONENT")
+
+
+</td></tr>
+<tr><td>
+
 [parseExp(fn)](./koatty_core.parseexp.md)
 
 
 </td><td>
 
 Convert express middleware for koa
-
-
-</td></tr>
-<tr><td>
-
-[Plugin(identifier, options)](./koatty_core.plugin.md)
-
-
-</td><td>
-
-Plugin decorator for registering plugin components. The decorated class must have a name ending with "Plugin" suffix.
 
 
 </td></tr>
@@ -551,6 +535,24 @@ HTTP/HTTPS Context
 </td></tr>
 <tr><td>
 
+[IComponent](./koatty_core.icomponent.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IComponentOptions](./koatty_core.icomponentoptions.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [IContextFactory](./koatty_core.icontextfactory.md)
 
 
@@ -631,24 +633,6 @@ InitOptions
 <tr><td>
 
 [IPlugin](./koatty_core.iplugin.md)
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[IPluginCapability](./koatty_core.iplugincapability.md)
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[IPluginDependency](./koatty_core.iplugindependency.md)
 
 
 </td><td>
@@ -790,6 +774,24 @@ Description
 </td></tr>
 <tr><td>
 
+[COMPONENT\_EVENTS](./koatty_core.component_events.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[COMPONENT\_OPTIONS](./koatty_core.component_options.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [CONTROLLER\_ROUTER](./koatty_core.controller_router.md)
 
 
@@ -841,6 +843,15 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentScope](./koatty_core.componentscope.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [ComponentType](./koatty_core.componenttype.md)
 
 
@@ -869,6 +880,15 @@ Description
 <tr><td>
 
 [IHttpImplementation](./koatty_core.ihttpimplementation.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IOCScope](./koatty_core.iocscope.md)
 
 
 </td><td>

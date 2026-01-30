@@ -64,7 +64,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[discoverPlugins()](./koatty_core.componentmanager.discoverplugins.md)
+[discoverComponents()](./koatty_core.componentmanager.discovercomponents.md)
 
 
 </td><td>
@@ -112,7 +112,7 @@ Description
 </td></tr>
 <tr><td>
 
-[loadUserPlugins()](./koatty_core.componentmanager.loaduserplugins.md)
+[loadUserComponents()](./koatty_core.componentmanager.loadusercomponents.md)
 
 
 </td><td>
@@ -124,7 +124,21 @@ Description
 </td></tr>
 <tr><td>
 
-[registerCorePluginHooks()](./koatty_core.componentmanager.registercorepluginhooks.md)
+[registerAppEvents(target)](./koatty_core.componentmanager.registerappevents.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Register App class event handlers. App class is manually registered with type 'COMPONENT' in Bootstrap. This method loads its  decorated methods.
+
+
+</td></tr>
+<tr><td>
+
+[registerCoreComponentHooks()](./koatty_core.componentmanager.registercorecomponenthooks.md)
 
 
 </td><td>
@@ -136,7 +150,7 @@ Description
 </td></tr>
 <tr><td>
 
-[unloadPlugins()](./koatty_core.componentmanager.unloadplugins.md)
+[unloadComponents()](./koatty_core.componentmanager.unloadcomponents.md)
 
 
 </td><td>

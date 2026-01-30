@@ -30,6 +30,21 @@ Middleware builder for fluent API
 </td></tr>
 <tr><td>
 
+[RouterComponent](./koatty_router.routercomponent.md)
+
+
+</td><td>
+
+Router Component Responsible for initializing and managing routing
+
+Implements IComponent interface (base interface)
+
+Event bindings: - loadRouter: Initialize router - appStop: Cleanup router resources
+
+
+</td></tr>
+<tr><td>
+
 [RouterFactory](./koatty_router.routerfactory.md)
 
 
@@ -58,15 +73,6 @@ Router factory builder for advanced configuration
 </td><td>
 
 Router middleware manager implementation Manages router-level middleware registration, composition, and conditional execution
-
-
-</td></tr>
-<tr><td>
-
-[RouterPlugin](./koatty_router.routerplugin.md)
-
-
-</td><td>
 
 
 </td></tr>

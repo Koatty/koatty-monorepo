@@ -10,7 +10,10 @@ get instance of Router using Factory Pattern
 **Signature:**
 
 ```typescript
-export declare function NewRouter(app: KoattyApplication, opt?: RouterOptions): KoattyRouter;
+export declare function NewRouter(app: KoattyApplication, opt?: RouterOptions): {
+    router: KoattyRouter;
+    factory: RouterFactory;
+};
 ```
 
 ## Parameters
@@ -65,7 +68,7 @@ _(Optional)_
 
 **Returns:**
 
-KoattyRouter
+{ router: KoattyRouter; factory: [RouterFactory](./koatty_router.routerfactory.md)<!-- -->; }
 
-{<!-- -->\*<!-- -->} {<!-- -->KoattyRouter<!-- -->}
+{<!-- -->\*<!-- -->} {<!-- -->{ router: KoattyRouter, factory: RouterFactory }<!-- -->}
 

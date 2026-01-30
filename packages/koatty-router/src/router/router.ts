@@ -12,7 +12,7 @@ import { KoattyApplication, KoattyRouter } from "koatty_core";
 import { Helper } from "koatty_lib";
 import { RouterFactory } from "./factory";
 import { PayloadOptions } from "../payload/interface";
-import { payload } from "../payload/payload";
+
 
 /**
  * RouterOptions
@@ -87,34 +87,26 @@ export interface RouterOptions {
  * @export
  * @param {KoattyApplication} app
  * @param {RouterOptions} options
- * @returns {*}  {KoattyRouter}
+ * @returns {*}  {{ router: KoattyRouter, factory: RouterFactory }}
  */
-export function NewRouter(app: KoattyApplication, opt?: RouterOptions): KoattyRouter {
+export function NewRouter(app: KoattyApplication, opt?: RouterOptions): { router: KoattyRouter, factory: RouterFactory } {
   const options: RouterOptions = { protocol: "http", prefix: "", ...opt };
-  
+
   // Use RouterFactory to create router instance
   const factory = RouterFactory.getInstance();
   const router = factory.create(options.protocol!, app, options);
 
   Helper.define(router, "protocol", options.protocol);
-  
+
   // inject payload middleware
   // IMPORTANT: Use app.once() to prevent duplicate middleware registration
   // in multi-protocol environments where each NewRouter() is called separately
-  app.once("appReady", () => {
-    app.use(payload(options.payload));
-  });
-  
-  // Register cleanup handler on app stop event
-  // The upper layer framework (Koatty) will emit 'stop' event when receiving SIGTERM/SIGINT
-  // 
-  // NOTE: In multi-protocol environments (e.g., HTTP + WS + gRPC + GraphQL),
-  // each NewRouter() call will register this listener, causing shutdownAll() 
-  // to be called multiple times. However, RouterFactory.shutdownAll() uses
-  // flags (isShuttingDown/hasShutdown) to ensure it only executes once.
-  app.once("appStop", async () => {
-    await factory.shutdownAll();
-  });
-  
-  return router;
+  // app.once("appReady", () => {
+  //   app.use(payload(options.payload));
+  // });
+
+  // Note: app.once("appStop", ...) has been removed.
+  // Cleanup logic is now handled by RouterComponent @OnEvent(AppEvent.appStop)
+
+  return { router, factory };
 }

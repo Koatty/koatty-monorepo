@@ -4,9 +4,7 @@
 
 ## AppEvent enum
 
-app event
-
-  AppEvent
+Application lifecycle events  AppEvent
 
 **Signature:**
 
@@ -33,104 +31,6 @@ Description
 
 </th></tr></thead>
 <tbody><tr><td>
-
-afterComponentLoad
-
-
-</td><td>
-
-`"afterComponentLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterControllerLoad
-
-
-</td><td>
-
-`"afterControllerLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterMiddlewareLoad
-
-
-</td><td>
-
-`"afterMiddlewareLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterRouterLoad
-
-
-</td><td>
-
-`"afterRouterLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterServerStart
-
-
-</td><td>
-
-`"afterServerStart"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterServerStop
-
-
-</td><td>
-
-`"afterServerStop"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-afterServiceLoad
-
-
-</td><td>
-
-`"afterServiceLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
 
 appBoot
 
@@ -188,26 +88,12 @@ appStop
 </td></tr>
 <tr><td>
 
-beforeComponentLoad
+loadComponent
 
 
 </td><td>
 
-`"beforeComponentLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-beforeControllerLoad
-
-
-</td><td>
-
-`"beforeControllerLoad"`
+`"loadComponent"`
 
 
 </td><td>
@@ -216,26 +102,12 @@ beforeControllerLoad
 </td></tr>
 <tr><td>
 
-beforeMiddlewareLoad
+loadConfigure
 
 
 </td><td>
 
-`"beforeMiddlewareLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-beforeRouterLoad
-
-
-</td><td>
-
-`"beforeRouterLoad"`
+`"loadConfigure"`
 
 
 </td><td>
@@ -244,26 +116,12 @@ beforeRouterLoad
 </td></tr>
 <tr><td>
 
-beforeServerStart
+loadController
 
 
 </td><td>
 
-`"beforeServerStart"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-beforeServerStop
-
-
-</td><td>
-
-`"beforeServerStop"`
+`"loadController"`
 
 
 </td><td>
@@ -272,26 +130,12 @@ beforeServerStop
 </td></tr>
 <tr><td>
 
-beforeServiceLoad
+loadMiddleware
 
 
 </td><td>
 
-`"beforeServiceLoad"`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-componentLoading
-
-
-</td><td>
-
-`"componentLoading"`
+`"loadMiddleware"`
 
 
 </td><td>
@@ -300,12 +144,12 @@ componentLoading
 </td></tr>
 <tr><td>
 
-configLoaded
+loadPlugin
 
 
 </td><td>
 
-`"configLoaded"`
+`"loadPlugin"`
 
 
 </td><td>
@@ -314,12 +158,40 @@ configLoaded
 </td></tr>
 <tr><td>
 
-middlewareLoading
+loadRouter
 
 
 </td><td>
 
-`"middlewareLoading"`
+`"loadRouter"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadServe
+
+
+</td><td>
+
+`"loadServe"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadService
+
+
+</td><td>
+
+`"loadService"`
 
 
 </td><td>
