@@ -55,11 +55,11 @@
     "typescript": "^5.x.x"
   },
   "dependencies": {
-    "koatty_container": "^1.17.4",
-    "koatty_core": "^2.0.14",
-    "koatty_lib": "^1.4.5",
-    "koatty_loader": "^1.1.4",
-    "koatty_logger": "^2.3.4",
+    "koatty_container": "workspace:*",
+    "koatty_core": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_loader": "workspace:*",
+    "koatty_logger": "workspace:*",
     "run-con": "^1.3.2"
   }
 }

@@ -85,13 +85,13 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
     "@matrixai/quic": "^2.0.9",
-    "koatty_container": "^1.17.4",
-    "koatty_core": "^2.0.14",
-    "koatty_exception": "^2.0.10",
-    "koatty_lib": "^1.4.5",
-    "koatty_logger": "^2.3.4",
-    "koatty_proto": "^1.3.5",
-    "koatty_validation": "^1.6.6",
+    "koatty_container": "workspace:*",
+    "koatty_core": "workspace:*",
+    "koatty_exception": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*",
+    "koatty_proto": "workspace:*",
+    "koatty_validation": "workspace:*",
     "ws": "^8.19.0"
   }
 }

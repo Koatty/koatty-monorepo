@@ -420,6 +420,25 @@ Set metadata value by key.
 </td></tr>
 <tr><td>
 
+[silent](./koatty_core.koattyapplication.silent.md)
+
+
+</td><td>
+
+
+</td><td>
+
+boolean
+
+
+</td><td>
+
+Silent mode flag - when true, suppresses startup logs and console output Used primarily in test environments to reduce noise
+
+
+</td></tr>
+<tr><td>
+
 [stop](./koatty_core.koattyapplication.stop.md)
 
 

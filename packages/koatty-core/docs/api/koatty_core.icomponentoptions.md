@@ -4,10 +4,26 @@
 
 ## IComponentOptions interface
 
+Component configuration options
+
 **Signature:**
 
 ```typescript
 export interface IComponentOptions 
+```
+
+## Example
+
+
+```ts
+@Component('RouterComponent', {
+  scope: 'core',
+  priority: 100,
+  version: '1.0.0',
+  description: 'HTTP/gRPC routing for Koatty',
+  requires: ['ServeComponent'],
+})
+export class RouterComponent implements IComponent { }
 ```
 
 ## Properties
@@ -35,6 +51,25 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[description?](./koatty_core.icomponentoptions.description.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Component description (for plugin metadata)
+
+
+</td></tr>
+<tr><td>
+
 [enabled?](./koatty_core.icomponentoptions.enabled.md)
 
 
@@ -48,7 +83,7 @@ boolean
 
 </td><td>
 
-_(Optional)_
+_(Optional)_ Whether this component is enabled (default: true)
 
 
 </td></tr>
@@ -67,7 +102,7 @@ number
 
 </td><td>
 
-_(Optional)_
+_(Optional)_ Priority for loading order, higher = earlier (default: 0)
 
 
 </td></tr>
@@ -86,7 +121,7 @@ string\[\]
 
 </td><td>
 
-_(Optional)_
+_(Optional)_ List of component names that this component depends on
 
 
 </td></tr>
@@ -105,7 +140,26 @@ _(Optional)_
 
 </td><td>
 
-_(Optional)_
+_(Optional)_ Component scope: 'core' for framework components, 'user' for application components
+
+
+</td></tr>
+<tr><td>
+
+[version?](./koatty_core.icomponentoptions.version.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Component version (for plugin metadata)
 
 
 </td></tr>

@@ -4,36 +4,6 @@
 
 ## koatty\_trace package
 
-## Classes
-
-<table><thead><tr><th>
-
-Class
-
-
-</th><th>
-
-Description
-
-
-</th></tr></thead>
-<tbody><tr><td>
-
-[TraceComponent](./koatty_trace.tracecomponent.md)
-
-
-</td><td>
-
-Trace Component Responsible for initializing OpenTelemetry tracing
-
-Implements IComponent interface (base interface)
-
-Event bindings: - loadMiddleware: Initialize trace middleware (higher priority to load before other middleware) - appStop: Shutdown tracer, flush data
-
-
-</td></tr>
-</tbody></table>
-
 ## Functions
 
 <table><thead><tr><th>
@@ -48,6 +18,61 @@ Description
 
 </th></tr></thead>
 <tbody><tr><td>
+
+[getOrInitRequestId(ctx, idGenerator)](./koatty_trace.getorinitrequestid.md)
+
+
+</td><td>
+
+获取或初始化请求 ID Get or initialize request ID
+
+
+</td></tr>
+<tr><td>
+
+[getOrInitStartTime(ctx)](./koatty_trace.getorinitstarttime.md)
+
+
+</td><td>
+
+获取或初始化请求开始时间 Get or initialize request start time
+
+
+</td></tr>
+<tr><td>
+
+[hasRequiredProperties(ctx)](./koatty_trace.hasrequiredproperties.md)
+
+
+</td><td>
+
+检查上下文是否已经初始化了必需的属性 Check if context has required properties initialized
+
+
+</td></tr>
+<tr><td>
+
+[initializeRequestProperties(ctx, requestId)](./koatty_trace.initializerequestproperties.md)
+
+
+</td><td>
+
+初始化请求的公共属性（startTime, requestId 等） Initialize common request properties (startTime, requestId, etc.)
+
+
+</td></tr>
+<tr><td>
+
+[safeDefine(ctx, property, value, setter)](./koatty_trace.safedefine.md)
+
+
+</td><td>
+
+安全地定义上下文属性（防止重复定义） Define context property safely (prevent redefinition)
+
+
+</td></tr>
+<tr><td>
 
 [Trace(options, app)](./koatty_trace.trace.md)
 

@@ -377,6 +377,17 @@ Check is prevent error
 </td></tr>
 <tr><td>
 
+[isPrototypePollution(name)](./koatty_core.isprototypepollution.md)
+
+
+</td><td>
+
+Check if the key name contains prototype pollution keywords Prevents security vulnerabilities by blocking attempts to modify Object prototype
+
+
+</td></tr>
+<tr><td>
+
 [isWebSocketProtocol(ctx)](./koatty_core.iswebsocketprotocol.md)
 
 
@@ -502,6 +513,17 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentMeta](./koatty_core.componentmeta.md)
+
+
+</td><td>
+
+Component metadata structure Contains all information about a registered component
+
+
+</td></tr>
+<tr><td>
+
 [GraphQLContext](./koatty_core.graphqlcontext.md)
 
 
@@ -548,6 +570,8 @@ HTTP/HTTPS Context
 
 
 </td><td>
+
+Component configuration options
 
 
 </td></tr>

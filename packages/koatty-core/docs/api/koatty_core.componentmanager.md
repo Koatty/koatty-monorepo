@@ -76,6 +76,90 @@ Description
 </td></tr>
 <tr><td>
 
+[getAllComponents()](./koatty_core.componentmanager.getallcomponents.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get all registered components (both core and user)
+
+
+</td></tr>
+<tr><td>
+
+[getComponent(name)](./koatty_core.componentmanager.getcomponent.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get component metadata by name
+
+
+</td></tr>
+<tr><td>
+
+[getComponentNames()](./koatty_core.componentmanager.getcomponentnames.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get component names
+
+
+</td></tr>
+<tr><td>
+
+[getComponentsInfo()](./koatty_core.componentmanager.getcomponentsinfo.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get components with version info (for debugging/monitoring)
+
+
+</td></tr>
+<tr><td>
+
+[getComponentsSortedByPriority()](./koatty_core.componentmanager.getcomponentssortedbypriority.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get all components sorted by priority (higher priority first)
+
+
+</td></tr>
+<tr><td>
+
+[getCoreComponents()](./koatty_core.componentmanager.getcorecomponents.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get all core components
+
+
+</td></tr>
+<tr><td>
+
 [getPlugin(name)](./koatty_core.componentmanager.getplugin.md)
 
 
@@ -100,6 +184,20 @@ Description
 </td></tr>
 <tr><td>
 
+[getUserComponents()](./koatty_core.componentmanager.getusercomponents.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get all user components
+
+
+</td></tr>
+<tr><td>
+
 [hasPlugin(name)](./koatty_core.componentmanager.hasplugin.md)
 
 
@@ -119,6 +217,20 @@ Description
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[printSummary()](./koatty_core.componentmanager.printsummary.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Print component registry summary (for debugging)
 
 
 </td></tr>

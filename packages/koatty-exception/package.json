@@ -88,8 +88,8 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
-    "koatty_container": "^1.17.4",
-    "koatty_lib": "^1.4.5",
-    "koatty_logger": "^2.3.4"
+    "koatty_container": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*"
   }
 }

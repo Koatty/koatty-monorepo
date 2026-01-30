@@ -4,6 +4,8 @@
 
 ## IComponentOptions.enabled property
 
+Whether this component is enabled (default: true)
+
 **Signature:**
 
 ```typescript

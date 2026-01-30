@@ -4,6 +4,8 @@
 
 ## IComponentOptions.scope property
 
+Component scope: 'core' for framework components, 'user' for application components
+
 **Signature:**
 
 ```typescript

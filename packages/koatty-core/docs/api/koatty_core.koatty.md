@@ -284,6 +284,25 @@ Server instance - Single protocol: KoattyServer instance - Multi-protocol: Koatt
 </td></tr>
 <tr><td>
 
+[silent](./koatty_core.koatty.silent.md)
+
+
+</td><td>
+
+
+</td><td>
+
+boolean
+
+
+</td><td>
+
+Silent mode flag - when true, suppresses startup logs and console output Used primarily in test environments to reduce noise
+
+
+</td></tr>
+<tr><td>
+
 [version](./koatty_core.koatty.version.md)
 
 

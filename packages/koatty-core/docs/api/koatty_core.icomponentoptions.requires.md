@@ -4,6 +4,8 @@
 
 ## IComponentOptions.requires property
 
+List of component names that this component depends on
+
 **Signature:**
 
 ```typescript

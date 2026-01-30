@@ -68,3 +68,7 @@ The value to be set.
 
 void
 
+## Exceptions
+
+{<!-- -->Error<!-- -->} When prototype pollution attempt is detected
+

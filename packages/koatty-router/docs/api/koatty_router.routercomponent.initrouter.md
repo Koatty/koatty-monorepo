@@ -4,7 +4,9 @@
 
 ## RouterComponent.initRouter() method
 
-Initialize router
+Initialize router and load routes
+
+This method handles the complete router initialization: 1. Create router instance(s) for configured protocol(s) 2. Bind router to app.router 3. Load controller routes into router
 
 **Signature:**
 

@@ -4,6 +4,8 @@
 
 ## IComponentOptions.priority property
 
+Priority for loading order, higher = earlier (default: 0)
+
 **Signature:**
 
 ```typescript
