@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.9
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_container@2.0.0
+  - koatty_core@2.1.0
+  - koatty_logger@2.4.0
+
 ## 1.2.8
 
 ### Patch Changes

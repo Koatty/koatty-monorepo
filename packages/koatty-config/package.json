@@ -1,6 +1,6 @@
 {
   "name": "koatty_config",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Configuration loader for Koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
