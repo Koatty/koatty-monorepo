@@ -12,22 +12,60 @@ import { readFileSync } from 'fs';
 import { QPACKEncoder, QPACKDecoder } from '../utils/http3/qpack'; 
 import { Http3FrameParser, Http3MessageHandler } from '../utils/http3/frames';
 
-// 使用 require 导入 @matrixai/quic 以绕过模块解析问题
+// @matrixai/quic 是纯 ESM 模块，需要使用动态 import() 加载
 // 作为可选依赖，如果未安装则返回 null
 let matrixaiQuic: any = null;
 let QUICServer: any = null;
+let moduleLoadPromise: Promise<boolean> | null = null;
+let moduleLoaded = false;
 const logger = createLogger({ module: 'http3-matrixai-adapter' });
 
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  matrixaiQuic = require('@matrixai/quic');
-  QUICServer = matrixaiQuic.QUICServer;
-} catch { 
-  // @matrixai/quic 未安装，HTTP/3 功能将不可用
-  // 这是预期的行为，因为它是可选依赖
-  logger.warn('@matrixai/quic is not installed, HTTP/3 functionality will be disabled');
+/**
+ * 异步加载 @matrixai/quic 模块
+ * @returns Promise<boolean> 是否加载成功
+ */
+async function loadMatrixaiQuic(): Promise<boolean> {
+  if (moduleLoaded) return QUICServer !== null;
+  if (moduleLoadPromise) return moduleLoadPromise;
+  
+  moduleLoadPromise = (async () => {
+    try {
+      // 使用动态 import() 加载 ESM 模块
+      matrixaiQuic = await import('@matrixai/quic');
+      QUICServer = matrixaiQuic.QUICServer;
+      moduleLoaded = true;
+      logger.info('@matrixai/quic loaded successfully, HTTP/3 functionality is available');
+      return true;
+    } catch { 
+      // @matrixai/quic 未安装或加载失败，HTTP/3 功能将不可用
+      // 这是预期的行为，因为它是可选依赖
+      moduleLoaded = true;
+      logger.warn('@matrixai/quic is not installed or failed to load, HTTP/3 functionality will be disabled');
+      return false;
+    }
+  })();
+  
+  return moduleLoadPromise;
 }
 
+// 立即尝试加载模块（后台加载）
+loadMatrixaiQuic();
+
+/**
+ * 同步检查 @matrixai/quic 是否已加载完成且可用
+ * 注意：这只在模块加载完成后才准确，建议在使用前先等待 loadMatrixaiQuic()
+ * @returns boolean - 如果模块已加载且可用返回 true
+ */
+export function isMatrixaiQuicReady(): boolean {
+  return moduleLoaded && QUICServer !== null;
+}
+
+/**
+ * 获取模块加载 Promise，用于等待模块加载完成
+ */
+export function waitForMatrixaiQuic(): Promise<boolean> {
+  return loadMatrixaiQuic();
+}
 
 /**
  * HTTP/3 服务器配置
@@ -73,15 +111,6 @@ export class Http3ServerAdapter extends EventEmitter {
   constructor(private readonly config: Http3ServerConfig) {
     super();
     
-    // 检查 @matrixai/quic 是否可用
-    if (!QUICServer) {
-      throw new Error(
-        '@matrixai/quic is not installed. ' +
-        'HTTP/3 functionality requires @matrixai/quic library. ' +
-        'Install it with: pnpm add @matrixai/quic'
-      );
-    }
-    
     // 初始化 QPACK 编码器和解码器
     const maxTableCapacity = config.qpackMaxTableCapacity || 4096;
     this.qpackEncoder = new QPACKEncoder(maxTableCapacity);
@@ -97,9 +126,27 @@ export class Http3ServerAdapter extends EventEmitter {
   }
   
   /**
+   * 检查 @matrixai/quic 是否可用
+   * @returns Promise<boolean>
+   */
+  static async isAvailable(): Promise<boolean> {
+    return loadMatrixaiQuic();
+  }
+  
+  /**
    * 启动服务器
    */
   async listen(callback?: () => void): Promise<void> {
+    // 等待 @matrixai/quic 模块加载完成
+    const isAvailable = await loadMatrixaiQuic();
+    if (!isAvailable || !QUICServer) {
+      throw new Error(
+        '@matrixai/quic is not installed or failed to load. ' +
+        'HTTP/3 functionality requires @matrixai/quic library. ' +
+        'Install it with: pnpm add @matrixai/quic'
+      );
+    }
+    
     try {
       // 准备 TLS 配置
       const cert = this.loadCertificate(this.config.certFile, 'certificate');
@@ -543,26 +590,35 @@ export class Http3ServerAdapter extends EventEmitter {
 }
 
 /**
- * 获取 HTTP/3 支持信息
+ * 获取 HTTP/3 支持信息（同步版本，用于日志显示）
+ * 注意：如果模块尚未加载完成，返回默认值
  */
 export function getHttp3Version(): string {
-  try {
-    const pkg = require('@matrixai/quic/package.json');
-    return `MatrixAI QUIC ${pkg.version}`;
-  } catch {
-    return '@matrixai/quic';
+  if (moduleLoaded && matrixaiQuic) {
+    // 尝试从已加载的模块获取版本信息
+    try {
+      const version = matrixaiQuic.version || matrixaiQuic.VERSION || 'unknown';
+      return `MatrixAI QUIC ${version}`;
+    } catch {
+      return '@matrixai/quic';
+    }
   }
+  // 模块未加载完成或不可用
+  return moduleLoaded ? '@matrixai/quic (not installed)' : '@matrixai/quic (loading...)';
 }
 
 /**
- * 检查是否支持 HTTP/3
+ * 检查是否支持 HTTP/3（同步版本）
+ * 注意：如果模块尚未加载完成，返回 false
  */
 export function hasNativeHttp3Support(): boolean {
-  try {
-    require('@matrixai/quic');
-    return true;
-  } catch {
-    return false;
-  }
+  return moduleLoaded && QUICServer !== null;
+}
+
+/**
+ * 异步检查是否支持 HTTP/3（等待模块加载完成）
+ */
+export async function hasNativeHttp3SupportAsync(): Promise<boolean> {
+  return loadMatrixaiQuic();
 }
 

@@ -41,7 +41,7 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate, isCertificateContent } from "../utils/cert-loader";
 import { Http3ConnectionPoolManager, Http3Session } from "../pools/http3";
 import { ConfigHelper, Http3ServerOptions, ListeningOptions, SSL3Config } from "../config/config";
-import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version, hasNativeHttp3Support } from "../adapters/http3-matrixai";
+import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version, hasNativeHttp3Support, waitForMatrixaiQuic, isMatrixaiQuicReady } from "../adapters/http3-matrixai";
 
 /**
  * HTTP/3 Server implementation using template method pattern
@@ -71,24 +71,16 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
 
   /**
    * 创建HTTP/3服务器实例（使用 @matrixai/quic）
+   * 注意：@matrixai/quic 是 ESM 模块，需要异步加载
+   * 实际的可用性检查将在 Http3ServerAdapter.listen() 中进行
    */
   protected createProtocolServer(): void {
-    const http3Version = getHttp3Version();
-    const hasSupport = hasNativeHttp3Support();
-    
+    // 注意：不在这里进行同步检查，因为 @matrixai/quic 是 ESM 模块需要异步加载
+    // 真正的检查会在 Http3ServerAdapter.listen() 方法中进行
     this.logger.info('Initializing HTTP/3 server', {}, { 
-      version: http3Version,
       library: '@matrixai/quic',
-      available: hasSupport
+      note: 'Module availability will be checked when server starts'
     });
-    
-    if (!hasSupport) {
-      this.logger.error('@matrixai/quic not available', {}, {
-        note: 'Install with: pnpm add @matrixai/quic',
-        required: true
-      });
-      throw new Error('@matrixai/quic is required for HTTP/3 support');
-    }
     
     try {
       const http3Config: Http3ServerConfig = {
