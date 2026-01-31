@@ -35,7 +35,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[run?](./koatty_core.icomponent.run.md)
+[events?](./koatty_core.icomponent.events.md)
 
 
 </td><td>
@@ -43,7 +43,7 @@ Description
 
 </td><td>
 
-(options: object, app: [KoattyApplication](./koatty_core.koattyapplication.md)<!-- -->) =&gt; Promise&lt;any&gt;
+Record&lt;string, string\[\]&gt;
 
 
 </td><td>

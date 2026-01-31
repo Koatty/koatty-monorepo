@@ -289,6 +289,17 @@ Check if a class implements the IAspect interface.
 </td></tr>
 <tr><td>
 
+[implementsComponentInterface(cls)](./koatty_core.implementscomponentinterface.md)
+
+
+</td><td>
+
+Check if a class implements the IComponent interface.
+
+
+</td></tr>
+<tr><td>
+
 [implementsControllerInterface(cls)](./koatty_core.implementscontrollerinterface.md)
 
 
@@ -438,6 +449,17 @@ ONLY for  and  classes (type === "COMPONENT")
 </td><td>
 
 Convert express middleware for koa
+
+
+</td></tr>
+<tr><td>
+
+[Plugin(identifier, options)](./koatty_core.plugin.md)
+
+
+</td><td>
+
+Plugin decorator for registering plugin components. The decorated class must have a name ending with "Plugin" suffix.
 
 
 </td></tr>

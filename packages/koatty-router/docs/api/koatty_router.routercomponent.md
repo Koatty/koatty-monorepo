@@ -17,6 +17,48 @@ export declare class RouterComponent implements IComponent
 ```
 **Implements:** IComponent
 
+## Properties
+
+<table><thead><tr><th>
+
+Property
+
+
+</th><th>
+
+Modifiers
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[events](./koatty_router.routercomponent.events.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Record&lt;string, any&gt;
+
+
+</td><td>
+
+
+</td></tr>
+</tbody></table>
+
 ## Methods
 
 <table><thead><tr><th>

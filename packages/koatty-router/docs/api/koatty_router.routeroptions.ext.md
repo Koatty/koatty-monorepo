@@ -18,24 +18,26 @@ ext?: Record<string, any>;
 
 
 ```typescript
-// WebSocket 配置
 ext: {
-  maxFrameSize: 1024 * 1024,
-  heartbeatInterval: 15000,
-  maxConnections: 1000
-}
-
-// gRPC 配置
-ext: {
-  protoFile: "./proto/service.proto",
-  poolSize: 10,
-  streamConfig: { maxConcurrentStreams: 50 }
-}
-
-// GraphQL 配置
-ext: {
-  schemaFile: "./schema/schema.graphql",
-  playground: true
+  http: {},
+  grpc: {
+    protoFile: "./proto/service.proto",
+    poolSize: 10,
+    streamConfig: { maxConcurrentStreams: 50 }
+  },
+  graphql: {
+    schemaFile: "./resource/graphql/schema.graphql",
+    // Optional: Enable HTTP/2 with SSL for GraphQL
+    // keyFile: "./ssl/server.key",
+    // crtFile: "./ssl/server.crt",
+    // ssl: { mode: 'auto', allowHTTP1: true },
+    // http2: { maxConcurrentStreams: 100 }
+  },
+  ws: {
+    maxFrameSize: 1024 * 1024,
+    heartbeatInterval: 15000,
+    maxConnections: 1000
+  }
 }
 ```
 
