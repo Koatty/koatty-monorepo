@@ -170,7 +170,7 @@ Description
 
 </td><td>
 
-创建HTTP/3服务器实例（使用 @<!-- -->matrixai/quic）
+创建HTTP/3服务器实例（使用 @<!-- -->matrixai/quic） 注意：<!-- -->@<!-- -->matrixai/quic 是 ESM 模块，需要异步加载 实际的可用性检查将在 Http3ServerAdapter.listen() 中进行
 
 
 </td></tr>
