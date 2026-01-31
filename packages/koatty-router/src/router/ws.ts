@@ -87,7 +87,13 @@ export class WebsocketRouter implements KoattyRouter {
       cleanupInterval: extConfig.cleanupInterval || 5 * 60 * 1000 // 5分钟
     }
     
-    this.router = new KoaRouter(this.options);
+    // initialize - only pass base router options to KoaRouter
+    this.router = new KoaRouter({
+      prefix: options.prefix,
+      methods: options.methods,
+      sensitive: options.sensitive,
+      strict: options.strict,
+    });
     this.routerMap = new Map();
     this.connections = new Map();
     

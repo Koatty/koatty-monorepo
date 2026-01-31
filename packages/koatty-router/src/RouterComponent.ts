@@ -38,6 +38,7 @@ import { RouterFactory } from './router/factory';
   description: 'HTTP/gRPC/WebSocket routing for Koatty',
 })
 export class RouterComponent implements IComponent {
+  events: Record<string, any> = {};
   private factory: RouterFactory | null = null;
 
   /**
@@ -81,7 +82,7 @@ export class RouterComponent implements IComponent {
           // Log warning and skip this protocol instead of crashing
           Logger.Warn(
             `Router for protocol '${proto}' skipped: ${error.message}\n` +
-            `  → To enable ${proto}, configure 'ext.${proto}' in RouterComponent or ServeComponent config`
+            `  → To enable ${proto}, configure 'ext.${proto}' in config/router.ts`
           );
         }
       }
@@ -89,7 +90,7 @@ export class RouterComponent implements IComponent {
       if (successfulProtocols.length === 0) {
         throw new Error(
           `No routers could be initialized. Configured protocols: [${protocols.join(', ')}]\n` +
-          `  → Check protocol-specific 'ext' configuration in config/plugin.ts`
+          `  → Check protocol-specific configuration in config/router.ts`
         );
       }
       

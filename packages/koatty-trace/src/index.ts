@@ -10,4 +10,3 @@
  */
 
 export * from "./trace/trace";
-export * from "./utils/contextInit";

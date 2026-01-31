@@ -6,6 +6,7 @@
  * @LastEditTime: 2025-04-06 22:56:00
  */
 import { UntypedHandleCall, ServerReadableStream, ServerWritableStream, ServerDuplexStream } from "@grpc/grpc-js";
+import path from "path";
 import { IOC } from "koatty_container";
 import {
   IRpcServerCall,
@@ -446,9 +447,15 @@ export class GrpcRouter implements KoattyRouter {
       validation.warnings.forEach((warning: string) => Logger.Warn(`[GrpcRouter] ${warning}`));
     }
     
+    // Resolve protoFile path: if relative, resolve against app.rootPath
+    let protoFilePath = extConfig.protoFile;
+    if (protoFilePath && !path.isAbsolute(protoFilePath)) {
+      protoFilePath = path.resolve(app.rootPath, protoFilePath);
+    }
+    
     this.options = {
       ...options,
-      protoFile: extConfig.protoFile,
+      protoFile: protoFilePath,
       poolSize: extConfig.poolSize || 10,
       batchSize: extConfig.batchSize || 10,
       streamConfig: extConfig.streamConfig || {}

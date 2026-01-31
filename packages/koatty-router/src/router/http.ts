@@ -33,8 +33,13 @@ export class HttpRouter implements KoattyRouter {
     this.options = { ...options };
     this.protocol = options.protocol || "http";
     
-    // initialize
-    this.router = new KoaRouter(this.options);
+    // initialize - only pass base router options to KoaRouter
+    this.router = new KoaRouter({
+      prefix: options.prefix,
+      methods: options.methods,
+      sensitive: options.sensitive,
+      strict: options.strict,
+    });
     this.routerMap = new Map();
   }
 

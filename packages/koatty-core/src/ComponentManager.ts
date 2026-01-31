@@ -21,7 +21,6 @@ import {
   PLUGIN_OPTIONS
 } from './Component';
 import {
-  AppEventArr,
   AppEvent,
   KoattyApplication,
 } from './IApplication';
@@ -135,9 +134,8 @@ export class ComponentManager {
         // We defer checking run() until instance is created during registration
         const instance = IOC.getInsByClass(item.target);
         const hasRunMethod = implementsPluginInterface(instance);
-        
+        // Component has neither run() method nor @OnEvent bindings, skipping
         if (!hasRunMethod) {
-          Logger.Warn(`Component ${identifier} has neither run() method nor @OnEvent bindings, skipping`);
           continue;
         }
       }
@@ -230,8 +228,9 @@ export class ComponentManager {
 
     // 规则1：如果有 @OnEvent 绑定，注册这些事件
     if (hasEventBindings) {
+      const appEventArr = Object.values(AppEvent);
       for (const [eventName, methodNames] of Object.entries(events)) {
-        if (!AppEventArr.includes(eventName)) {
+        if (!appEventArr.includes(eventName as AppEvent)) {
           Logger.Warn(`Component ${name} registers unknown event: ${eventName}`);
           continue;
         }

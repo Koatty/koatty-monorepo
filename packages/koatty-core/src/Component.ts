@@ -60,8 +60,9 @@ export interface IComponentOptions {
   [key: string]: any;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface IComponent {
-  run?: (options: object, app: KoattyApplication) => Promise<any>;
+  events?: Record<string, string[]>;
 }
 
 /**
@@ -131,9 +132,8 @@ export interface IService {
 export interface IPluginOptions extends IComponentOptions {
   [key: string]: any;
 }
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface IPlugin extends IComponent {
+  run: (options: object, app: KoattyApplication) => Promise<any>;
 }
 
 /**
@@ -363,6 +363,44 @@ export function Service(identifier?: string, options?: Record<string, any>): Cla
 }
 
 /**
+ * Plugin decorator for registering plugin components.
+ * The decorated class must have a name ending with "Plugin" suffix.
+ * 
+ * @param identifier Optional custom identifier for the plugin. If not provided, will use class name
+ * @param options Optional configuration options for the plugin
+ * @returns ClassDecorator
+ * @throws Error if class name doesn't end with "Plugin"
+ * 
+ * @example
+ * ```ts
+ * @Plugin()
+ * class MyPlugin {
+ *   run(options: object, app: KoattyApplication) {}
+ * }
+ * 
+ * @Plugin("AuthPlugin", { enabled: true, priority: 10 })
+ * class AuthPlugin {
+ *   run(options: object, app: KoattyApplication) {}
+ * }
+ * ```
+ */
+export function Plugin(identifier?: string, options?: Record<string, any>): ClassDecorator {
+  return (target: any) => {
+    identifier = identifier || IOC.getIdentifier(target);
+    // 
+    if (!identifier.endsWith("Plugin")) {
+      throw Error("Plugin class name must be 'Plugin' suffix.");
+    }
+    IOC.saveClass("COMPONENT", target, `${identifier}`);
+
+    // Save options if provided
+    if (options) {
+      IOC.savePropertyData(PLUGIN_OPTIONS, options, target, identifier);
+    }
+  };
+}
+
+/**
  * Component decorator, used to mark a class as a component.
  * Components are lifecycle-aware units that can listen to application events.
  * 
@@ -439,6 +477,7 @@ export function OnEvent(event: AppEvent): MethodDecorator {
       events[event] = [];
     }
     events[event].push(propertyKey);
+    Reflect.set(target, 'events', events);
     Reflect.defineMetadata(COMPONENT_EVENTS, events, targetClass);
     return descriptor as any;
   };
@@ -494,10 +533,20 @@ export function implementsPluginInterface(cls: any): cls is IPlugin {
   if (!cls || typeof cls !== 'object') {
     return false;
   }
-  return (
-    ('run' in cls && Helper.isFunction(cls.run)) ||
-    ('events' in cls && Helper.isObject(cls.events))
-  );
+  return Helper.isFunction(cls.run);
+}
+
+/**
+ * Check if a class implements the IComponent interface.
+ * 
+ * @param cls The class to check
+ * @returns True if the class implements IComponent interface, false otherwise
+ */
+export function implementsComponentInterface(cls: any): cls is IComponent {
+  if (!cls || typeof cls !== 'object') {
+    return false;
+  }
+  return ('events' in cls && Helper.isObject(cls.events));
 }
 
 /**

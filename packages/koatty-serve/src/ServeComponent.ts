@@ -37,7 +37,7 @@ import { NewServe } from './server/serve';
   requires: [], // Router is optional dependency, not enforced
 })
 export class ServeComponent implements IComponent {
-
+  events?: Record<string, string[]>;
   /**
    * Initialize server
    */
