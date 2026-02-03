@@ -437,8 +437,8 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
   // ============= 实现KoattyServer接口 =============
 
   Start(listenCallback?: () => void): NativeServer {
-    const traceId = generateTraceId();
-    this.logger.info('Server starting', { traceId }, {
+    // Simple startup log - no traceId needed
+    this.logger.info('Server starting', {}, {
       hostname: this.options.hostname,
       port: this.options.port,
       protocol: this.options.protocol
@@ -446,7 +446,9 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
 
     // 添加错误事件监听器，必须在 listen 之前注册
     const errorHandler = (error: Error) => {
-      this.logger.error('Server startup error', { traceId }, error);
+      // Error logs keep traceId for troubleshooting
+      const errorTraceId = generateTraceId();
+      this.logger.error('Server startup error', { traceId: errorTraceId }, error);
       // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
       setImmediate(() => {
         throw error;
@@ -467,7 +469,9 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
       // 添加运行时错误处理器
       if (typeof this.server.on === 'function') {
         this.server.on('error', (error: Error) => {
-          this.logger.error('Server runtime error', { traceId }, error); 
+          // Error logs keep traceId for troubleshooting
+          const runtimeErrorTraceId = generateTraceId();
+          this.logger.error('Server runtime error', { traceId: runtimeErrorTraceId }, error); 
           // 运行时错误不退出进程
         });
       }
@@ -478,13 +482,14 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
       const protocolUpper = this.options.protocol.toUpperCase();
       const underlyingProtocol = this.options.ext?._underlyingProtocol;
       // For URL, always use the underlying protocol (http2/https), not graphql
-      const urlProtocol = underlyingProtocol ? underlyingProtocol.toLowerCase() : this.options.protocol.toLowerCase();
+      const urlProtocol = (underlyingProtocol as string | undefined)?.toLowerCase() ?? this.options.protocol.toLowerCase();
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${this.options.port}/`;
       
-      // 输出 Koatty 格式的启动日志
-      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, { traceId });
+      // 输出 Koatty 格式的启动日志 - no traceId needed for simple status log
+      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, {});
       
-      this.logger.info('Server started', { traceId }, {
+      // Simple completion log - no traceId needed
+      this.logger.info('Server started', {}, {
         address: `${this.options.hostname}:${this.options.port}`,
         hostname: this.options.hostname,
         port: this.options.port,

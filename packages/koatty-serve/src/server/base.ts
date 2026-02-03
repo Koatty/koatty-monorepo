@@ -73,7 +73,7 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions>
 
   constructor(protected app: KoattyApplication, options: T) {
     // 深拷贝 options，确保 ext 对象也被正确复制
-    this.options = { 
+    this.options = {
       ...options,
       ext: options.ext ? { ...options.ext } : undefined
     };
@@ -86,7 +86,7 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions>
 
     // 设置日志上下文
     // 对于 GraphQL，使用底层协议作为 module，保持 protocol 为 graphql
-    const actualModule = options.ext?._underlyingProtocol || options.protocol;
+    const actualModule = (options.ext?._underlyingProtocol as string | undefined) ?? options.protocol;
     this.logger = createLogger({
       module: actualModule,
       protocol: options.protocol,

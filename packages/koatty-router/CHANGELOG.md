@@ -1,46 +1,143 @@
 # Changelog
 
+## 2.1.0
+
+### Minor Changes
+
+- build
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_container@2.0.0
+  - koatty_core@2.1.0
+  - koatty_exception@2.1.0
+  - koatty_logger@2.4.0
+  - koatty_validation@2.0.0
+
+## 2.0.9
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_container@1.17.4
+  - koatty_core@2.0.14
+  - koatty_exception@2.0.10
+  - koatty_graphql@1.1.4
+  - koatty_lib@1.4.5
+  - koatty_logger@2.3.4
+  - koatty_proto@1.3.5
+  - koatty_validation@1.6.6
+
+## 2.0.8
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_container@1.17.3
+  - koatty_core@2.0.13
+  - koatty_exception@2.0.9
+  - koatty_graphql@1.1.3
+  - koatty_lib@1.4.4
+  - koatty_logger@2.3.3
+  - koatty_proto@1.3.4
+  - koatty_validation@1.6.5
+
+## 2.0.7
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_container@1.17.2
+  - koatty_graphql@1.1.2
+  - koatty_lib@1.4.3
+  - koatty_logger@2.3.2
+  - koatty_proto@1.3.3
+  - koatty_validation@1.6.4
+  - koatty_core@2.0.12
+  - koatty_exception@2.0.8
+
+## 2.0.6
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_proto@1.3.2
+
+## 2.0.5
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_lib@1.4.2
+  - koatty_container@1.17.1
+  - koatty_core@2.0.11
+  - koatty_exception@2.0.7
+  - koatty_graphql@1.1.1
+  - koatty_logger@2.3.1
+  - koatty_proto@1.3.1
+  - koatty_validation@1.6.3
+
+## 2.0.4
+
+### Patch Changes
+
+- build
+- build
+- Updated dependencies
+- Updated dependencies
+  - koatty_core@2.0.10
+  - koatty_exception@2.0.6
+  - koatty_validation@1.6.2
+
+## 2.0.3
+
+### Patch Changes
+
+- init
+- Updated dependencies
+  - koatty_core@2.0.9
+  - koatty_exception@2.0.5
+
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 ### [2.0.2](https://github.com/koatty/koatty_router/compare/koatty-router@2.0.1...koatty-router@2.0.2) (2025-10-25)
 
-
 ### Features
 
-* **trace:** enhance tracing with timeout handling and status checks ([caa6a10](https://github.com/koatty/koatty_router/commit/caa6a10d0d82064567f1a3f8f3146f28a7b7398d))
-
+- **trace:** enhance tracing with timeout handling and status checks ([caa6a10](https://github.com/koatty/koatty_router/commit/caa6a10d0d82064567f1a3f8f3146f28a7b7398d))
 
 ### Bug Fixes
 
-* **koatty-serve:** 修复不稳定的时间相关测试 ([cf2d6b5](https://github.com/koatty/koatty_router/commit/cf2d6b5754a56217df1b912faf7cd40b01dbcbdc))
-* **koatty-trace:** 修复ESLint错误和测试mock问题 ([b24e1f9](https://github.com/koatty/koatty_router/commit/b24e1f9dcc55c64f5d97f3ca01bc53161e7bdb7c))
+- **koatty-serve:** 修复不稳定的时间相关测试 ([cf2d6b5](https://github.com/koatty/koatty_router/commit/cf2d6b5754a56217df1b912faf7cd40b01dbcbdc))
+- **koatty-trace:** 修复 ESLint 错误和测试 mock 问题 ([b24e1f9](https://github.com/koatty/koatty_router/commit/b24e1f9dcc55c64f5d97f3ca01bc53161e7bdb7c))
 
 ### 2.0.1 (2025-10-25)
 
-
 ### ⚠ BREAKING CHANGES
 
-* **scripts:** - Tag格式从 v{version} 改为 {package-name}@{version}
+- **scripts:** - Tag 格式从 v{version} 改为 {package-name}@{version}
 
 ### Features
 
-* add examples directory with basic-app example ([ef49c6f](https://github.com/koatty/koatty_router/commit/ef49c6f932b88ba947fc4c7f448d91b016e3e020))
-* improve type safety in compress middleware ([61beb1d](https://github.com/koatty/koatty_router/commit/61beb1d206bebfd5f6fec9a2d1297f420be217a2))
-* **koatty_core:** upgrade to Koa 3.0 ([fe246ad](https://github.com/koatty/koatty_router/commit/fe246ad773521b6117d212378b07faa30abd17e0))
-* **koatty_router:** migrate from koa-graphql to graphql-http ([847821a](https://github.com/koatty/koatty_router/commit/847821ac80109c6f4fd953e0701ad695e4fb771f))
-* make exception context fields optional and improve trace handling ([e0ec4db](https://github.com/koatty/koatty_router/commit/e0ec4db1ba7299b1d22018558f61288cb2564dc6))
-* **release:** add release guide and automation script ([c5f01b1](https://github.com/koatty/koatty_router/commit/c5f01b17765a9b1eeb07c448b27be5ade9278569))
-* update sync script to use HTTPS instead of SSH for package repos ([91c9fd7](https://github.com/koatty/koatty_router/commit/91c9fd74f080685cb2e8fab66e4765cbf86be57c))
-* upgrade to Koa 3.0 (WIP) ([d14114c](https://github.com/koatty/koatty_router/commit/d14114c63d0f62fcd3a64296cbb6648ec1ee1e83))
-
+- add examples directory with basic-app example ([ef49c6f](https://github.com/koatty/koatty_router/commit/ef49c6f932b88ba947fc4c7f448d91b016e3e020))
+- improve type safety in compress middleware ([61beb1d](https://github.com/koatty/koatty_router/commit/61beb1d206bebfd5f6fec9a2d1297f420be217a2))
+- **koatty_core:** upgrade to Koa 3.0 ([fe246ad](https://github.com/koatty/koatty_router/commit/fe246ad773521b6117d212378b07faa30abd17e0))
+- **koatty_router:** migrate from koa-graphql to graphql-http ([847821a](https://github.com/koatty/koatty_router/commit/847821ac80109c6f4fd953e0701ad695e4fb771f))
+- make exception context fields optional and improve trace handling ([e0ec4db](https://github.com/koatty/koatty_router/commit/e0ec4db1ba7299b1d22018558f61288cb2564dc6))
+- **release:** add release guide and automation script ([c5f01b1](https://github.com/koatty/koatty_router/commit/c5f01b17765a9b1eeb07c448b27be5ade9278569))
+- update sync script to use HTTPS instead of SSH for package repos ([91c9fd7](https://github.com/koatty/koatty_router/commit/91c9fd74f080685cb2e8fab66e4765cbf86be57c))
+- upgrade to Koa 3.0 (WIP) ([d14114c](https://github.com/koatty/koatty_router/commit/d14114c63d0f62fcd3a64296cbb6648ec1ee1e83))
 
 ### Bug Fixes
 
-* **koatty_core:** attempt to fix test timeouts ([fb197ea](https://github.com/koatty/koatty_router/commit/fb197eab7d193616ed4255753c22df0b400c1bc6))
-* resolve workspace dependencies in build process ([d8a2661](https://github.com/koatty/koatty_router/commit/d8a266123fee1dea8ea7be6a39401bf0c052688b))
-* **scripts:** 修复monorepo中tag冲突问题 ([d2602bc](https://github.com/koatty/koatty_router/commit/d2602bcc8c245e6f2137a678ec0e5e2fd6ef673a))
-* **scripts:** 增强release脚本的验证和调试信息 ([2e0db49](https://github.com/koatty/koatty_router/commit/2e0db499234bd4f132bbfc65559105fd9f98f926))
-* 解决依赖问题以支持Koa 3.0升级 ([30cf0b5](https://github.com/koatty/koatty_router/commit/30cf0b53ed032c7de5ea24b4c2ed965e8d4948df))
+- **koatty_core:** attempt to fix test timeouts ([fb197ea](https://github.com/koatty/koatty_router/commit/fb197eab7d193616ed4255753c22df0b400c1bc6))
+- resolve workspace dependencies in build process ([d8a2661](https://github.com/koatty/koatty_router/commit/d8a266123fee1dea8ea7be6a39401bf0c052688b))
+- **scripts:** 修复 monorepo 中 tag 冲突问题 ([d2602bc](https://github.com/koatty/koatty_router/commit/d2602bcc8c245e6f2137a678ec0e5e2fd6ef673a))
+- **scripts:** 增强 release 脚本的验证和调试信息 ([2e0db49](https://github.com/koatty/koatty_router/commit/2e0db499234bd4f132bbfc65559105fd9f98f926))
+- 解决依赖问题以支持 Koa 3.0 升级 ([30cf0b5](https://github.com/koatty/koatty_router/commit/30cf0b53ed032c7de5ea24b4c2ed965e8d4948df))
 
 ## [2.0.0] (2025-03-16)
 

@@ -14,6 +14,7 @@ import {
   ResponseType
 } from './IContext';
 import { KoattyMetadata } from "./Metadata";
+import { isPrototypePollution } from "./Utils";
 
 /**
  * Protocol types supported by Koatty
@@ -46,6 +47,10 @@ const MethodCache = {
   setMetaData: function(this: KoattyContext, key: string, value: any): void {
     if (!key || typeof key !== 'string') {
       throw new Error('Metadata key must be a non-empty string');
+    }
+    // Security check: prevent prototype pollution
+    if (isPrototypePollution(key)) {
+      throw new Error(`Prototype pollution attempt detected: ${key}`);
     }
     if (!this.metadata) {
       this.metadata = new KoattyMetadata();

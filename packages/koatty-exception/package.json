@@ -1,13 +1,13 @@
 {
   "name": "koatty_exception",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "Exception handler for koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
-    "build:cp": "npx -y copyfiles package.json LICENSE README.md dist/ && node scripts/postBuild",
+    "build:cp": "copyfiles package.json LICENSE README.md dist/ && node scripts/postBuild",
     "build:js": "npx -y rollup --bundleConfigAsCjs -c .rollup.config.js",
     "build:doc": "npx -y api-documenter markdown --input temp --output docs/api",
-    "build:dts": "npx -y tsc && npx -y api-extractor run --local --verbose",
+    "build:dts": "bash ../../scripts/build-dts.sh",
     "eslint": "eslint --ext .ts,.js ./",
     "lock": "npx -y del-cli --force node_modules && npm i --package-lock-only && npx -y pnpm i",
     "test": "npm run eslint && jest --passWithNoTests",
@@ -69,6 +69,7 @@
     "@types/ws": "^8.x.x",
     "@typescript-eslint/eslint-plugin": "^8.x.x",
     "@typescript-eslint/parser": "^8.x.x",
+    "copyfiles": "^2.x.x",
     "dts-bundle": "^0.7.3",
     "eslint": "^8.x.x",
     "eslint-plugin-jest": "^28.x.x",
@@ -86,9 +87,9 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/semantic-conventions": "^1.37.0",
-    "koatty_container": "^1.x.x",
-    "koatty_lib": "^1.x.x",
-    "koatty_logger": "^2.x.x"
+    "@opentelemetry/semantic-conventions": "^1.39.0",
+    "koatty_container": "workspace:*",
+    "koatty_lib": "workspace:*",
+    "koatty_logger": "workspace:*"
   }
 }

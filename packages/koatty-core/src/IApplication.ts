@@ -65,6 +65,12 @@ export interface KoattyApplication extends Koa {
   logsPath: string;
 
   appDebug: boolean;
+  
+  /**
+   * Silent mode flag - when true, suppresses startup logs and console output
+   * Used primarily in test environments to reduce noise
+   */
+  silent: boolean;
 
   context: KoattyContext;
 
@@ -310,56 +316,36 @@ export interface KoattyRouter {
 }
 
 /**
- * app event
- *
- * @export
+ * Application lifecycle events
  * @enum AppEvent
  */
 export enum AppEvent {
   appBoot = "appBoot",
+  loadConfigure = "loadConfigure",
+  loadComponent = "loadComponent",
+  loadPlugin = "loadPlugin",
+  loadMiddleware = "loadMiddleware",
+  loadService = "loadService",
+  loadController = "loadController",
+  loadRouter = "loadRouter",
+  loadServe = "loadServe",
   appReady = "appReady",
   appStart = "appStart",
   appStop = "appStop",
-  configLoaded = "configLoaded",
-  beforeComponentLoad = "beforeComponentLoad",
-  componentLoading = "componentLoading",
-  afterComponentLoad = "afterComponentLoad",
-  beforeMiddlewareLoad = "beforeMiddlewareLoad",
-  middlewareLoading = "middlewareLoading",
-  afterMiddlewareLoad = "afterMiddlewareLoad",
-  beforeServiceLoad = "beforeServiceLoad",
-  afterServiceLoad = "afterServiceLoad",
-  beforeControllerLoad = "beforeControllerLoad",
-  afterControllerLoad = "afterControllerLoad",
-  beforeRouterLoad = "beforeRouterLoad",
-  afterRouterLoad = "afterRouterLoad",
-  beforeServerStart = "beforeServerStart",
-  afterServerStart = "afterServerStart",
-  beforeServerStop = "beforeServerStop",
-  afterServerStop = "afterServerStop",
 }
 export const AppEventArr = [
   "appBoot",
-  "configLoaded",
-  "beforeComponentLoad",
-  "componentLoading",
-  "afterComponentLoad",
-  "beforeMiddlewareLoad",
-  "middlewareLoading",
-  "afterMiddlewareLoad",
-  "beforeServiceLoad",
-  "afterServiceLoad",
-  "beforeControllerLoad",
-  "afterControllerLoad",
-  "beforeRouterLoad",
-  "afterRouterLoad",
+  "loadConfigure",
+  "loadComponent",
+  "loadPlugin",
+  "loadMiddleware",
+  "loadService",
+  "loadController",
+  "loadRouter",     // RouterComponent.initRouter() initializes router here
+  "loadServe",      // ServeComponent.initServer() creates server using router
   "appReady",
-  "beforeServerStart",
-  "afterServerStart",
   "appStart",
-  "beforeServerStop",
-  "appStop",
-  "afterServerStop",
+  // Note: "appStop" is NOT in startup sequence - it's triggered only on process termination
 ];
 
 // type EventHookFunc

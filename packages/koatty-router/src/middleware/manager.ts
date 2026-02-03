@@ -238,7 +238,12 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
     }
 
     // 生成唯一的实例ID
-    const instanceId = config.instanceId || this.generateInstanceId(config.name, config.middlewareConfig);
+    const instanceIdConfig: InstanceIdConfig | undefined = config.middlewareConfig && 
+      typeof config.middlewareConfig === 'object' && 
+      'route' in config.middlewareConfig
+      ? config.middlewareConfig as unknown as InstanceIdConfig
+      : undefined;
+    const instanceId = config.instanceId || this.generateInstanceId(config.name, instanceIdConfig);
 
     // Set defaults
     const middlewareConfig: MiddlewareConfig = {
@@ -314,10 +319,10 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
       const middlewareBusinessConfig = appConfig[MiddlewareClass?.name] || {};
       
       // 合并装饰器配置和应用配置
-      const decoratorConfig = config?.middlewareConfig?.decoratorConfig || {};
+      const decoratorConfig = config?.middlewareConfig?.decoratorConfig;
       const finalConfig = {
         ...middlewareBusinessConfig,
-        ...decoratorConfig // 装饰器配置优先级更高
+        ...(decoratorConfig && typeof decoratorConfig === 'object' ? decoratorConfig : {}) // 装饰器配置优先级更高
       };
       
       Logger.Debug(`Processing middleware ${MiddlewareClass.name} with config:`, finalConfig);
@@ -582,8 +587,9 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
     if (validConfigs.length === 0) {
-      return async (ctx: KoattyContext, next: KoattyNext) => {
+      return async <T = unknown>(ctx: KoattyContext, next: KoattyNext): Promise<T> => {
         await next();
+        return undefined as T;
       };
     }
 
@@ -597,7 +603,7 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
       }
     });
 
-    return compose(middlewareFunctions);
+    return compose(middlewareFunctions) as MiddlewareFunction;
   }
 
   /**

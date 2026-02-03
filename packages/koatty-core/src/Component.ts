@@ -13,35 +13,56 @@ import { Helper } from "koatty_lib";
 import "reflect-metadata";
 import { KoattyApplication } from "./IApplication";
 import { KoattyContext, KoattyNext } from "./IContext";
-import { AppEvent, EventHookFunc } from "./IApplication";
+import { AppEvent } from "./IApplication";
 
 export type ComponentType = 'COMPONENT' | 'CONTROLLER' | 'MIDDLEWARE' | 'SERVICE';
 
+export type ComponentScope = 'core' | 'user';
 
 export const CONTROLLER_ROUTER = "CONTROLLER_ROUTER";
 export const MIDDLEWARE_OPTIONS = "MIDDLEWARE_OPTIONS";
 export const SERVICE_OPTIONS = "SERVICE_OPTIONS";
+export const COMPONENT_OPTIONS = "COMPONENT_OPTIONS";
 export const PLUGIN_OPTIONS = "PLUGIN_OPTIONS";
+export const COMPONENT_EVENTS = "COMPONENT_EVENTS";
 
-export enum PluginDependencyType {
-  REQUIRED = 'required',
-  OPTIONAL = 'optional',
-  CONTRACT = 'contract',
-}
+export type IOCScope = 'Singleton' | 'Prototype';
 
-export interface IPluginDependency {
-  name: string;
-  type: PluginDependencyType;
+/**
+ * Component configuration options
+ * 
+ * @example
+ * ```ts
+ * @Component('RouterComponent', {
+ *   scope: 'core',
+ *   priority: 100,
+ *   version: '1.0.0',
+ *   description: 'HTTP/gRPC routing for Koatty',
+ *   requires: ['ServeComponent'],
+ * })
+ * export class RouterComponent implements IComponent { }
+ * ```
+ */
+export interface IComponentOptions {
+  /** Whether this component is enabled (default: true) */
+  enabled?: boolean;
+  /** Priority for loading order, higher = earlier (default: 0) */
+  priority?: number;
+  /** Component scope: 'core' for framework components, 'user' for application components */
+  scope?: ComponentScope;
+  /** List of component names that this component depends on */
+  requires?: string[];
+  /** Component version (for plugin metadata) */
   version?: string;
-  errorMessage?: string;
-  validate?: (app: KoattyApplication) => boolean;
+  /** Component description (for plugin metadata) */
+  description?: string;
+  /** Additional custom options */
+  [key: string]: any;
 }
 
-export interface IPluginCapability {
-  name: string;
-  version: string;
-  description?: string;
-  validate?: (app: KoattyApplication) => boolean;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface IComponent {
+  events?: Record<string, string[]>;
 }
 
 /**
@@ -108,29 +129,11 @@ export interface IService {
 /**
  * Interface for Plugin class
  */
-export interface IPluginOptions {
-  enabled?: boolean;
-  priority?: number;
-  type?: 'user' | 'core';
-  dependencies?: (string | IPluginDependency)[];
-  optionalDependencies?: string[];
-  provides?: (string | IPluginCapability)[];
-  conflicts?: string[];
-  events?: {
-    [K in AppEvent]?: EventHookFunc;
-  };
+export interface IPluginOptions extends IComponentOptions {
   [key: string]: any;
 }
-
-export interface IPlugin {
-  run?: (options: object, app: KoattyApplication) => Promise<any>;
-  events?: {
-    [K in AppEvent]?: EventHookFunc;
-  };
-  dependencies?: (string | IPluginDependency)[];
-  provides?: (string | IPluginCapability)[];
-  conflicts?: string[];
-  uninstall?: (app: KoattyApplication) => Promise<void>;
+export interface IPlugin extends IComponent {
+  run: (options: object, app: KoattyApplication) => Promise<any>;
 }
 
 /**
@@ -381,25 +384,113 @@ export function Service(identifier?: string, options?: Record<string, any>): Cla
  * }
  * ```
  */
-export function Plugin(identifier?: string, options?: IPluginOptions): ClassDecorator {
+export function Plugin(identifier?: string, options?: Record<string, any>): ClassDecorator {
   return (target: any) => {
     identifier = identifier || IOC.getIdentifier(target);
-
+    // 
     if (!identifier.endsWith("Plugin")) {
       throw Error("Plugin class name must be 'Plugin' suffix.");
     }
-
-    const pluginOptions: IPluginOptions = {
-      type: 'user',
-      enabled: true,
-      priority: 0,
-      ...options
-    };
-
     IOC.saveClass("COMPONENT", target, `${identifier}`);
 
-    IOC.savePropertyData(PLUGIN_OPTIONS, pluginOptions, target, identifier);
+    // Save options if provided
+    if (options) {
+      IOC.savePropertyData(PLUGIN_OPTIONS, options, target, identifier);
+    }
   };
+}
+
+/**
+ * Component decorator, used to mark a class as a component.
+ * Components are lifecycle-aware units that can listen to application events.
+ * 
+ * @param identifier Optional component identifier. If not provided, will use the class name.
+ * @param options Optional configuration options for the component
+ * @returns ClassDecorator
+ * @example
+ * ```ts
+ * @Component("RouterComponent", { scope: 'core', priority: 100 })
+ * export class RouterComponent implements IComponent {
+ *   @OnEvent(AppEvent.loadRouter)
+ *   async initRouter(app: KoattyApplication) {
+ *     // initialize router
+ *   }
+ * }
+ * ```
+ */
+export function Component(identifier?: string, options?: IComponentOptions): ClassDecorator {
+  return (target: Function) => {
+    identifier = identifier || IOC.getIdentifier(target);
+    IOC.saveClass("COMPONENT", target, identifier);
+    
+    // Save options if provided
+    if (options) {
+      IOC.savePropertyData(COMPONENT_OPTIONS, options, target, identifier);
+    }
+  };
+}
+
+/**
+ * ONLY for @Plugin and @Component classes (type === "COMPONENT")
+ * 
+ * @param event The AppEvent to bind to
+ * @returns MethodDecorator
+ * @throws Error if used on non-Plugin/Component class
+ * 
+ * @example
+ * ```ts
+ * @Component("RouterComponent", { scope: 'core', priority: 100 })
+ * class RouterComponent implements IComponent {
+ *   
+ *   @OnEvent(AppEvent.loadRouter)
+ *   async initRouter(app: KoattyApplication) {
+ *     // initialize router
+ *   }
+ *   
+ *   @OnEvent(AppEvent.appStop)
+ *   async cleanup(app: KoattyApplication) {
+ *     // cleanup resources
+ *   }
+ * }
+ * ```
+ */
+export function OnEvent(event: AppEvent): MethodDecorator {
+  return (target: any, propertyKey: string | symbol, descriptor?: PropertyDescriptor) => {
+    const targetClass = target.constructor;
+
+    // 通过 IOC.getType() 获取元数据中的类型
+    // saveClass 时写入了正确的 type（CONTROLLER/MIDDLEWARE/SERVICE/COMPONENT）
+    const componentType = IOC.getType(targetClass);
+
+    // 校验：只允许 type 为 "COMPONENT" 的类使用（包括 @Plugin 和 @Component）
+    if (componentType && componentType !== 'COMPONENT') {
+      const className = targetClass.name || 'Unknown';
+      throw new Error(
+        `@OnEvent can only be used in @Plugin or @Component classes.\n` +
+        `  → Found in: ${className}.${String(propertyKey)} (type: ${componentType})\n` +
+        `  → Solution: Move event handling logic to a Plugin or Component class.`
+      );
+    }
+
+    const events = Reflect.getMetadata(COMPONENT_EVENTS, targetClass) || {};
+    if (!events[event]) {
+      events[event] = [];
+    }
+    events[event].push(propertyKey);
+    Reflect.set(target, 'events', events);
+    Reflect.defineMetadata(COMPONENT_EVENTS, events, targetClass);
+    return descriptor as any;
+  };
+}
+
+/**
+ * Get component event bindings
+ * 
+ * @param target The component class
+ * @returns Record of AppEvent to method names
+ */
+export function getComponentEvents(target: any): Record<string, string[]> {
+  return Reflect.getMetadata(COMPONENT_EVENTS, target) || {};
 }
 
 /**
@@ -439,10 +530,23 @@ export function implementsServiceInterface(cls: any): cls is IService {
  * @returns True if the class implements IPlugin interface, false otherwise
  */
 export function implementsPluginInterface(cls: any): cls is IPlugin {
-  return (
-    ('run' in cls && Helper.isFunction(cls.run)) ||
-    ('events' in cls && Helper.isObject(cls.events))
-  );
+  if (!cls || typeof cls !== 'object') {
+    return false;
+  }
+  return Helper.isFunction(cls.run);
+}
+
+/**
+ * Check if a class implements the IComponent interface.
+ * 
+ * @param cls The class to check
+ * @returns True if the class implements IComponent interface, false otherwise
+ */
+export function implementsComponentInterface(cls: any): cls is IComponent {
+  if (!cls || typeof cls !== 'object') {
+    return false;
+  }
+  return ('events' in cls && Helper.isObject(cls.events));
 }
 
 /**

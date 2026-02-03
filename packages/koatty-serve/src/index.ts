@@ -1,6 +1,6 @@
 /*
- * @Description: 
- * @Usage: 
+ * @Description:
+ * @Usage:
  * @Author: richen
  * @Date: 2023-12-09 12:02:29
  * @LastEditTime: 2024-01-16 00:52:21
@@ -30,6 +30,8 @@ export {
 export {
   registerConnectionPoolMetrics,
   unregisterConnectionPoolMetrics
-} from "./pool-metrics-integration";
+} from "./pools/pool-metrics-integration";
 
-export { ServePlugin } from "./ServePlugin";
+export { RingBuffer, DynamicRingBuffer } from "./utils/ring_buffer";
+
+export { ServeComponent } from "./ServeComponent";

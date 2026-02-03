@@ -19,23 +19,21 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentManager](./koatty_core.componentmanager.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [ContextFactoryRegistry](./koatty_core.contextfactoryregistry.md)
 
 
 </td><td>
 
 Context factory registry
-
-
-</td></tr>
-<tr><td>
-
-[ContextPool](./koatty_core.contextpool.md)
-
-
-</td><td>
-
-Context pool for reusing context objects
 
 
 </td></tr>
@@ -83,9 +81,7 @@ Description
 
 </td><td>
 
-app event
-
-  AppEvent
+Application lifecycle events  AppEvent
 
 
 </td></tr>
@@ -183,6 +179,17 @@ Bind event to the process
 </td></tr>
 <tr><td>
 
+[Component(identifier, options)](./koatty_core.component.md)
+
+
+</td><td>
+
+Component decorator, used to mark a class as a component. Components are lifecycle-aware units that can listen to application events.
+
+
+</td></tr>
+<tr><td>
+
 [Controller(path, options)](./koatty_core.controller.md)
 
 
@@ -200,6 +207,17 @@ Controller decorator for registering controller class. Used to mark a class as a
 </td><td>
 
 Create Koatty context instance based on protocol type.
+
+
+</td></tr>
+<tr><td>
+
+[getComponentEvents(target)](./koatty_core.getcomponentevents.md)
+
+
+</td><td>
+
+Get component event bindings
 
 
 </td></tr>
@@ -266,6 +284,17 @@ Create type-safe HTTP middleware
 </td><td>
 
 Check if a class implements the IAspect interface.
+
+
+</td></tr>
+<tr><td>
+
+[implementsComponentInterface(cls)](./koatty_core.implementscomponentinterface.md)
+
+
+</td><td>
+
+Check if a class implements the IComponent interface.
 
 
 </td></tr>
@@ -359,6 +388,17 @@ Check is prevent error
 </td></tr>
 <tr><td>
 
+[isPrototypePollution(name)](./koatty_core.isprototypepollution.md)
+
+
+</td><td>
+
+Check if the key name contains prototype pollution keywords Prevents security vulnerabilities by blocking attempts to modify Object prototype
+
+
+</td></tr>
+<tr><td>
+
 [isWebSocketProtocol(ctx)](./koatty_core.iswebsocketprotocol.md)
 
 
@@ -387,6 +427,17 @@ Check if context matches any of the specified protocols
 </td><td>
 
 Middleware decorator, used to mark a class as a middleware component.
+
+
+</td></tr>
+<tr><td>
+
+[OnEvent(event)](./koatty_core.onevent.md)
+
+
+</td><td>
+
+ONLY for  and  classes (type === "COMPONENT")
 
 
 </td></tr>
@@ -484,6 +535,17 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentMeta](./koatty_core.componentmeta.md)
+
+
+</td><td>
+
+Component metadata structure Contains all information about a registered component
+
+
+</td></tr>
+<tr><td>
+
 [GraphQLContext](./koatty_core.graphqlcontext.md)
 
 
@@ -512,6 +574,26 @@ gRPC Context
 </td><td>
 
 HTTP/HTTPS Context
+
+
+</td></tr>
+<tr><td>
+
+[IComponent](./koatty_core.icomponent.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IComponentOptions](./koatty_core.icomponentoptions.md)
+
+
+</td><td>
+
+Component configuration options
 
 
 </td></tr>
@@ -597,6 +679,15 @@ InitOptions
 <tr><td>
 
 [IPlugin](./koatty_core.iplugin.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IPluginOptions](./koatty_core.ipluginoptions.md)
 
 
 </td><td>
@@ -729,6 +820,24 @@ Description
 </td></tr>
 <tr><td>
 
+[COMPONENT\_EVENTS](./koatty_core.component_events.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[COMPONENT\_OPTIONS](./koatty_core.component_options.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [CONTROLLER\_ROUTER](./koatty_core.controller_router.md)
 
 
@@ -780,6 +889,15 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[ComponentScope](./koatty_core.componentscope.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [ComponentType](./koatty_core.componenttype.md)
 
 
@@ -808,6 +926,15 @@ Description
 <tr><td>
 
 [IHttpImplementation](./koatty_core.ihttpimplementation.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[IOCScope](./koatty_core.iocscope.md)
 
 
 </td><td>

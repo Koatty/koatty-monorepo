@@ -15,4 +15,4 @@ export * from "./router/types";
 export * from "./params/mapping";
 export * from "./params/params";
 export * from "./middleware/manager";
-export { RouterPlugin } from "./RouterPlugin";
+export { RouterComponent } from "./RouterComponent";

@@ -398,6 +398,12 @@ export class Exception extends Error {
       }, null);
     }
 
+    // 防止 "write after end" 错误：检查响应是否已经结束
+    if (ctx.res && (ctx.res.writableEnded || ctx.res.finished)) {
+      Logger.Warn(`Response already ended for request ${ctx.requestId}, skipping output`);
+      return;
+    }
+
     const body = JSON.stringify(Output.fail(responseBody, ctx.body || '', this.code));
     ctx.length = Buffer.byteLength(body);
 

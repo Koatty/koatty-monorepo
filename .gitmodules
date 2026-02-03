@@ -1,0 +1,37 @@
+[submodule "packages/koatty"]
+	path = packages/koatty
+	url = https://github.com/thinkkoa/koatty.git
+
+[submodule "packages/koatty-loader"]
+	path = packages/koatty-loader
+	url = https://github.com/koatty/koatty_loader.git
+[submodule "packages/koatty-logger"]
+	path = packages/koatty-logger
+	url = https://github.com/koatty/koatty_logger.git
+[submodule "packages/koatty-container"]
+	path = packages/koatty-container
+	url = https://github.com/koatty/koatty_container.git
+[submodule "packages/koatty-lib"]
+	path = packages/koatty-lib
+	url = https://github.com/koatty/koatty_lib.git
+[submodule "packages/koatty-validation"]
+	path = packages/koatty-validation
+	url = https://github.com/koatty/koatty_validation.git
+[submodule "packages/koatty-cacheable"]
+	path = packages/koatty-cacheable
+	url = https://github.com/koatty/koatty_cacheable.git
+[submodule "packages/koatty-store"]
+	path = packages/koatty-store
+	url = https://github.com/koatty/koatty_store.git
+[submodule "packages/koatty-schedule"]
+	path = packages/koatty-schedule
+	url = https://github.com/koatty/koatty_schedule.git
+[submodule "packages/koatty-proto"]
+	path = packages/koatty-proto
+	url = https://github.com/koatty/koatty_proto.git
+[submodule "packages/koatty-graphql"]
+	path = packages/koatty-graphql
+	url = https://github.com/koatty/koatty_graphql.git
+[submodule "packages/koatty-doc"]
+	path = packages/koatty-doc
+	url = https://github.com/koatty/koatty_doc.git

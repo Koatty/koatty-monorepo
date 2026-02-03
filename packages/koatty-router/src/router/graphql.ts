@@ -9,6 +9,7 @@
  */
 import KoaRouter from "@koa/router";
 import fs from "fs";
+import path from "path";
 import { createHandler } from "graphql-http/lib/use/fetch";
 import { IOC } from "koatty_container";
 import {
@@ -50,14 +51,25 @@ export class GraphQLRouter implements KoattyRouter {
       validation.warnings.forEach((warning: string) => Logger.Warn(`[GraphQLRouter] ${warning}`));
     }
 
+    // Resolve schemaFile path: if relative, resolve against app.rootPath
+    let schemaFilePath = extConfig.schemaFile;
+    if (schemaFilePath && !path.isAbsolute(schemaFilePath)) {
+      schemaFilePath = path.resolve(app.rootPath, schemaFilePath);
+    }
+    
     this.options = {
       ...options,
-      schemaFile: extConfig.schemaFile,
+      schemaFile: schemaFilePath,
     } as GraphQLRouterOptions;
 
     this.protocol = options.protocol || "graphql";
-    // initialize
-    this.router = new KoaRouter(this.options);
+    // initialize - only pass base router options to KoaRouter
+    this.router = new KoaRouter({
+      prefix: options.prefix,
+      methods: options.methods,
+      sensitive: options.sensitive,
+      strict: options.strict,
+    });
     this.routerMap = new Map();
   }
 

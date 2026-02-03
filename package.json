@@ -9,14 +9,21 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "build": "turbo run build",
+    "build": "node scripts/build-base-packages.js && turbo run build",
+    "build:base": "node scripts/build-base-packages.js",
     "dev": "turbo run dev",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "changeset": "changeset",
-    "version": "changeset version",
-    "release": "pnpm build && changeset publish",
+    "changeset:version": "changeset version && node scripts/commit-version-changes.js",
+    "changeset:version:no-commit": "changeset version",
+    "changeset:version:patch": "node scripts/create-and-version.js patch",
+    "changeset:version:minor": "node scripts/create-and-version.js minor",
+    "changeset:version:major": "node scripts/create-and-version.js major",
+    "changeset:version:pre": "node scripts/create-and-version.js pre",
+    "release": "pnpm build && node scripts/fix-workspace-versions.js && changeset publish",
+    "release:submodule": "cd packages/koatty && pnpm release",
     "doctor": "node scripts/doctor.js"
   },
   "keywords": [
@@ -36,6 +43,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
+    "ts-node": "^10.9.2",
     "turbo": "^2.5.8"
   }
 }

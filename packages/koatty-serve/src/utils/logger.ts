@@ -91,12 +91,24 @@ export class StructuredLogger {
     const mergedContext = context ? { ...this.globalContext, ...context } : this.globalContext;
     const parts: string[] = [];
     
-    if (mergedContext.module) {
-      parts.push(`[${mergedContext.module.toUpperCase()}]`);
-    }
+    // 如果 module 和 protocol 相同（忽略大小写），只输出一个标签
+    // 避免重复如 [HTTP] [HTTP]
+    const moduleUpper = mergedContext.module?.toUpperCase();
+    const protocolUpper = mergedContext.protocol?.toUpperCase();
     
-    if (mergedContext.protocol) {
-      parts.push(`[${mergedContext.protocol.toUpperCase()}]`);
+    if (moduleUpper && protocolUpper && moduleUpper === protocolUpper) {
+      // module 和 protocol 相同，只输出 protocol 标签
+      parts.push(`[${protocolUpper}]`);
+    } else {
+      // module 和 protocol 不同或其中一个为空，按原逻辑输出
+      // 跳过 'KOATTYSERVER' 标签，使其不显示
+      if (mergedContext.module && moduleUpper !== 'KOATTYSERVER') {
+        parts.push(`[${moduleUpper}]`);
+      }
+      
+      if (mergedContext.protocol) {
+        parts.push(`[${protocolUpper}]`);
+      }
     }
     
     if (mergedContext.connectionId) {

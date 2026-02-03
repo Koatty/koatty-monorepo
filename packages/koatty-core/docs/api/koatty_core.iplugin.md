@@ -4,13 +4,12 @@
 
 ## IPlugin interface
 
-Interface for Plugin class
-
 **Signature:**
 
 ```typescript
-export interface IPlugin 
+export interface IPlugin extends IComponent 
 ```
+**Extends:** [IComponent](./koatty_core.icomponent.md)
 
 ## Properties
 

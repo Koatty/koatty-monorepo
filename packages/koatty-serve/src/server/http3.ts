@@ -41,7 +41,7 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate, isCertificateContent } from "../utils/cert-loader";
 import { Http3ConnectionPoolManager, Http3Session } from "../pools/http3";
 import { ConfigHelper, Http3ServerOptions, ListeningOptions, SSL3Config } from "../config/config";
-import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version, hasNativeHttp3Support } from "../adapters/http3-matrixai";
+import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version, hasNativeHttp3Support, waitForMatrixaiQuic, isMatrixaiQuicReady } from "../adapters/http3-matrixai";
 
 /**
  * HTTP/3 Server implementation using template method pattern
@@ -71,24 +71,16 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
 
   /**
    * 创建HTTP/3服务器实例（使用 @matrixai/quic）
+   * 注意：@matrixai/quic 是 ESM 模块，需要异步加载
+   * 实际的可用性检查将在 Http3ServerAdapter.listen() 中进行
    */
   protected createProtocolServer(): void {
-    const http3Version = getHttp3Version();
-    const hasSupport = hasNativeHttp3Support();
-    
+    // 注意：不在这里进行同步检查，因为 @matrixai/quic 是 ESM 模块需要异步加载
+    // 真正的检查会在 Http3ServerAdapter.listen() 方法中进行
     this.logger.info('Initializing HTTP/3 server', {}, { 
-      version: http3Version,
       library: '@matrixai/quic',
-      available: hasSupport
+      note: 'Module availability will be checked when server starts'
     });
-    
-    if (!hasSupport) {
-      this.logger.error('@matrixai/quic not available', {}, {
-        note: 'Install with: pnpm add @matrixai/quic',
-        required: true
-      });
-      throw new Error('@matrixai/quic is required for HTTP/3 support');
-    }
     
     try {
       const http3Config: Http3ServerConfig = {
@@ -600,8 +592,8 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
   // ============= 实现KoattyServer接口 =============
 
   Start(listenCallback?: () => void): NativeServer {
-    const traceId = generateTraceId();
-    this.logger.info('HTTP/3 server starting', { traceId }, {
+    // Simple startup log - no traceId needed
+    this.logger.info('HTTP/3 server starting', {}, {
       hostname: this.options.hostname,
       port: this.options.port,
       protocol: this.options.protocol,
@@ -615,7 +607,9 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
       }
       if (typeof this.server.on === 'function') {
         this.server.on('error', (error: Error) => {
-          this.logger.error('Server runtime error', { traceId }, error);
+          // Error logs keep traceId for troubleshooting
+          const runtimeErrorTraceId = generateTraceId();
+          this.logger.error('Server runtime error', { traceId: runtimeErrorTraceId }, error);
           // Don't exit on runtime errors
         });
       }
@@ -627,10 +621,11 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
       const urlProtocol = this.options.protocol.toLowerCase();
       const serverUrl = `${urlProtocol}://${this.options.hostname || '127.0.0.1'}:${this.options.port}/`;
       
-      // 输出 Koatty 格式的启动日志
-      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, { traceId });
+      // 输出 Koatty 格式的启动日志 - no traceId needed for simple status log
+      this.logger.info(`Server: ${protocolUpper} running at ${serverUrl}`, {});
       
-      this.logger.info('HTTP/3 server started successfully', { traceId }, {
+      // Simple completion log - no traceId needed
+      this.logger.info('HTTP/3 server started successfully', {}, {
         address: `${this.options.hostname}:${this.options.port}`,
         hostname: this.options.hostname,
         port: this.options.port,
@@ -654,7 +649,9 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
 
     // Http3ServerAdapter API: listen(callback) - async
     this.server.listen(startCallback).catch((error: Error) => {
-      this.logger.error('Failed to start HTTP/3 server', { traceId }, error);
+      // Error logs keep traceId for troubleshooting
+      const errorTraceId = generateTraceId();
+      this.logger.error('Failed to start HTTP/3 server', { traceId: errorTraceId }, error);
       // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
       setImmediate(() => {
         throw error;

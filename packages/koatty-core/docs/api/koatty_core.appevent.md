@@ -4,9 +4,7 @@
 
 ## AppEvent enum
 
-app event
-
-  AppEvent
+Application lifecycle events  AppEvent
 
 **Signature:**
 
@@ -82,6 +80,118 @@ appStop
 </td><td>
 
 `"appStop"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadComponent
+
+
+</td><td>
+
+`"loadComponent"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadConfigure
+
+
+</td><td>
+
+`"loadConfigure"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadController
+
+
+</td><td>
+
+`"loadController"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadMiddleware
+
+
+</td><td>
+
+`"loadMiddleware"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadPlugin
+
+
+</td><td>
+
+`"loadPlugin"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadRouter
+
+
+</td><td>
+
+`"loadRouter"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadServe
+
+
+</td><td>
+
+`"loadServe"`
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+loadService
+
+
+</td><td>
+
+`"loadService"`
 
 
 </td><td>
