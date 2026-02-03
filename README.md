@@ -19,7 +19,7 @@
 
 Koatty Monorepo 采用 **混合架构**，将核心框架包集中管理，同时保持向后兼容。
 
-### 核心包 (7个)
+### 核心包
 
 | 包名 | 说明 | 
 |------|------|
@@ -31,12 +31,21 @@ Koatty Monorepo 采用 **混合架构**，将核心框架包集中管理，同�
 | `koatty_trace` | 链路追踪 |
 | `koatty_config` | 配置加载 |
 
-### 独立包 (保持独立)
+### 独立包 (submodules)
 
-- `koatty_container` - IoC 容器
-- `koatty_lib` - 工具函数库
-- `koatty_loader` - 加载器
-- `koatty_logger` - 日志库
+| 包名 | 说明 |
+|------|------|
+| `koatty_container` | IoC 容器 |
+| `koatty_lib` | 工具函数库 |
+| `koatty_loader` | 加载器 |
+| `koatty_logger` | 日志库 |
+| `koatty_validation` | 参数校验 |
+| `koatty_cacheable` | 缓存组件 |
+| `koatty_store` | 存储组件 |
+| `koatty_schedule` | 定时任务 |
+| `koatty_proto` | 协议定义 |
+| `koatty_graphql` | GraphQL 支持 |
+| `koatty_doc` | 文档工具 |
 
 ## 快速开始
 
@@ -89,14 +98,25 @@ pnpm dev
 
 ```
 koatty-monorepo/
-├── packages/               # 核心包
-│   ├── koatty/            # 主框架
+├── packages/               # 所有包
+│   ├── koatty/            # 主框架 (submodule)
 │   ├── koatty-core/       # 核心
 │   ├── koatty-router/     # 路由
 │   ├── koatty-serve/      # 服务器
 │   ├── koatty-exception/  # 异常
 │   ├── koatty-trace/      # 追踪
-│   └── koatty-config/     # 配置
+│   ├── koatty-config/     # 配置
+│   ├── koatty-container/  # IoC 容器 (submodule)
+│   ├── koatty-lib/        # 工具库 (submodule)
+│   ├── koatty-loader/     # 加载器 (submodule)
+│   ├── koatty-logger/     # 日志 (submodule)
+│   ├── koatty-validation/ # 校验 (submodule)
+│   ├── koatty-cacheable/  # 缓存 (submodule)
+│   ├── koatty-store/      # 存储 (submodule)
+│   ├── koatty-schedule/   # 定时任务 (submodule)
+│   ├── koatty-proto/      # 协议 (submodule)
+│   ├── koatty-graphql/    # GraphQL (submodule)
+│   └── koatty-doc/        # 文档 (submodule)
 ├── scripts/               # 工具脚本
 ├── .changeset/            # 版本管理
 ├── .github/workflows/     # CI/CD
@@ -155,6 +175,27 @@ pnpm release
 - 新版本发布统一通过 `koatty-monorepo`
 - 独立仓库仅作存档参考
 - 如需访问旧版本，请查看各包的历史版本
+
+## 最新变更
+
+### 2025-02-03
+
+#### 🚀 新特性
+
+- **多协议服务器支持**: `koatty_trace` 中间件现在支持多协议服务器场景，根据请求协议自动匹配对应服务器状态
+- **组件启用逻辑优化**: `koatty_core` 改进组件启用逻辑，核心组件默认启用（除非显式禁用），用户组件保持向后兼容
+
+#### 🔧 改进
+
+- **Plugin 扩展向下兼容**: 
+  - 支持通过 `list` 数组或 `config.enabled` 任一条件启用扩展
+  - 核心组件默认启用，用户组件需显式配置
+- **Trace 中间件协议匹配**: 根据 `ctx.protocol` 智能匹配对应协议服务器（http/https/http2/http3/grpc/ws/wss）
+
+#### 📦 受影响包
+
+- `koatty_core@2.1.0+` - 组件管理器改进
+- `koatty_trace@2.1.0+` - 多协议服务器支持
 
 
 ## License
