@@ -115,14 +115,30 @@ export class ComponentManager {
       const pluginConfig = this.app.config('config', 'plugin') || {};
       const configOptions = pluginConfig?.[identifier] || {};
 
-      if (configOptions.enabled === false) {
-        options.enabled = false;
+      // Merge config options
+      options = { ...options, ...configOptions };
+
+      // Determine if component should be enabled
+      let shouldEnable = true;
+      
+      if (options.scope === 'core') {
+        // Core components: enabled by default unless explicitly disabled
+        shouldEnable = options.enabled !== false;
+      } else {
+        // User components: backward compatibility - enable if in list OR config.enabled=true
+        const pluginList = this.app.config('list', 'plugin') || [];
+        const isInList = pluginList.includes(identifier);
+        const isEnabledInConfig = options.enabled !== false;
+        shouldEnable = isInList || isEnabledInConfig;
       }
 
-      if (options.enabled === false) {
+      if (!shouldEnable) {
         Logger.Warn(`Component ${identifier} is disabled`);
         continue;
       }
+
+      // Ensure enabled is true
+      options.enabled = true;
 
       const events = getComponentEvents(item.target);
       
@@ -145,7 +161,7 @@ export class ComponentManager {
         name: identifier,
         instance: null as any, // Will be set during registerComponentEvents
         target: item.target,   // Store target class
-        options: { ...options, ...configOptions },
+        options: options,
         scope: options.scope || 'user',
         events,
       };
