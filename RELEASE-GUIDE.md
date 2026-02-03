@@ -30,13 +30,29 @@
 
 当前 monorepo 包含以下可发布的包：
 
+**核心包（7个）**
+
 - `koatty` - Koatty 核心框架
-- `koatty-router` - 路由组件
 - `koatty-core` - 核心工具库
-- `koatty-config` - 配置组件
-- `koatty-exception` - 异常处理组件
+- `koatty-router` - 路由组件
 - `koatty-serve` - 服务组件
+- `koatty-exception` - 异常处理组件
 - `koatty-trace` - 链路追踪组件
+- `koatty-config` - 配置组件
+
+**独立包（11个，submodules）**
+
+- `koatty-container` - IoC 容器
+- `koatty-lib` - 工具函数库
+- `koatty-loader` - 加载器
+- `koatty-logger` - 日志库
+- `koatty-validation` - 参数校验
+- `koatty-cacheable` - 缓存组件
+- `koatty-store` - 存储组件
+- `koatty-schedule` - 定时任务
+- `koatty-proto` - 协议定义
+- `koatty-graphql` - GraphQL 支持
+- `koatty-doc` - 文档工具
 
 ### Changesets 工作流
 
@@ -246,15 +262,131 @@ npm view koatty_router
 
 之前的独立仓库已归档，不再主动维护：
 
+**核心包（7个）**
+
 - `https://github.com/koatty/koatty.git`
-- `https://github.com/koatty/koatty_router.git`
 - `https://github.com/koatty/koatty_core.git`
-- `https://github.com/koatty/koatty_config.git`
-- `https://github.com/koatty/koatty_exception.git`
+- `https://github.com/koatty/koatty_router.git`
 - `https://github.com/koatty/koatty_serve.git`
+- `https://github.com/koatty/koatty_exception.git`
 - `https://github.com/koatty/koatty_trace.git`
+- `https://github.com/koatty/koatty_config.git`
+
+**独立包（11个）**
+
+- `https://github.com/koatty/koatty_container.git`
+- `https://github.com/koatty/koatty_lib.git`
+- `https://github.com/koatty/koatty_loader.git`
+- `https://github.com/koatty/koatty_logger.git`
+- `https://github.com/koatty/koatty_validation.git`
+- `https://github.com/koatty/koatty_cacheable.git`
+- `https://github.com/koatty/koatty_store.git`
+- `https://github.com/koatty/koatty_schedule.git`
+- `https://github.com/koatty/koatty_proto.git`
+- `https://github.com/koatty/koatty_graphql.git`
+- `https://github.com/koatty/koatty_doc.git`
 
 **新版本发布统一通过 `koatty-monorepo`**
+
+---
+
+## 版本发布历史
+
+### 2025-02-03 发布
+
+#### 发布包
+
+**核心包（7个）**
+
+- `koatty` - 主框架
+- `koatty_core` - 核心功能
+- `koatty_router` - 路由组件
+- `koatty_serve` - 服务器组件
+- `koatty_exception` - 异常处理
+- `koatty_trace` - 链路追踪
+- `koatty_config` - 配置加载
+
+**独立包（11个，submodules）**
+
+- `koatty_container` - IoC 容器
+- `koatty_lib` - 工具函数库
+- `koatty_loader` - 加载器
+- `koatty_logger` - 日志库
+- `koatty_validation` - 参数校验
+- `koatty_cacheable` - 缓存组件
+- `koatty_store` - 存储组件
+- `koatty_schedule` - 定时任务
+- `koatty_proto` - 协议定义
+- `koatty_graphql` - GraphQL 支持
+- `koatty_doc` - 文档工具
+
+#### 主要变更
+
+**koatty_core@2.1.0**
+- ✨ 改进组件启用逻辑，区分核心组件和用户组件
+  - 核心组件：默认启用，除非显式设置 `enabled: false`
+  - 用户组件：向后兼容，支持 `list` 数组或 `config.enabled` 任一条件启用
+- 🔧 优化组件配置合并逻辑
+
+**koatty_trace@2.1.1**
+- ✨ 支持多协议服务器场景
+  - 根据 `ctx.protocol` 智能匹配对应协议服务器
+  - 支持协议映射：http/https/http2/http3、ws/wss、grpc
+- 🔧 修复多服务器状态下 503 检查逻辑
+
+**koatty_serve@2.1.1**
+- 🔧 优化 HTTP/3 服务器日志级别
+- 🔧 改进 RingBuffer 日志记录
+
+#### 升级指南
+
+**从 2.0.x 升级到 2.1.x**
+
+1. **组件启用配置（重要）**
+   
+   如果你使用了自定义 Plugin/Component，请检查启用逻辑：
+   
+   ```typescript
+   // config/plugin.ts
+   export default {
+     list: ['MyPlugin'],  // 方式1：通过 list 数组启用
+     config: {
+       MyPlugin: {
+         enabled: true,   // 方式2：通过 config.enabled 启用
+         // ... 其他配置
+       }
+     }
+   }
+   ```
+   
+   两种方式任一满足即可启用扩展。
+
+2. **多协议服务器支持**
+   
+   如果你同时启用了多个协议（如 http + grpc），trace 中间件会自动处理：
+   
+   ```typescript
+   // config/server.ts
+   export default {
+     protocol: ['http', 'grpc'],  // 多协议
+     port: [3000, 50051]
+   }
+   ```
+
+3. **核心组件**
+   
+   核心组件（如 ServeComponent）默认启用，如需禁用：
+   
+   ```typescript
+   @Component('MyComponent', {
+     scope: 'core',
+     enabled: false  // 显式禁用
+   })
+   ```
+
+#### 破坏性变更
+
+无破坏性变更，所有改进均为向后兼容。
 
 ---
 
