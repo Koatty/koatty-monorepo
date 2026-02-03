@@ -272,7 +272,30 @@ export function Trace(options: TraceOptions, app: Koatty) {
 
   return async (ctx: KoattyContext, next: KoattyNext) => {
     // Handle server shutdown case first
-    if ((app.server as any)?.status === 503) {
+    // Support both single server and array of servers
+    // Match server by protocol from ctx.protocol
+    const requestProtocol = (ctx?.protocol || "http").toLowerCase();
+    let targetServer: any;
+    
+    if (Array.isArray(app.server)) {
+      // Find server matching the request protocol
+      targetServer = app.server.find((server: any) => {
+        const serverProtocol = server?.protocol?.toLowerCase();
+        // Protocol mapping: https/http2/http3 -> http, wss -> ws
+        if (requestProtocol === 'https' || requestProtocol === 'http2' || requestProtocol === 'http3') {
+          return serverProtocol === 'http' || serverProtocol === 'https' || 
+                 serverProtocol === 'http2' || serverProtocol === 'http3';
+        }
+        if (requestProtocol === 'wss') {
+          return serverProtocol === 'ws' || serverProtocol === 'wss';
+        }
+        return serverProtocol === requestProtocol;
+      });
+    } else {
+      targetServer = app.server;
+    }
+    
+    if (targetServer?.status === 503) {
       ctx.status = 503;
       ctx.set('Connection', 'close');
       ctx.body = 'Server is in the process of shutting down';
