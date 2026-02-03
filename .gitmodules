@@ -41,3 +41,6 @@
 [submodule "packages/koatty-typeorm"]
 	path = packages/koatty-typeorm
 	url = https://github.com/koatty/koatty_typeorm.git
+[submodule "packages/koatty-swagger"]
+	path = packages/koatty-swagger
+	url = https://github.com/koatty/koatty_swagger.git
