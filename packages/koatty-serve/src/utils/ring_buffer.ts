@@ -6,6 +6,8 @@
  * @License: BSD (3-Clause)
  */
 
+import { createLogger } from "./logger";
+
 /**
  * Ring Buffer (Circular Buffer)
  * 环形缓冲区 - 固定大小的循环队列，覆盖最旧的数据
@@ -295,6 +297,7 @@ export class DynamicRingBuffer<T = number> {
   private lastResizeTime: number = 0;
   private resizeCooldown: number;     // Minimum time between resizes (ms)
   private resizeCount: number = 0;    // Total resize operations
+  private logger = createLogger({ module: 'DynamicRingBuffer' });
 
   /**
    * Create a dynamic ring buffer with auto-resize capability
@@ -731,14 +734,4 @@ export class DynamicRingBuffer<T = number> {
     };
   }
 
-  /**
-   * Simple logger for resize operations
-   * Override this method to use a proper logger
-   */
-  private logger = {
-    info: (message: string, data?: any) => {
-      // Silent by default, can be overridden
-      console.debug(`[DynamicRingBuffer] ${message}`, data);
-    }
-  };
 }
