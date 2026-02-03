@@ -34,7 +34,7 @@ async function loadMatrixaiQuic(): Promise<boolean> {
       matrixaiQuic = await import('@matrixai/quic');
       QUICServer = matrixaiQuic.QUICServer;
       moduleLoaded = true;
-      logger.info('@matrixai/quic loaded successfully, HTTP/3 functionality is available');
+      logger.debug('@matrixai/quic loaded successfully, HTTP/3 functionality is available');
       return true;
     } catch { 
       // @matrixai/quic 未安装或加载失败，HTTP/3 功能将不可用
@@ -116,7 +116,7 @@ export class Http3ServerAdapter extends EventEmitter {
     this.qpackEncoder = new QPACKEncoder(maxTableCapacity);
     this.qpackDecoder = new QPACKDecoder(maxTableCapacity);
     
-    logger.info('Initializing HTTP/3 server adapter', {}, {
+    logger.debug('Initializing HTTP/3 server adapter', {}, {
       library: '@matrixai/quic',
       hostname: config.hostname,
       port: config.port,
@@ -208,7 +208,7 @@ export class Http3ServerAdapter extends EventEmitter {
       
       this.listening = true;
       
-      logger.info('HTTP/3 server listening', {}, {
+      logger.debug('HTTP/3 server listening', {}, {
         hostname: this.config.hostname,
         port: this.config.port,
         protocol: 'HTTP/3 over QUIC',
