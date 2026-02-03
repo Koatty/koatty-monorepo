@@ -44,6 +44,3 @@
 [submodule "packages/koatty-swagger"]
 	path = packages/koatty-swagger
 	url = https://github.com/koatty/koatty_swagger.git
-[submodule "packages/koatty-consul"]
-	path = packages/koatty-consul
-	url = https://github.com/koatty/koatty_consul.git
