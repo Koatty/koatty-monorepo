@@ -114,11 +114,14 @@ pnpm changeset version
 ```
 
 这个命令会：
-1. 读取所有待处理的 changesets
+1. **读取并应用「所有」待处理的 changesets**（`.changeset/*.md`），而不是只应用最近一次创建的
 2. 更新相关包的版本号
 3. 删除已应用的 changesets
 4. 生成 CHANGELOG.md
 5. **自动提交所有版本变更**（包括 package.json 和 CHANGELOG.md）
+
+**⚠️ 为何只选了 koatty-logger 却很多包被更新？**  
+若之前多次运行 `pnpm changeset` 为不同包创建了多份 changeset 但未运行 `changeset version`，这些 `.md` 会一直留在 `.changeset/`。下次执行 `pnpm changeset version` 时会**一次性应用所有未消费的 changesets**，导致多个包一起被升版本。发布前可先查看待应用列表：`ls .changeset/*.md`（仅查看 .md，不含 config.json、README.md）。
 
 #### 方式二：直接指定版本类型（快速）
 

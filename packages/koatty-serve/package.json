@@ -1,6 +1,6 @@
 {
   "name": "koatty_serve",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "Provide http1/2/3, websocket, gRPC server for Koatty.",
   "scripts": {
     "build": "npm run build:js && npm run build:dts && npm run build:doc && npm run build:cp",
