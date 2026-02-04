@@ -144,10 +144,10 @@ function main() {
   const message = `${versionType} version bump for ${packagesToUpdate.join(', ')}`;
   createChangesetFile(versionType, packagesToUpdate, message);
   
-  // 运行 changeset version
+  // 运行 changeset version（通过 pnpm exec 确保能找到 changeset 命令）
   console.log('\n🔄 应用版本更新...\n');
   try {
-    execSync('changeset version', {
+    execSync('pnpm exec changeset version', {
       cwd: WORKSPACE_ROOT,
       stdio: 'inherit'
     });

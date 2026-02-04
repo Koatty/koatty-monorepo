@@ -3,7 +3,7 @@ set -e
 
 # 默认值
 DEFAULT_SUBMODULE_PATH="packages/koatty"
-DEFAULT_SUBMODULE_URL="https://github.com/thinkkoa/koatty.git"
+DEFAULT_SUBMODULE_URL="https://github.com/koatty/koatty.git"
 DEFAULT_SUBMODULE_NAME="koatty"
 
 # 显示帮助信息
@@ -16,7 +16,7 @@ Submodule 配置脚本
 
 参数:
   路径   - Submodule 的本地路径 (默认: packages/koatty)
-  URL    - Submodule 的 Git 仓库地址 (默认: https://github.com/thinkkoa/koatty.git)
+  URL    - Submodule 的 Git 仓库地址 (默认: https://github.com/koatty/koatty.git)
   名称   - Submodule 的名称，用于提交消息 (默认: 从路径提取)
 
 示例:
@@ -24,10 +24,10 @@ Submodule 配置脚本
   $0
 
   # 指定路径和 URL
-  $0 packages/koatty-container https://github.com/thinkkoa/koatty_container.git
+  $0 packages/koatty-container https://github.com/koatty/koatty_container.git
 
   # 完整配置
-  $0 packages/koatty-container https://github.com/thinkkoa/koatty_container.git koatty-container
+  $0 packages/koatty-container https://github.com/koatty/koatty_container.git koatty-container
 
   # 添加 tools 目录下的 submodule
   $0 tools/build-tools https://github.com/example/build-tools.git build-tools

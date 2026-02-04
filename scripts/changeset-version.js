@@ -102,7 +102,7 @@ function runChangesetVersion(type) {
     // changeset version 命令本身不支持指定版本类型
     // 版本类型是在创建 changeset 时指定的
     // 所以这里只是运行标准的 version 命令
-    execSync('changeset version', {
+    execSync('pnpm exec changeset version', {
       cwd: WORKSPACE_ROOT,
       stdio: 'inherit'
     });
