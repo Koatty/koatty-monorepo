@@ -6,7 +6,8 @@
  * @LastEditTime: 2024-11-27 22:30:00
  */
 
-import { ConnectionPoolManager, ConnectionPoolMetrics } from './pool';
+import { ConnectionPoolManager } from './pool';
+import type { ConnectionPoolMetrics } from './pool';
 
 /**
  * 连接池工厂 - 根据协议自动创建对应的连接池实现
@@ -137,6 +138,9 @@ export {
   ConnectionPoolManager,
   ConnectionPoolEvent,
   ConnectionPoolStatus,
+} from './pool';
+
+export type {
   ConnectionPoolHealth,
   ConnectionPoolMetrics,
   ConnectionRequestOptions,

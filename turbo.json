@@ -2,12 +2,13 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [
     "tsconfig.base.json",
-    ".eslintrc.js"
+    "tsup.config.base.ts"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "*.tsbuildinfo"]
+      "outputs": ["dist/**", "temp/**", "*.tsbuildinfo"],
+      "inputs": ["src/**", "tsconfig.json", "tsup.config.ts", "package.json"]
     },
     "dev": {
       "cache": false,
@@ -25,4 +26,3 @@
     }
   }
 }
-

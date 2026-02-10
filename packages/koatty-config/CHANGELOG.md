@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.14
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_loader@1.1.6
+
 ## 1.2.13
 
 ### Patch Changes

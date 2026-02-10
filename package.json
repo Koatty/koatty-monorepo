@@ -14,7 +14,7 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "clean": "turbo run clean && rimraf node_modules .turbo",
     "changeset": "changeset",
     "changeset:version": "changeset version && node scripts/commit-version-changes.js",
     "changeset:version:no-commit": "changeset version",
@@ -43,7 +43,14 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@swc/core": "^1.10.0",
+    "husky": "^9.1.7",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
-    "turbo": "^2.5.8"
+    "tsup": "^8.4.0",
+    "turbo": "^2.5.8",
+    "typescript": "^5.7.3"
   }
 }

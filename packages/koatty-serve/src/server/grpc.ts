@@ -17,7 +17,8 @@ import {
   ServiceDefinition, UntypedHandleCall
 } from "@grpc/grpc-js";
 import { KoattyApplication, NativeServer } from "koatty_core";
-import { BaseServer, ConfigChangeAnalysis, ConnectionStats } from "./base";
+import { BaseServer } from "./base";
+import type { ConfigChangeAnalysis, ConnectionStats } from "./base";
 import { generateTraceId } from "../utils/logger";
 import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";

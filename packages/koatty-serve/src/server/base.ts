@@ -12,11 +12,11 @@ import { createLogger, generateTraceId } from "../utils/logger";
 import { deepEqual, generateServerId } from "../utils/helper";
 import { TimerManager } from "../utils/timer-manager";
 import {
-  ConnectionStats,
   ConnectionPoolStatus as HealthStatus,
   ConnectionPoolManager,
   ConnectionPoolEvent
 } from "../pools/pool";
+import type { ConnectionStats } from "../pools/pool";
 import { ListeningOptions } from "../config/config";
 // 优雅关闭相关类型定义
 export interface GracefulShutdownOptions {
@@ -632,4 +632,5 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions>
 }
 
 // 导出健康状态枚举
-export { HealthStatus, ConnectionStats };
+export { HealthStatus };
+export type { ConnectionStats };
