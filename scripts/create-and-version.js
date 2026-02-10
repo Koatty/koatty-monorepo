@@ -156,10 +156,10 @@ function main() {
     process.exit(1);
   }
   
-  // 自动提交
-  console.log('\n💾 自动提交版本变更...\n');
+  // 自动提交 (submodule + monorepo)
+  console.log('\n💾 自动提交版本变更 (submodules + monorepo)...\n');
   try {
-    execSync('node scripts/commit-version-changes.js', {
+    execSync('node scripts/commit-submodule-changes.js --no-push', {
       cwd: WORKSPACE_ROOT,
       stdio: 'inherit'
     });
@@ -169,7 +169,7 @@ function main() {
   
   console.log('\n✅ 完成！');
   console.log('\n💡 下一步:');
-  console.log('  git push origin master  # 推送变更');
+  console.log('  pnpm commit:submodules  # 推送所有 submodule + monorepo');
   console.log('  pnpm release            # 发布到 npm');
 }
 
