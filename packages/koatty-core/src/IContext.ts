@@ -123,6 +123,36 @@ export interface KoattyContext extends KoaContext {
   throw(message: string, code?: number | undefined, status?: number | undefined): never;
 
   /**
+   * Get request header(s).
+   * When name is provided, returns the value of the specified header;
+   * otherwise returns all headers.
+   * 
+   * @param {string} [name] - Header name
+   * @returns {string | Record<string, string | string[]>}
+   */
+  readonly requestHeader?: (name?: string) => string | Record<string, string | string[]>;
+
+  /**
+   * Get query-string parameter(s).
+   * When name is provided, returns the value of the specified query parameter;
+   * otherwise returns all query parameters.
+   * 
+   * @param {string} [name] - Query parameter name
+   * @returns {unknown}
+   */
+  readonly requestQuery?: (name?: string) => unknown;
+
+  /**
+   * Get path variable(s) (route parameters).
+   * When name is provided, returns the value of the specified path variable;
+   * otherwise returns all path variables.
+   * 
+   * @param {string} [name] - Path variable name
+   * @returns {unknown}
+   */
+  readonly requestPathVariable?: (name?: string) => unknown;
+
+  /**
    * Get parsed query-string and path variable(koa ctx.query and ctx.params),
    * and set as an object.
    * @returns unknown
@@ -131,9 +161,19 @@ export interface KoattyContext extends KoaContext {
 
   /**
    * Get parsed body(form variable and file object).
-   * @returns Promise<unknown> ex: {post: {...}, file: {...}}
+   * @returns Promise<unknown> ex: {body: {...}, file: {...}}
    */
   readonly requestBody?: () => Promise<unknown>;
+
+  /**
+   * Get parsed upload file object(s).
+   * When name is provided, returns the specified file;
+   * otherwise returns all files.
+   * 
+   * @param {string} [name] - File field name
+   * @returns {Promise<unknown>}
+   */
+  readonly requestFile?: (name?: string) => Promise<unknown>;
 }
 
 /**
@@ -141,8 +181,6 @@ export interface KoattyContext extends KoaContext {
  */
 export interface HttpContext extends KoattyContext {
   protocol: 'http' | 'https';
-  requestParam?: () => unknown;
-  requestBody?: () => Promise<unknown>;
 }
 
 /**
@@ -174,8 +212,6 @@ export interface GraphQLContext extends KoattyContext {
     rootValue: any;
     contextValue: KoattyContext;
   };
-  requestParam?: () => unknown;
-  requestBody?: () => Promise<unknown>;
 }
 
 /**

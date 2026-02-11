@@ -78,11 +78,35 @@ export function payload(options?: PayloadOptions) {
     // 防止重复定义：在多协议场景下，多个router会注册payload中间件
     // 每个请求的ctx虽然是独立实例，但会经过所有中间件
     // 只在属性未定义时才定义，避免 "Cannot redefine property" 错误
+    if (!Object.prototype.hasOwnProperty.call(ctx, 'requestHeader')) {
+      Helper.define(ctx, "requestHeader", (name?: string) => {
+        return name ? ctx.get(name) : ctx.headers;
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(ctx, 'requestQuery')) {
+      Helper.define(ctx, "requestQuery", (name?: string) => {
+        const queryParams = ctx.query ?? {};
+        return name ? queryParams[name] : queryParams;
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(ctx, 'requestPathVariable')) {
+      Helper.define(ctx, "requestPathVariable", (name?: string) => {
+        const pathParams = ctx.params ?? {};
+        return name ? pathParams[name] : pathParams;
+      });
+    }
     if (!Object.prototype.hasOwnProperty.call(ctx, 'requestParam')) {
       Helper.define(ctx, "requestParam", () => queryParser(ctx, opts));
     }
     if (!Object.prototype.hasOwnProperty.call(ctx, 'requestBody')) {
       Helper.define(ctx, "requestBody", () => bodyParser(ctx, opts));
+    }
+    if (!Object.prototype.hasOwnProperty.call(ctx, 'requestFile')) {
+      Helper.define(ctx, "requestFile", async (name?: string) => {
+        const body = await bodyParser(ctx, opts);
+        const files = body.file ?? {};
+        return name ? files[name] : files;
+      });
     }
     return next();
   }
