@@ -1,6 +1,6 @@
 {
   "name": "koatty_trace",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "Full link tracking and error interception for koatty.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",

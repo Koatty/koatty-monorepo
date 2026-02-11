@@ -70,43 +70,5 @@ Description
 
 
 </td></tr>
-<tr><td>
-
-[requestBody?](./koatty_core.graphqlcontext.requestbody.md)
-
-
-</td><td>
-
-
-</td><td>
-
-() =&gt; Promise&lt;unknown&gt;
-
-
-</td><td>
-
-_(Optional)_
-
-
-</td></tr>
-<tr><td>
-
-[requestParam?](./koatty_core.graphqlcontext.requestparam.md)
-
-
-</td><td>
-
-
-</td><td>
-
-() =&gt; unknown
-
-
-</td><td>
-
-_(Optional)_
-
-
-</td></tr>
 </tbody></table>
 

@@ -1,6 +1,6 @@
 {
   "name": "koatty_config",
-  "version": "1.2.15",
+  "version": "1.2.16",
   "description": "Configuration loader for Koatty.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",

@@ -105,6 +105,48 @@ _(Optional)_ Get parsed body(form variable and file object).
 </td></tr>
 <tr><td>
 
+[requestFile?](./koatty_core.koattycontext.requestfile.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+(name?: string) =&gt; Promise&lt;unknown&gt;
+
+
+</td><td>
+
+_(Optional)_ Get parsed upload file object(s). When name is provided, returns the specified file; otherwise returns all files.
+
+
+</td></tr>
+<tr><td>
+
+[requestHeader?](./koatty_core.koattycontext.requestheader.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+(name?: string) =&gt; string \| Record&lt;string, string \| string\[\]&gt;
+
+
+</td><td>
+
+_(Optional)_ Get request header(s). When name is provided, returns the value of the specified header; otherwise returns all headers.
+
+
+</td></tr>
+<tr><td>
+
 [requestParam?](./koatty_core.koattycontext.requestparam.md)
 
 
@@ -121,6 +163,48 @@ _(Optional)_ Get parsed body(form variable and file object).
 </td><td>
 
 _(Optional)_ Get parsed query-string and path variable(koa ctx.query and ctx.params), and set as an object.
+
+
+</td></tr>
+<tr><td>
+
+[requestPathVariable?](./koatty_core.koattycontext.requestpathvariable.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+(name?: string) =&gt; unknown
+
+
+</td><td>
+
+_(Optional)_ Get path variable(s) (route parameters). When name is provided, returns the value of the specified path variable; otherwise returns all path variables.
+
+
+</td></tr>
+<tr><td>
+
+[requestQuery?](./koatty_core.koattycontext.requestquery.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+(name?: string) =&gt; unknown
+
+
+</td><td>
+
+_(Optional)_ Get query-string parameter(s). When name is provided, returns the value of the specified query parameter; otherwise returns all query parameters.
 
 
 </td></tr>
