@@ -1,0 +1,82 @@
+{
+  "name": "koatty_serverless",
+  "version": "1.0.0",
+  "description": "Serverless adapter for Koatty framework",
+  "scripts": {
+    "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",
+    "build:js": "tsup",
+    "build:dts": "bash ../../scripts/build-dts.sh",
+    "build:doc": "api-documenter markdown --input temp --output docs/api",
+    "build:cp": "node ../../scripts/postBuild.js",
+    "clean": "rimraf dist temp docs/api",
+    "lint": "eslint --ext .ts,.js ./src",
+    "test": "pnpm run lint && jest --passWithNoTests",
+    "test:cov": "jest --collectCoverage --detectOpenHandles"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koatty/koatty.git"
+  },
+  "keywords": [
+    "web",
+    "typescript",
+    "framework",
+    "mvc",
+    "koa2",
+    "restful",
+    "agile",
+    "serverless",
+    "koatty"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": {
+    "name": "richenlin",
+    "email": "richenlin@gmail.com"
+  },
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/koatty/koatty/issues"
+  },
+  "homepage": "https://github.com/koatty/koatty",
+  "maintainers": [
+    {
+      "name": "richenlin",
+      "email": "richenlin@gmail.com"
+    }
+  ],
+  "devDependencies": {
+    "@microsoft/api-documenter": "^7.26.x",
+    "@microsoft/api-extractor": "^7.52.x",
+    "@types/jest": "^29.5.x",
+    "@types/node": "^22.x.x",
+    "@typescript-eslint/eslint-plugin": "^8.x.x",
+    "@typescript-eslint/parser": "^8.x.x",
+    "eslint": "^8.x.x",
+    "eslint-plugin-jest": "^28.x.x",
+    "jest": "^29.x.x",
+    "jest-html-reporters": "^3.x.x",
+    "ts-jest": "^29.x.x",
+    "tslib": "^2.x.x"
+  },
+  "dependencies": {
+    "koatty_core": "workspace:*"
+  },
+  "peerDependencies": {
+    "koatty": "workspace:*",
+    "koatty_core": "workspace:*"
+  },
+  "types": "./dist/index.d.ts",
+  "optionalDependencies": {
+    "@codegenie/serverless-express": "^4.x"
+  }
+}

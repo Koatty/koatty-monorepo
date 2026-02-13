@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./temp",
+    "removeComments": false,
+    "importHelpers": true,
+    "downlevelIteration": true,
+    "stripInternal": true,
+    "noImplicitAny": true,
+    "noImplicitThis": false,
+    "pretty": true,
+    "moduleResolution": "node",
+    "typeRoots": ["node_modules/@types"],
+    "types": ["node", "jest"],
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "useUnknownInCatchVariables": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*"]
+}

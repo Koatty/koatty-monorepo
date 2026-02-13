@@ -109,17 +109,5 @@ This method handles the complete router initialization: 1. Create router instanc
 
 
 </td></tr>
-<tr><td>
-
-[run(app)](./koatty_router.routercomponent.run.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
 </tbody></table>
 
