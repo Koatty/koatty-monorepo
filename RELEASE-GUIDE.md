@@ -40,7 +40,7 @@
 - `koatty-trace` - 链路追踪组件
 - `koatty-config` - 配置组件
 
-**独立包（11个，submodules）**
+**独立包（12个，submodules）**
 
 - `koatty-container` - IoC 容器
 - `koatty-lib` - 工具函数库
@@ -53,6 +53,7 @@
 - `koatty-proto` - 协议定义
 - `koatty-graphql` - GraphQL 支持
 - `koatty-doc` - 文档工具
+- `koatty-serverless` - Serverless 适配器（AWS Lambda / 阿里云 FC / 腾讯云 SCF）
 
 ### Changesets 工作流
 
@@ -84,7 +85,10 @@ pnpm changeset:version:pre     # pre-release 版本
 # 指定特定包
 node scripts/create-and-version.js minor koatty koatty-core
 node scripts/create-and-version.js patch koatty-router
+node scripts/create-and-version.js patch koatty_serverless   # 包名与目录名均可
 ```
+
+`koatty-serverless` 与其它 submodule 一样：`pnpm changeset version` 会更新其 `package.json` 与 `CHANGELOG.md`，随后 `commit-submodule-changes.js` 会在该 submodule 内提交并推送，再提交 monorepo 的 submodule 指针。
 
 ---
 
