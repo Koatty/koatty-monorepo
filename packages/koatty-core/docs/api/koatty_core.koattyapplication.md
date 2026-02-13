@@ -84,12 +84,14 @@ string
 
 </td><td>
 
-(protocol?: string, reqHandler?: (ctx: [KoattyContext](./koatty_core.koattycontext.md)<!-- -->) =&gt; Promise&lt;any&gt;) =&gt; { (req: [RequestType](./koatty_core.requesttype.md)<!-- -->, res: [ResponseType](./koatty_core.responsetype.md)<!-- -->): Promise&lt;any&gt;; }
+{ (): (req: [RequestType](./koatty_core.requesttype.md)<!-- -->, res: [ResponseType](./koatty_core.responsetype.md)<!-- -->) =&gt; Promise&lt;any&gt;; (protocol: string): (req: [RequestType](./koatty_core.requesttype.md)<!-- -->, res: [ResponseType](./koatty_core.responsetype.md)<!-- -->) =&gt; Promise&lt;any&gt;; (protocol: string, reqHandler: (ctx: [KoattyContext](./koatty_core.koattycontext.md)<!-- -->) =&gt; Promise&lt;any&gt;): (req: [RequestType](./koatty_core.requesttype.md)<!-- -->, res: [ResponseType](./koatty_core.responsetype.md)<!-- -->) =&gt; Promise&lt;any&gt;; }
 
 
 </td><td>
 
 Create a callback function for handling requests.
+
+Overloaded signature for Koa compatibility: - callback(): returns standard (req, res) =<!-- -->&gt; Promise<any> handler (Koa-compatible) - callback(protocol): returns protocol-specific handler with compose caching - callback(protocol, reqHandler): returns handler with additional protocol-specific request handler
 
 
 </td></tr>
@@ -234,6 +236,29 @@ Get protocol-specific middleware stack.
 </td></tr>
 <tr><td>
 
+[getRequestHandler](./koatty_core.koattyapplication.getrequesthandler.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+(protocol?: string) =&gt; (req: [RequestType](./koatty_core.requesttype.md)<!-- -->, res: [ResponseType](./koatty_core.responsetype.md)<!-- -->) =&gt; Promise&lt;any&gt;
+
+
+</td><td>
+
+Get a standard Node.js HTTP request handler for serverless/custom deployment.
+
+Returns a `(req, res) => Promise<void>` function that can be used with: - Serverless platforms (AWS Lambda, Alibaba Cloud FC, etc.) - Custom HTTP servers (`http.createServer(handler)`<!-- -->) - Testing frameworks (`supertest`<!-- -->)
+
+
+</td></tr>
+<tr><td>
+
 [init](./koatty_core.koattyapplication.init.md)
 
 
@@ -248,6 +273,27 @@ Get protocol-specific middleware stack.
 </td><td>
 
 Initialize application. This method can be overridden in subclasses to perform initialization tasks.
+
+
+</td></tr>
+<tr><td>
+
+[isReady](./koatty_core.koattyapplication.isready.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+boolean
+
+
+</td><td>
+
+Whether the application has completed initialization and is ready to handle requests.
 
 
 </td></tr>
@@ -305,6 +351,27 @@ string
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[markReady](./koatty_core.koattyapplication.markready.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+() =&gt; void
+
+
+</td><td>
+
+Mark the application as ready. Called after bootstrap completes (all components loaded).
 
 
 </td></tr>

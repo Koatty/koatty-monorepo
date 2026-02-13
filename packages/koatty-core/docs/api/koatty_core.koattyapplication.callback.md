@@ -6,10 +6,14 @@
 
 Create a callback function for handling requests.
 
+Overloaded signature for Koa compatibility: - callback(): returns standard (req, res) =<!-- -->&gt; Promise<any> handler (Koa-compatible) - callback(protocol): returns protocol-specific handler with compose caching - callback(protocol, reqHandler): returns handler with additional protocol-specific request handler
+
 **Signature:**
 
 ```typescript
-readonly callback: (protocol?: string, reqHandler?: (ctx: KoattyContext) => Promise<any>) => {
-        (req: RequestType, res: ResponseType): Promise<any>;
+readonly callback: {
+        (): (req: RequestType, res: ResponseType) => Promise<any>;
+        (protocol: string): (req: RequestType, res: ResponseType) => Promise<any>;
+        (protocol: string, reqHandler: (ctx: KoattyContext) => Promise<any>): (req: RequestType, res: ResponseType) => Promise<any>;
     };
 ```

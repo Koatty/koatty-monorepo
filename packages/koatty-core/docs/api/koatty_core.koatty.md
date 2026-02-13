@@ -161,6 +161,27 @@ string
 </td></tr>
 <tr><td>
 
+[isReady](./koatty_core.koatty.isready.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+boolean
+
+
+</td><td>
+
+Whether the application has completed initialization and is ready to handle requests.
+
+
+</td></tr>
+<tr><td>
+
 [koattyPath](./koatty_core.koatty.koattypath.md)
 
 
@@ -446,6 +467,22 @@ Get middleware stack for specific protocol
 </td></tr>
 <tr><td>
 
+[getRequestHandler(protocol)](./koatty_core.koatty.getrequesthandler.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get a standard Node.js HTTP request handler for serverless/custom deployment.
+
+Returns a `(req, res) => Promise<void>` function that can be used with: - Serverless platforms (AWS Lambda, Alibaba Cloud FC, etc.) - Custom HTTP servers (`http.createServer(handler)`<!-- -->) - Testing frameworks (`supertest`<!-- -->)
+
+
+</td></tr>
+<tr><td>
+
 [init()](./koatty_core.koatty.init.md)
 
 
@@ -471,6 +508,20 @@ Initialize application. This method can be overridden in subclasses to perform i
 Listening and start server
 
 Since Koa.listen returns an http.Server type, the return value must be defined as 'any' type here. When calling, note that Koatty.listen returns a NativeServer, such as http/https Server or grpcServer or Websocket
+
+
+</td></tr>
+<tr><td>
+
+[markReady()](./koatty_core.koatty.markready.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Mark the application as ready. Called after bootstrap completes (all components loaded).
 
 
 </td></tr>
