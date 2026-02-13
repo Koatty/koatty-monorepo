@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty@4.1.10
+
 ## 1.0.0
 
 ### Minor Changes

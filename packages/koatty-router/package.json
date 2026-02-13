@@ -1,6 +1,6 @@
 {
   "name": "koatty_router",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "Koatty routing component, adapt to http1/2, websocket, gRPC.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",
