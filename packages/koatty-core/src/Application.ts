@@ -83,6 +83,24 @@ export class Koatty extends Koa implements KoattyApplication {
   private initializedProtocols: Set<string> = new Set();
 
   /**
+   * Cache for composed callback handlers per protocol.
+   * Key: protocol name ('http', 'grpc', 'ws', etc.)
+   * Value: composed request handler function
+   *
+   * Invalidated when middleware stack changes via use().
+   * Handlers with reqHandler parameter are NOT cached (dynamic registration).
+   */
+  private composedCallbackCache: Map<string,
+    (req: RequestType, res: ResponseType) => Promise<any>
+  > = new Map();
+
+  /**
+   * Application ready state flag.
+   * Set to true after bootstrap completes (all components loaded).
+   */
+  private _ready: boolean = false;
+
+  /**
    * Protected constructor for the Application class.
    * Initializes a new instance with configuration options and sets up the application environment.
    * 
@@ -182,6 +200,8 @@ export class Koatty extends Koa implements KoattyApplication {
       Logger.Error('The parameter is not a function.');
       return;
     }
+    // Middleware stack changed, invalidate all composed callback caches
+    this.composedCallbackCache.clear();
     return super.use(<any>fn);
   }
 
@@ -431,6 +451,57 @@ export class Koatty extends Koa implements KoattyApplication {
   }
 
   /**
+   * Whether the application has completed initialization
+   * and is ready to handle requests.
+   */
+  get isReady(): boolean {
+    return this._ready;
+  }
+
+  /**
+   * Mark the application as ready.
+   * Called after bootstrap completes (all components loaded).
+   */
+  markReady(): void {
+    this._ready = true;
+    Logger.Log('Koatty', '', 'Application is ready');
+  }
+
+  /**
+   * Get a standard Node.js HTTP request handler for serverless/custom deployment.
+   *
+   * Returns a `(req, res) => Promise<void>` function that can be used with:
+   * - Serverless platforms (AWS Lambda, Alibaba Cloud FC, etc.)
+   * - Custom HTTP servers (`http.createServer(handler)`)
+   * - Testing frameworks (`supertest`)
+   *
+   * @param {string} [protocol='http'] Protocol type
+   * @returns {Function} Standard Node.js request handler
+   * @throws {Error} If application has not completed bootstrap
+   *
+   * @example
+   * ```typescript
+   * // Serverless deployment
+   * const app = await createApplication(MyApp);
+   * const handler = app.getRequestHandler();
+   * export { handler };
+   *
+   * // Custom server
+   * const app = await createApplication(MyApp);
+   * http.createServer(app.getRequestHandler()).listen(3000);
+   * ```
+   */
+  getRequestHandler(protocol = "http") {
+    if (!this._ready) {
+      throw new Error(
+        'Application is not ready. Ensure bootstrap is complete before calling getRequestHandler(). ' +
+        'Use createApplication() or ExecBootStrap() first.'
+      );
+    }
+    return this.callback(protocol);
+  }
+
+  /**
    * Get middleware stack for specific protocol
    * @param protocol Protocol name
    * @returns Middleware array or undefined
@@ -516,6 +587,12 @@ export class Koatty extends Koa implements KoattyApplication {
    * ```
    */
   callback(protocol = "http", reqHandler?: (ctx: KoattyContext) => Promise<any>) {
+    // Fast path: return cached handler when no reqHandler and cache exists
+    if (!reqHandler) {
+      const cached = this.composedCallbackCache.get(protocol);
+      if (cached) return cached;
+    }
+
     // Get or create protocol-specific middleware stack
     let protocolMiddleware = this.middlewareStacks.get(protocol);
     
@@ -535,7 +612,7 @@ export class Koatty extends Koa implements KoattyApplication {
     const fn = koaCompose(protocolMiddleware as any);
     if (!this.listenerCount('error')) this.on('error', this.onerror);
 
-    return (req: RequestType, res: ResponseType) => {
+    const handler = (req: RequestType, res: ResponseType) => {
       const ctx: any = this.createContext(req, res, protocol);
       if (!this.ctxStorage) {
         return this.handleRequest(ctx, fn as any);
@@ -543,7 +620,14 @@ export class Koatty extends Koa implements KoattyApplication {
       return this.ctxStorage.run(ctx, async () => {
         return this.handleRequest(ctx, fn as any);
       });
+    };
+
+    // Cache handler when no reqHandler (dynamic registration should not be cached)
+    if (!reqHandler) {
+      this.composedCallbackCache.set(protocol, handler);
     }
+
+    return handler;
   }
 
   /**

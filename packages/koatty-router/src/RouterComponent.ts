@@ -104,7 +104,13 @@ export class RouterComponent implements IComponent {
       Logger.Log('Koatty', '', '✓ Router initialized');
     }
 
-    // Step 2: Load controller routes
+    // Step 2: Register payload middleware BEFORE loading routes
+    // This ensures body parsing runs before route matching in the middleware chain,
+    // so controller handlers can access parsed request body directly.
+    app.use(payload(app.config('payload', 'router')));
+    Logger.Log('Koatty', '', '✓ Payload middleware registered');
+
+    // Step 3: Load controller routes
     await this.loadRoutes(app);
   }
 
@@ -146,11 +152,6 @@ export class RouterComponent implements IComponent {
     }
 
     Logger.Log('Koatty', '', '✓ Routes loaded');
-  }
-
-  @OnEvent(AppEvent.appReady)
-  async run(app: KoattyApplication): Promise<void> {
-    app.use(payload(app.config('payload', 'router')));
   }
 
   /**

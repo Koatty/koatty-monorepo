@@ -171,14 +171,46 @@ export interface KoattyApplication extends Koa {
   /**
    * Create a callback function for handling requests.
    * 
+   * Overloaded signature for Koa compatibility:
+   * - callback(): returns standard (req, res) => Promise<any> handler (Koa-compatible)
+   * - callback(protocol): returns protocol-specific handler with compose caching
+   * - callback(protocol, reqHandler): returns handler with additional protocol-specific request handler
+   *
    * @param protocol - The protocol type, defaults to "http"
    * @param reqHandler - Optional request handler function for processing requests
    * @returns A function that handles incoming requests with the configured middleware stack
-   * ```
    */
-  readonly callback: (protocol?: string, reqHandler?: (ctx: KoattyContext) => Promise<any>) => {
-    (req: RequestType, res: ResponseType): Promise<any>
+  readonly callback: {
+    (): (req: RequestType, res: ResponseType) => Promise<any>;
+    (protocol: string): (req: RequestType, res: ResponseType) => Promise<any>;
+    (protocol: string, reqHandler: (ctx: KoattyContext) => Promise<any>): (req: RequestType, res: ResponseType) => Promise<any>;
   };
+
+  /**
+   * Whether the application has completed initialization
+   * and is ready to handle requests.
+   */
+  readonly isReady: boolean;
+
+  /**
+   * Mark the application as ready.
+   * Called after bootstrap completes (all components loaded).
+   */
+  readonly markReady: () => void;
+
+  /**
+   * Get a standard Node.js HTTP request handler for serverless/custom deployment.
+   *
+   * Returns a `(req, res) => Promise<void>` function that can be used with:
+   * - Serverless platforms (AWS Lambda, Alibaba Cloud FC, etc.)
+   * - Custom HTTP servers (`http.createServer(handler)`)
+   * - Testing frameworks (`supertest`)
+   *
+   * @param {string} [protocol='http'] Protocol type
+   * @returns {Function} Standard Node.js request handler
+   * @throws {Error} If application has not completed bootstrap
+   */
+  readonly getRequestHandler: (protocol?: string) => (req: RequestType, res: ResponseType) => Promise<any>;
 
   /**
    * Get protocol-specific middleware stack.
