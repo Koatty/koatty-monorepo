@@ -1,6 +1,6 @@
 {
   "name": "koatty_serverless",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Serverless adapter for Koatty framework",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",
