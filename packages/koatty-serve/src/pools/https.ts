@@ -46,13 +46,11 @@ export class HttpsConnectionPoolManager extends ConnectionPoolManager<TLSSocket>
     failedHandshakes: 0,
     averageHandshakeTime: 0
   };
-  private cleanupInterval?: NodeJS.Timeout;
-  
+
   constructor(config: ConnectionPoolConfig = {}) {
     super('https', config);
-    
-    // 启动定期清理和安全监控
-    this.startCleanupTasks();
+
+    // 启动安全监控
     this.startSecurityMonitoring();
   }
 
@@ -348,50 +346,11 @@ export class HttpsConnectionPoolManager extends ConnectionPoolManager<TLSSocket>
   }
 
   /**
-   * 注册HTTPS特定的清理任务到统一监控器
-   */
-  private startCleanupTasks(): void {
-    // 定期清理空闲连接
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupIdleConnections();
-    }, 30000); // 每30秒
-  }
-
-  /**
    * 启动安全监控
    */
   private startSecurityMonitoring(): void {
     // 安全指标监控已启用（静默收集）
     // 实际的安全指标在每次连接建立时收集
-  }
-
-  /**
-   * 清理空闲连接
-   */
-  private cleanupIdleConnections(): void {
-    const now = Date.now();
-    const maxIdleTime = this.config.keepAliveTimeout || 300000; // 默认5分钟
-    const connectionsToRemove: Array<{ id: string; connection: TLSSocket }> = [];
-
-    for (const [id, metadata] of this.connectionMetadata) {
-      const typedMetadata = metadata as HttpsConnectionMetadata;
-      if (typedMetadata.available && 
-          (now - typedMetadata.lastUsed) > maxIdleTime) {
-        const connection = this.connections.get(id);
-        if (connection) {
-          connectionsToRemove.push({ id, connection });
-        }
-      }
-    }
-
-    // 异步清理过期连接
-    connectionsToRemove.forEach(({ connection }) => {
-      this.removeConnection(connection, 'Connection idle timeout').catch(error => {
-        this.logger.error('Error cleaning up idle HTTPS connection', {}, error);
-      });
-    });
-
-    // Idle HTTPS connections cleaned up silently (if any)
   }
 
   /**

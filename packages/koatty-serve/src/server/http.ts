@@ -18,13 +18,13 @@ import { ConfigHelper, HttpServerOptions, ListeningOptions } from "../config/con
  * HTTP Server implementation using template method pattern
  * 继承BaseServer，只实现HTTP特定的逻辑
  */
-export class HttpServer extends BaseServer<HttpServerOptions> {
-  readonly server: Server;
+export class HttpServer extends BaseServer<HttpServerOptions, Server> {
   protected connectionPool: HttpConnectionPoolManager;
 
   constructor(app: KoattyApplication, options: HttpServerOptions) {
     super(app, options);
     this.options = ConfigHelper.createHttpConfig(options);
+    this.initializeServer();
     CreateTerminus(app, this);
   }
 
@@ -41,7 +41,7 @@ export class HttpServer extends BaseServer<HttpServerOptions> {
    * 创建HTTP服务器实例
    */
   protected createProtocolServer(): void {
-    (this as any).server = createServer((req, res) => {
+    this.server = createServer((req, res) => {
       this.app.callback()(req, res);
 
       // 记录请求指标

@@ -19,13 +19,13 @@ import { ConfigHelper, HttpsServerOptions, ListeningOptions, SSL1Config } from "
  * HTTPS Server implementation using template method pattern
  * 继承BaseServer，只实现HTTPS特定的逻辑
  */
-export class HttpsServer extends BaseServer<HttpsServerOptions> {
-  readonly server: Server;
+export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
   protected connectionPool: HttpsConnectionPoolManager;
 
   constructor(app: KoattyApplication, options: HttpsServerOptions) {
     super(app, options);
     this.options = ConfigHelper.createHttpsConfig(options);
+    this.initializeServer();
     CreateTerminus(app, this);
   }
 
@@ -44,7 +44,7 @@ export class HttpsServer extends BaseServer<HttpsServerOptions> {
   protected createProtocolServer(): void {
     const sslOptions = this.createSSLOptions();
     
-    (this as any).server = createServer(sslOptions, (req, res) => {
+    this.server = createServer(sslOptions, (req, res) => {
       const startTime = Date.now();
       this.app.callback()(req, res);
       

@@ -49,11 +49,10 @@ interface Http2SessionMetadata {
 export class Http2ConnectionPoolManager extends ConnectionPoolManager<Http2Session> {
   private readonly activeStreams = new Map<string, Set<Http2Stream>>();
   private pingInterval?: NodeJS.Timeout;
-  private healthCheckInterval?: NodeJS.Timeout;
 
   constructor(config: ConnectionPoolConfig = {}) {
     super('http2', config);
-    
+
     // 启动HTTP/2特有的监控任务
     this.startHttp2MonitoringTasks();
   }

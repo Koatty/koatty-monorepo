@@ -255,6 +255,16 @@ export class ConfigHelper {
     }
   }
 
+  private static migrateSSLFromExt(options: any): void {
+    if (!options.ext) return;
+    if (options.ext.ssl && !options.ssl) {
+      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead');
+      options.ssl = options.ext.ssl;
+    } else if (options.ext.ssl && options.ssl) {
+      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl');
+    }
+  }
+
   static createHttpConfig(options: ListeningOptions = {
     hostname: 'localhost',
     port: 3000,
@@ -293,21 +303,8 @@ export class ConfigHelper {
     if (!options.ext) {
       options.ext = {};
     }
-
-    // 向后兼容: 自动迁移 ext.ssl 到 ssl
-    if (options.ext.ssl && !options.ssl) {
-      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
-        migration: 'Automatically migrated to options.ssl'
-      });
-      (options as any).ssl = options.ext.ssl;
-    }
     
-    // 如果两者都存在, 优先使用 options.ssl
-    if (options.ext.ssl && options.ssl) {
-      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl', {
-        note: 'options.ext.ssl is ignored'
-      });
-    }
+    this.migrateSSLFromExt(options);
     
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createHttpsConfig();
@@ -343,21 +340,8 @@ export class ConfigHelper {
     if (!options.ext) {
       options.ext = {};
     }
-
-    // 向后兼容: 自动迁移 ext.ssl 到 ssl
-    if (options.ext.ssl && !options.ssl) {
-      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
-        migration: 'Automatically migrated to options.ssl'
-      });
-      (options as any).ssl = options.ext.ssl;
-    }
     
-    // 如果两者都存在, 优先使用 options.ssl
-    if (options.ext.ssl && options.ssl) {
-      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl', {
-        note: 'options.ext.ssl is ignored'
-      });
-    }
+    this.migrateSSLFromExt(options);
 
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createHttp2Config();
@@ -394,21 +378,8 @@ export class ConfigHelper {
     if (!options.ext) {
       options.ext = {};
     }
-
-    // 向后兼容: 自动迁移 ext.ssl 到 ssl
-    if (options.ext.ssl && !options.ssl) {
-      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
-        migration: 'Automatically migrated to options.ssl'
-      });
-      (options as any).ssl = options.ext.ssl;
-    }
     
-    // 如果两者都存在, 优先使用 options.ssl
-    if (options.ext.ssl && options.ssl) {
-      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl', {
-        note: 'options.ext.ssl is ignored'
-      });
-    }
+    this.migrateSSLFromExt(options);
 
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createGrpcConfig();
@@ -420,7 +391,7 @@ export class ConfigHelper {
     // Preserve all original options including custom fields
     return {
       ...options,  // Preserve all incoming fields
-      channelOptions: options.connectionPool || {},
+      channelOptions: options.channelOptions || {},
       ssl: sslConfig,
       connectionPool: poolConfig,
       hostname: options.hostname || 'localhost',
@@ -441,21 +412,8 @@ export class ConfigHelper {
     if (!options.ext) {
       options.ext = {};
     }
-
-    // 向后兼容: 自动迁移 ext.ssl 到 ssl
-    if (options.ext.ssl && !options.ssl) {
-      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
-        migration: 'Automatically migrated to options.ssl'
-      });
-      (options as any).ssl = options.ext.ssl;
-    }
     
-    // 如果两者都存在, 优先使用 options.ssl
-    if (options.ext.ssl && options.ssl) {
-      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl', {
-        note: 'options.ext.ssl is ignored'
-      });
-    }
+    this.migrateSSLFromExt(options);
     
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createHttp3Config();
@@ -494,20 +452,7 @@ export class ConfigHelper {
       options.ext = {};
     }
     
-    // 向后兼容: 自动迁移 ext.ssl 到 ssl
-    if (options.ext.ssl && !options.ssl) {
-      this.logger.warn('options.ext.ssl is deprecated, please use options.ssl instead', {
-        migration: 'Automatically migrated to options.ssl'
-      });
-      options.ssl = options.ext.ssl;
-    }
-    
-    // 如果两者都存在, 优先使用 options.ssl
-    if (options.ext.ssl && options.ssl) {
-      this.logger.warn('Both options.ssl and options.ext.ssl are set, using options.ssl', {
-        note: 'options.ext.ssl is ignored'
-      });
-    }
+    this.migrateSSLFromExt(options);
     
     // 使用 PoolConfigHelper 创建默认连接池配置
     const defaultPoolConfig = PoolConfigHelper.createWebSocketConfig();

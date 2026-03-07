@@ -21,8 +21,7 @@ import { ConfigHelper, ListeningOptions, WebSocketServerOptions } from "../confi
  * WebSocket Server implementation using template method pattern
  * 继承BaseServer，只实现WebSocket特定的逻辑
  */
-export class WsServer extends BaseServer<WebSocketServerOptions> {
-  readonly server: WS.WebSocketServer;
+export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketServer> {
   protected connectionPool!: WebSocketConnectionPoolManager;
   
   readonly httpServer!: HttpServer | HttpsServer;
@@ -33,6 +32,7 @@ export class WsServer extends BaseServer<WebSocketServerOptions> {
   constructor(app: KoattyApplication, options: WebSocketServerOptions) {
     super(app, options);
     this.options = ConfigHelper.createWebSocketConfig(options);
+    this.initializeServer();
     // 创建或使用现有的HTTP/HTTPS服务器
     this.httpServer = this.createHttpServer();
     
@@ -61,7 +61,7 @@ export class WsServer extends BaseServer<WebSocketServerOptions> {
       noServer: true,
     };
 
-    (this as any).server = new WS.WebSocketServer(this.options.wsOptions);
+    this.server = new WS.WebSocketServer(this.options.wsOptions);
     
     // WebSocket server instance created
   }

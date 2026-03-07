@@ -18,13 +18,13 @@ import { ConfigHelper, Http2ServerOptions, ListeningOptions, SSL2Config } from "
  * HTTP/2 Server implementation using template method pattern
  * 继承BaseServer，只实现HTTP/2特定的逻辑
  */
-export class Http2Server extends BaseServer<Http2ServerOptions> {
-  readonly server: Http2SecureServer;
+export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServer> {
   protected connectionPool!: Http2ConnectionPoolManager;
 
   constructor(app: KoattyApplication, options: Http2ServerOptions) {
     super(app, options);
     this.options = ConfigHelper.createHttp2Config(options);
+    this.initializeServer();
     CreateTerminus(app, this);
   }
 
@@ -43,7 +43,7 @@ export class Http2Server extends BaseServer<Http2ServerOptions> {
   protected createProtocolServer(): void {
     const http2Options = this.createHTTP2Options();
     
-    (this as any).server = createSecureServer(http2Options, (req, res) => {
+    this.server = createSecureServer(http2Options, (req, res) => {
       this.app.callback()(req, res);
       
       // 请求指标由连接池自动处理

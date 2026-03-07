@@ -13,7 +13,7 @@ import { KoattyApplication, KoattyServer } from "koatty_core";
 import { Helper } from "koatty_lib";
 import { DefaultLogger as Logger } from "koatty_logger";
 
-// async event listener
+// async event listener - triggers all listeners without removing them
 const asyncEvent = async (event: EventEmitter, eventName: string) => {
   for (const func of event.listeners(eventName)) {
     if (Helper.isFunction(func)) {
@@ -21,6 +21,15 @@ const asyncEvent = async (event: EventEmitter, eventName: string) => {
     }
   }
   return event.removeAllListeners(eventName);
+};
+
+// Trigger all listeners on a target without modifying listener registrations
+const triggerListeners = async (target: NodeJS.EventEmitter, eventName: string) => {
+  for (const func of target.listeners(eventName)) {
+    if (typeof func === 'function') {
+      await (func as () => Promise<void>)();
+    }
+  }
 };
 
 /**
@@ -32,10 +41,13 @@ const asyncEvent = async (event: EventEmitter, eventName: string) => {
  */
 export class TerminusManager {
   private static instance: TerminusManager | null = null;
-  private servers: Map<string, KoattyServer> = new Map();
   private isShuttingDown = false;
   private app: KoattyApplication | null = null;
   private signalsRegistered = false;
+  private exitOnShutdown = true;
+  private registeredServerCount = 0;
+  // Stored handler references for explicit removal on reset (prevents handler accumulation in tests)
+  private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
 
   private constructor() {}
 
@@ -49,6 +61,10 @@ export class TerminusManager {
     return TerminusManager.instance;
   }
 
+  setExitOnShutdown(value: boolean): void {
+    this.exitOnShutdown = value;
+  }
+
   /**
    * Register a server instance
    * 
@@ -56,9 +72,9 @@ export class TerminusManager {
    * @param server - Server instance to register
    * @param serverId - Unique identifier for the server
    */
-  registerServer(app: KoattyApplication, server: KoattyServer, serverId: string): void {
+  registerServer(app: KoattyApplication, _server: KoattyServer, serverId: string): void {
     this.app = app;
-    this.servers.set(serverId, server);
+    this.registeredServerCount++;
     
     Logger.Info(`Server registered in TerminusManager: ${serverId}`);
     
@@ -70,18 +86,21 @@ export class TerminusManager {
   }
 
   /**
-   * Setup signal handlers (only once)
+   * Setup signal handlers (only once).
+   * Handlers are stored in signalHandlers map for explicit removal on resetInstance().
    */
   private setupSignalHandlers(): void {
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
     
     signals.forEach(signal => {
-      process.on(signal, () => {
+      const handler = () => {
         this.shutdownAll(signal).catch(err => {
           Logger.Fatal('Error during shutdown', err);
           process.exit(1);
         });
-      });
+      };
+      this.signalHandlers.set(signal, handler);
+      process.on(signal, handler);
     });
 
     Logger.Info('Global signal handlers registered');
@@ -89,6 +108,9 @@ export class TerminusManager {
 
   /**
    * Shutdown all registered servers
+   * 
+   * Only triggers appStop event. Actual server shutdown is handled by
+   * ServeComponent.stopServer which listens to appStop event.
    * 
    * @param signal - Signal that triggered the shutdown
    */
@@ -101,69 +123,57 @@ export class TerminusManager {
     this.isShuttingDown = true;
     Logger.Warn(`Received kill signal (${signal}), shutting down all servers...`);
 
-    // 设置全局超时
-    const forceTimeout = setTimeout(() => {
-      Logger.Fatal('Could not close all servers in time, forcefully shutting down');
-      process.exit(1);
-    }, 60000);
+    const shutdownTimeout = 30000;
 
     try {
-      // 触发应用层清理（只触发一次）
+      // 触发应用层清理（ServeComponent.stopServer 会处理实际的服务器关闭）
       if (this.app) {
         Logger.Info('Triggering application stop events');
-        await asyncEvent(this.app, 'appStop');
-        await asyncEvent(process, 'beforeExit');
+
+        let timeoutHandle: NodeJS.Timeout | undefined;
+        const timeoutPromise = new Promise<void>((_, reject) => {
+          timeoutHandle = setTimeout(
+            () => reject(new Error(`Shutdown timeout after ${shutdownTimeout}ms`)),
+            shutdownTimeout
+          );
+        });
+
+        try {
+          await Promise.race([
+            asyncEvent(this.app, 'appStop').then(() => triggerListeners(process, 'beforeExit')),
+            timeoutPromise
+          ]);
+        } finally {
+          if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+        }
       }
 
-      // 并发关闭所有服务器
-      const shutdownPromises = Array.from(this.servers.entries()).map(
-        async ([serverId, server]) => {
-          try {
-            Logger.Info(`Shutting down server: ${serverId}`);
-            
-            // 优先使用 destroy 方法
-            if (typeof (server as any).destroy === 'function') {
-              await (server as any).destroy();
-            } 
-            // 降级到 Stop 方法
-            else if (typeof server.Stop === 'function') {
-              await new Promise<void>((resolve, reject) => {
-                server.Stop((err?: Error) => {
-                  if (err) reject(err);
-                  else resolve();
-                });
-              });
-            }
-            
-            Logger.Info(`Server shutdown completed: ${serverId}`);
-          } catch (error) {
-            Logger.Error(`Error shutting down server ${serverId}`, error);
-            // 不抛出错误，继续关闭其他服务器
-          }
-        }
-      );
+      Logger.Fatal('Graceful shutdown completed');
+      if (this.exitOnShutdown) {
+        process.exit(0);
+      }
 
-      await Promise.all(shutdownPromises);
-      
-      clearTimeout(forceTimeout);
-      Logger.Fatal('All servers closed gracefully');
-      process.exit(0);
-      
     } catch (error) {
-      clearTimeout(forceTimeout);
       Logger.Fatal('Error during shutdown', error);
-      process.exit(1);
+      if (this.exitOnShutdown) {
+        process.exit(1);
+      }
     }
   }
 
   /**
-   * Reset instance (for testing purposes)
+   * Reset instance (for testing purposes).
+   * Explicitly removes all registered signal handlers to prevent handler accumulation.
    */
   static resetInstance(): void {
     if (TerminusManager.instance) {
-      TerminusManager.instance.servers.clear();
+      TerminusManager.instance.signalHandlers.forEach((handler, signal) => {
+        process.removeListener(signal, handler);
+      });
+      TerminusManager.instance.signalHandlers.clear();
       TerminusManager.instance.isShuttingDown = false;
       TerminusManager.instance.signalsRegistered = false;
+      TerminusManager.instance.registeredServerCount = 0;
       TerminusManager.instance = null;
     }
   }
@@ -172,7 +182,7 @@ export class TerminusManager {
    * Get number of registered servers (for testing)
    */
   getServerCount(): number {
-    return this.servers.size;
+    return this.registeredServerCount;
   }
 }
 

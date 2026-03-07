@@ -703,4 +703,64 @@ describe('ConnectionPoolManager', () => {
       await pool.destroy();
     });
   });
+
+  describe('Priority Queue Ordering', () => {
+    it('should maintain priority order in waitingQueue (high > normal > low)', async () => {
+      const pool = new TestConnectionPoolManager({
+        maxConnections: 3,
+        connectionTimeout: 5000
+      });
+
+      const conn1 = await pool.requestConnection({ priority: 'normal' });
+      expect(conn1.success).toBe(true);
+
+      (pool as any).createProtocolConnection = async () => null;
+
+      const p1 = pool.requestConnection({ priority: 'low' });
+      const p2 = pool.requestConnection({ priority: 'high' });
+      const p3 = pool.requestConnection({ priority: 'normal' });
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const queue = (pool as any).waitingQueue;
+      expect(queue.length).toBe(3);
+      expect(queue[0].options.priority).toBe('high');
+      expect(queue[1].options.priority).toBe('normal');
+      expect(queue[2].options.priority).toBe('low');
+
+      await pool.destroy();
+    });
+
+    it('should process waiting queue in priority order', async () => {
+      const pool = new TestConnectionPoolManager({
+        maxConnections: 3,
+        connectionTimeout: 5000
+      });
+
+      const conn1 = await pool.requestConnection({ priority: 'normal' });
+      expect(conn1.success).toBe(true);
+
+      (pool as any).createProtocolConnection = async () => null;
+
+      const resolvedPriorities: string[] = [];
+      
+      pool.requestConnection({ priority: 'low' }).then(() => resolvedPriorities.push('low'));
+      pool.requestConnection({ priority: 'high' }).then(() => resolvedPriorities.push('high'));
+      pool.requestConnection({ priority: 'normal' }).then(() => resolvedPriorities.push('normal'));
+
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      (pool as any).createProtocolConnection = async () => {
+        return { connection: { id: 'new', isHealthy: true, lastUsed: Date.now() } as MockConnection };
+      };
+
+      await pool.releaseConnection(conn1.connection!);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(resolvedPriorities).toEqual(['high', 'normal', 'low']);
+
+      await pool.destroy();
+    });
+  });
 });

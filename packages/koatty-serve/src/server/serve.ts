@@ -125,16 +125,6 @@ export class SingleProtocolServer implements KoattyServer {
       // Handle SSL specific options (pass undefined for traceId since it's optional)
       ConfigHelper.configureSSLForProtocol(protocolType, options, undefined);
 
-      // For GraphQL, set the underlying protocol
-      if (protocolType === "graphql") {
-        const actualProtocol = options.ssl?.enabled ? "http2" : "http";
-        if (!options.ext) {
-          options.ext = {};
-        }
-        options.ext._underlyingProtocol = actualProtocol;
-        options.ext._actualProtocol = actualProtocol;
-      }
-
       // Create server instance but don't start it yet
       const server = this.createServerInstance(protocolType, options);
       this.serverInstance = server;
@@ -299,7 +289,7 @@ export class SingleProtocolServer implements KoattyServer {
     };
     timestamp: number;
   } {
-    const startTime = (this.serverInstance as any)?.startTime || Date.now();
+    const startTime = (this.serverInstance as any)?.startTime ?? Date.now();
     
     const checks: any = {
       server: {

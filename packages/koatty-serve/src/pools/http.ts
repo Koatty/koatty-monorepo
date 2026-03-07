@@ -38,13 +38,9 @@ interface HttpConnectionMetadata {
  */
 export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
   private keepAliveAgent?: any;
-  private httpCleanupInterval?: NodeJS.Timeout;
 
   constructor(config: ConnectionPoolConfig = {}) {
     super('http', config);
-    
-    // 启动定期清理
-    this.startCleanupTasks();
   }
 
   /**
@@ -103,7 +99,7 @@ export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
   isConnectionHealthy(connection: Socket): boolean {
     if (!connection) return false;
     
-    const connectionId = this.findHttpConnectionId(connection);
+    const connectionId = this.findConnectionId(connection);
     if (!connectionId) return false;
     
     const metadata = this.connectionMetadata.get(connectionId) as HttpConnectionMetadata;
@@ -138,67 +134,15 @@ export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
       bytesReceived: 0
     };
 
-    const success = await this.addConnection(connection, metadata);
-    
-    if (success) {
-      this.setupConnectionEventHandlers(connection);
-    }
-    
-    return success;
+    return this.registerConnection(connection, metadata);
   }
 
-  /**
-   * 设置连接事件处理器
-   */
-  private setupConnectionEventHandlers(connection: Socket): void {
-    const connectionId = this.findHttpConnectionId(connection);
-    if (!connectionId) return;
-
-    // 处理连接关闭
-    connection.on('close', () => {
-      this.removeConnection(connection, 'Connection closed').catch(error => {
-        this.logger.error('Error removing closed connection', {}, error);
-      });
-    });
-
-    // 处理连接错误
-    connection.on('error', (error) => {
-      this.logger.warn('HTTP connection error', {}, { 
-        connectionId, 
-        error: error.message 
-      });
-      this.removeConnection(connection, `Connection error: ${error.message}`).catch(err => {
-        this.logger.error('Error removing errored connection', {}, err);
-      });
-    });
-
-    // 处理连接超时
-    connection.on('timeout', () => {
-      // HTTP connection timeout handled
-      this.removeConnection(connection, 'Connection timeout').catch(error => {
-        this.logger.error('Error removing timed out connection', {}, error);
-      });
-    });
-
-    // 监控数据传输
-    connection.on('data', (data) => {
-      const metadata = this.connectionMetadata.get(connectionId) as HttpConnectionMetadata;
-      if (metadata) {
-        metadata.bytesReceived += data.length;
-        metadata.lastUsed = Date.now();
-      }
-    });
-
-    // 设置超时
-    const timeout = this.config.connectionTimeout || 30000;
-    connection.setTimeout(timeout);
-  }
 
   /**
    * 处理HTTP请求完成
    */
   async handleRequestComplete(connection: Socket, bytesSent: number = 0): Promise<void> {
-    const connectionId = this.findHttpConnectionId(connection);
+    const connectionId = this.findConnectionId(connection);
     if (!connectionId) return;
 
     const metadata = this.connectionMetadata.get(connectionId) as HttpConnectionMetadata;
@@ -217,47 +161,6 @@ export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
       // 标记为可用状态，可以处理下一个请求
       metadata.available = true;
     }
-  }
-
-  /**
-   * 启动清理任务
-   */
-  private startCleanupTasks(): void {
-    const cleanupInterval = 30000; // 30秒
-
-    this.httpCleanupInterval = setInterval(() => {
-      this.cleanupIdleConnections();
-    }, cleanupInterval);
-  }
-
-  /**
-   * 清理空闲连接
-   */
-  private cleanupIdleConnections(): void {
-    const now = Date.now();
-    const idleTimeout = this.config.keepAliveTimeout || 5000;
-    const connectionsToRemove: Socket[] = [];
-
-    for (const [connectionId, metadata] of this.connectionMetadata) {
-      const httpMetadata = metadata as HttpConnectionMetadata;
-      
-      // 检查连接是否空闲过久
-      if (httpMetadata.available && (now - httpMetadata.lastUsed) > idleTimeout) {
-        const connection = this.connections.get(connectionId);
-        if (connection) {
-          connectionsToRemove.push(connection);
-        }
-      }
-    }
-
-    // 异步清理
-    connectionsToRemove.forEach(connection => {
-      this.removeConnection(connection, 'Idle connection cleanup').catch(error => {
-        this.logger.error('Error cleaning up idle connection', {}, error);
-      });
-    });
-
-    // Idle HTTP connections cleaned up silently (if any)
   }
 
   /**
@@ -354,16 +257,6 @@ export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
   }
 
   /**
-   * 找到连接ID的辅助方法
-   */
-  private findHttpConnectionId(connection: Socket): string | null {
-    for (const [id, conn] of this.connections) {
-      if (conn === connection) return id;
-    }
-    return null;
-  }
-
-  /**
    * 销毁连接池
    */
   async destroy(): Promise<void> {
@@ -380,29 +273,41 @@ export class HttpConnectionPoolManager extends ConnectionPoolManager<Socket> {
 
     // 处理连接关闭
     connection.on('close', () => {
-      this.removeConnection(connection, 'Socket closed').catch(error => {
+      this.removeConnection(connection, 'Connection closed').catch(error => {
         this.logger.error('Error removing closed HTTP connection', {}, error);
       });
     });
 
     // 处理连接错误
     connection.on('error', (error) => {
-      this.logger.warn('HTTP socket error', {}, { 
+      this.logger.warn('HTTP connection error', {}, { 
         connectionId, 
         error: error.message 
       });
-      this.removeConnection(connection, `Socket error: ${error.message}`).catch(err => {
+      this.removeConnection(connection, `Connection error: ${error.message}`).catch(err => {
         this.logger.error('Error removing errored HTTP connection', {}, err);
       });
     });
 
     // 处理连接超时
     connection.on('timeout', () => {
-      this.logger.warn('HTTP socket timeout', {}, { connectionId });
-      this.removeConnection(connection, 'Socket timeout').catch(error => {
-        this.logger.error('Error removing timeout HTTP connection', {}, error);
+      this.removeConnection(connection, 'Connection timeout').catch(error => {
+        this.logger.error('Error removing timed out HTTP connection', {}, error);
       });
     });
+
+    // 监控数据传输（字节统计与活跃时间更新）
+    connection.on('data', (data) => {
+      const metadata = this.connectionMetadata.get(connectionId) as HttpConnectionMetadata;
+      if (metadata) {
+        metadata.bytesReceived += data.length;
+        metadata.lastUsed = Date.now();
+      }
+    });
+
+    // 设置空闲超时
+    const timeout = this.config.connectionTimeout || 30000;
+    connection.setTimeout(timeout);
   }
 
   /**

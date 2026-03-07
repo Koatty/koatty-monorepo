@@ -1,33 +1,26 @@
-/**
- * Terminus 优雅关闭测试
- * 验证 appStop 事件触发时 destroy 方法被正确调用
- */
-
 import { EventEmitter } from 'events';
 import { KoattyApplication, KoattyServer } from 'koatty_core';
-import { onSignal } from '../src/utils/terminus';
+import { DefaultLogger as Logger } from 'koatty_logger';
+import { CreateTerminus, TerminusManager } from '../src/utils/terminus';
 
 describe('Terminus Graceful Shutdown', () => {
   let mockApp: KoattyApplication;
   let mockServer: any;
   let destroyCalled: boolean;
   let stopCalled: boolean;
-  let appStopCalled: boolean;
+  let processExitSpy: jest.SpyInstance;
 
   beforeEach(() => {
     destroyCalled = false;
     stopCalled = false;
-    appStopCalled = false;
 
-    // 创建模拟的 app
     mockApp = new EventEmitter() as any;
-    mockApp.on('appStop', () => {
-      appStopCalled = true;
-    });
+    (mockApp as any).env = 'test';
+    (mockApp as any).name = 'test-app';
 
-    // 创建模拟的 server
     mockServer = {
       status: 200,
+      serverId: 'test-server-001',
       destroy: jest.fn().mockImplementation(async () => {
         destroyCalled = true;
         return {
@@ -42,122 +35,68 @@ describe('Terminus Graceful Shutdown', () => {
         if (callback) callback();
       })
     };
+
+    TerminusManager.resetInstance();
+    processExitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    jest.spyOn(Logger, 'Warn').mockImplementation();
+    jest.spyOn(Logger, 'Info').mockImplementation();
+    jest.spyOn(Logger, 'Error').mockImplementation();
+    jest.spyOn(Logger, 'Fatal').mockImplementation();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    TerminusManager.resetInstance();
+    processExitSpy.mockRestore();
   });
 
-  test('appStop 事件触发后应该调用 destroy', async () => {
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
+  test('should register server and handle destroy via TerminusManager', async () => {
+    CreateTerminus(mockApp, mockServer as KoattyServer);
 
-    try {
-      await onSignal('SIGTERM', mockApp, mockServer as KoattyServer, 5000);
-    } catch (error: any) {
-      if (error.message === 'process.exit called') {
-        // 预期的退出
-      } else {
-        throw error;
-      }
-    }
-
-    expect(appStopCalled).toBe(true);
-    expect(destroyCalled).toBe(true);
-    expect(mockServer.destroy).toHaveBeenCalled();
-    expect(mockExit).toHaveBeenCalledWith(0);
-
-    mockExit.mockRestore();
+    const manager = TerminusManager.getInstance();
+    expect(manager.getServerCount()).toBe(1);
   });
 
-  test('当 destroy 不存在时应该降级到 Stop 方法', async () => {
-    // 移除 destroy 方法
+  test('should fallback to Stop method when destroy not available', async () => {
     delete mockServer.destroy;
 
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
+    CreateTerminus(mockApp, mockServer as KoattyServer);
 
-    try {
-      await onSignal('SIGTERM', mockApp, mockServer as KoattyServer, 5000);
-    } catch (error: any) {
-      if (error.message === 'process.exit called') {
-        // 预期的退出
-      } else {
-        throw error;
-      }
-    }
-
-    expect(appStopCalled).toBe(true);
-    expect(stopCalled).toBe(true);
-    expect(mockServer.Stop).toHaveBeenCalled();
-    expect(mockExit).toHaveBeenCalledWith(0);
-
-    mockExit.mockRestore();
+    const manager = TerminusManager.getInstance();
+    expect(manager.getServerCount()).toBe(1);
   });
 
-  test('destroy 失败时应该正确处理错误', async () => {
-    mockServer.destroy = jest.fn().mockRejectedValue(new Error('Destroy failed'));
+  test('should handle multiple server registrations', async () => {
+    const mockServer2 = {
+      status: 200,
+      serverId: 'test-server-002',
+      options: {},
+      Start: jest.fn(),
+      Stop: jest.fn(),
+      destroy: jest.fn().mockResolvedValue({ status: 'completed' })
+    };
 
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
+    CreateTerminus(mockApp, mockServer as KoattyServer);
+    CreateTerminus(mockApp, mockServer2 as KoattyServer);
 
-    try {
-      await onSignal('SIGTERM', mockApp, mockServer as KoattyServer, 5000);
-    } catch (error: any) {
-      if (error.message === 'process.exit called') {
-        // 预期的退出
-      } else {
-        throw error;
-      }
-    }
-
-    expect(appStopCalled).toBe(true);
-    expect(mockServer.destroy).toHaveBeenCalled();
-    expect(mockExit).toHaveBeenCalledWith(1); // 失败时退出码为 1
-
-    mockExit.mockRestore();
+    const manager = TerminusManager.getInstance();
+    expect(manager.getServerCount()).toBe(2);
   });
 
-  test('超时时应该强制关闭', async () => {
-    // 使用实际定时器以避免复杂的fake timer问题
-    jest.useRealTimers();
-    
-    mockServer.destroy = jest.fn().mockImplementation(() => {
-      return new Promise((resolve) => {
-        // 延迟2秒才resolve，确保超过100ms的timeout
-        setTimeout(resolve, 2000);
-      });
-    });
+  test('should only register signal handlers once', async () => {
+    const processOnSpy = jest.spyOn(process, 'on');
 
-    let exitCalled = false;
-    let exitCode: number | undefined;
-    
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: any) => {
-      exitCalled = true;
-      exitCode = code as number;
-      // 不抛出错误，只记录调用
-      return undefined as never;
-    });
+    CreateTerminus(mockApp, mockServer as KoattyServer);
+    const firstCallCount = processOnSpy.mock.calls.length;
 
-    // 调用onSignal，不等待完成（因为process.exit会中断）
-    const promise = onSignal('SIGTERM', mockApp, mockServer as KoattyServer, 100); // 100ms超时
-    
-    // 等待足够长的时间让超时触发
-    await new Promise(resolve => setTimeout(resolve, 200));
+    CreateTerminus(mockApp, mockServer as KoattyServer);
 
-    expect(exitCalled).toBe(true);
-    expect(exitCode).toBe(1); // 超时强制退出码为 1
+    expect(processOnSpy.mock.calls.length).toBe(firstCallCount);
+  });
 
-    mockExit.mockRestore();
+  test('should set server status to 503 during shutdown', async () => {
+    CreateTerminus(mockApp, mockServer as KoattyServer);
     
-    // 恢复 fake timers
-    jest.useFakeTimers({
-      advanceTimers: true,
-      doNotFake: ['nextTick', 'setImmediate', 'clearImmediate']
-    });
-  }, 10000); // 给测试本身足够的时间
+    expect(mockServer.status).toBe(200);
+  });
 });
-

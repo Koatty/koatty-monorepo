@@ -79,6 +79,18 @@ export enum ConnectionPoolEvent {
 }
 
 /**
+ * Event data type mapping for type-safe event handling
+ */
+export interface ConnectionPoolEventMap {
+  [ConnectionPoolEvent.CONNECTION_ADDED]: { connectionId: string };
+  [ConnectionPoolEvent.CONNECTION_REMOVED]: { connectionId: string; reason?: string };
+  [ConnectionPoolEvent.CONNECTION_TIMEOUT]: { connectionId: string; timeout: number };
+  [ConnectionPoolEvent.CONNECTION_ERROR]: { connectionId?: string; error: Error };
+  [ConnectionPoolEvent.POOL_LIMIT_REACHED]: { currentConnections: number; maxConnections?: number };
+  [ConnectionPoolEvent.HEALTH_STATUS_CHANGED]: { oldStatus: ConnectionPoolStatus; newStatus: ConnectionPoolStatus; health: ConnectionPoolHealth };
+}
+
+/**
  * 连接申请选项
  */
 export interface ConnectionRequestOptions {
@@ -106,7 +118,7 @@ export abstract class ConnectionPoolManager<T = any> {
   protected readonly config: ConnectionPoolConfig;
   protected readonly protocol: string;
   protected readonly startTime = Date.now();
-  protected eventListeners = new Map<ConnectionPoolEvent, Set<Function>>();
+  protected eventListeners = new Map<ConnectionPoolEvent, Set<(data: any) => void>>();
   private eventListenerErrors = new Map<ConnectionPoolEvent, number>();
   
   // 连接池核心数据
@@ -125,7 +137,12 @@ export abstract class ConnectionPoolManager<T = any> {
   
   // 性能监控 - 使用环形缓冲区提高性能
   private latencyBuffer: RingBuffer<number>;
+  private errorWindow: RingBuffer<boolean>;
   private lastMetricsUpdate = Date.now();
+
+  // 定时器引用 - 用于清理
+  protected healthCheckInterval?: NodeJS.Timeout;
+  protected cleanupInterval?: NodeJS.Timeout;
 
   constructor(protocol: string, config: ConnectionPoolConfig = {}) {
     this.protocol = protocol;
@@ -138,6 +155,9 @@ export abstract class ConnectionPoolManager<T = any> {
 
     // 初始化延迟环形缓冲区 (默认存储1000个样本)
     this.latencyBuffer = new RingBuffer<number>(1000);
+
+    // 初始化错误率滑动窗口 (默认存储500个样本)
+    this.errorWindow = new RingBuffer<boolean>(500);
 
     // 初始化指标
     this.metrics = this.initializeMetrics();
@@ -283,26 +303,32 @@ export abstract class ConnectionPoolManager<T = any> {
           });
         }, timeout);
 
-        this.waitingQueue.push({
-          resolve: (result) => {
+        const queueItem = {
+          resolve: (result: ConnectionRequestResult<T>) => {
             clearTimeout(timeoutHandle);
             resolve(result);
           },
-          reject: (error) => {
+          reject: (error: Error) => {
             clearTimeout(timeoutHandle);
             reject(error);
           },
           options,
           timestamp: startTime
-        });
+        };
 
-        // 按优先级排序等待队列
-        this.waitingQueue.sort((a, b) => {
-          const priorityWeight = { low: 1, normal: 2, high: 3 };
-          const aPriority = priorityWeight[a.options.priority || 'normal'];
-          const bPriority = priorityWeight[b.options.priority || 'normal'];
-          return bPriority - aPriority;
-        });
+        const priorityWeight = { low: 1, normal: 2, high: 3 };
+        const newPriority = priorityWeight[options.priority || 'normal'];
+
+        let insertIndex = this.waitingQueue.length;
+        for (let i = 0; i < this.waitingQueue.length; i++) {
+          const existingPriority = priorityWeight[this.waitingQueue[i].options.priority || 'normal'];
+          if (newPriority > existingPriority) {
+            insertIndex = i;
+            break;
+          }
+        }
+
+        this.waitingQueue.splice(insertIndex, 0, queueItem);
       });
 
     } catch (error) {
@@ -599,20 +625,20 @@ export abstract class ConnectionPoolManager<T = any> {
   /**
    * Add event listener
    */
-  on(event: ConnectionPoolEvent, listener: Function): void {
+  on<E extends ConnectionPoolEvent>(event: E, listener: (data: ConnectionPoolEventMap[E]) => void): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
-    this.eventListeners.get(event)!.add(listener);
+    this.eventListeners.get(event)!.add(listener as (data: any) => void);
   }
 
   /**
    * Remove event listener
    */
-  off(event: ConnectionPoolEvent, listener: Function): void {
+  off<E extends ConnectionPoolEvent>(event: E, listener: (data: ConnectionPoolEventMap[E]) => void): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.delete(listener);
+      listeners.delete(listener as (data: any) => void);
     }
   }
 
@@ -673,19 +699,21 @@ export abstract class ConnectionPoolManager<T = any> {
       // 环形缓冲区自动管理大小，无需手动清理
     }
 
+    this.metrics.errorRate = this.calculateErrorRate();
+
     this.lastMetricsUpdate = now;
   }
 
   private startPeriodicTasks(): void {
-    // 定期更新健康状态
-    setInterval(() => {
+    this.healthCheckInterval = setInterval(() => {
       this.updateHealthStatus();
     }, 5000);
+    this.healthCheckInterval.unref();
 
-    // 定期清理过期连接
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredConnections();
     }, 30000);
+    this.cleanupInterval.unref();
   }
 
   private cleanupExpiredConnections(): void {
@@ -725,7 +753,7 @@ export abstract class ConnectionPoolManager<T = any> {
       return;
     }
 
-    const listenersToRemove: Function[] = [];
+    const listenersToRemove: ((data: any) => void)[] = [];
 
     listeners.forEach(listener => {
       try {
@@ -774,12 +802,13 @@ export abstract class ConnectionPoolManager<T = any> {
       case 'added':
         this.metrics.totalConnections++;
         this.metrics.activeConnections = this.getActiveConnectionCount();
+        this.errorWindow.push(false);
         break;
       case 'removed':
         this.metrics.activeConnections = this.getActiveConnectionCount();
         break;
       case 'error':
-        this.metrics.errorRate = Math.min(this.metrics.errorRate + 0.01, 1);
+        this.errorWindow.push(true);
         break;
     }
 
@@ -788,6 +817,20 @@ export abstract class ConnectionPoolManager<T = any> {
     if (timeDiff > 0) {
       this.metrics.connectionsPerSecond = this.metrics.totalConnections / timeDiff;
     }
+  }
+
+  private calculateErrorRate(): number {
+    if (this.errorWindow.length === 0) {
+      return 0;
+    }
+    let errorCount = 0;
+    for (let i = 0; i < this.errorWindow.length; i++) {
+      const value = this.errorWindow.get(i);
+      if (value === true) {
+        errorCount++;
+      }
+    }
+    return errorCount / this.errorWindow.length;
   }
 
   /**
@@ -804,6 +847,16 @@ export abstract class ConnectionPoolManager<T = any> {
     const traceId = generateTraceId();
     
     this.logger.info('Destroying connection pool manager', { traceId });
+    
+    // 清理定时器
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
+    }
     
     try {
       // 清理等待队列

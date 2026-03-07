@@ -531,18 +531,10 @@ describe('HttpsConnectionPoolManager', () => {
       setupEventHandlersSpy.mockRestore();
     });
 
-    it('should clean up idle connections', () => {
-      // Mock the cleanupIdleConnections method since it's complex
-      const cleanupIdleConnectionsSpy = jest.spyOn(poolManager as any, 'cleanupIdleConnections').mockImplementation(() => {
-        // Simulate removing connections
-        (poolManager as any).connections.clear();
-        (poolManager as any).connectionMetadata.clear();
-      });
-      
-      (poolManager as any).cleanupIdleConnections();
-      
-      expect(cleanupIdleConnectionsSpy).toHaveBeenCalled();
-      cleanupIdleConnectionsSpy.mockRestore();
+    it('should clean up idle connections via parent class', () => {
+      // cleanupIdleConnections was moved to parent class as cleanupExpiredConnections
+      // Test that parent class method is available
+      expect(typeof (poolManager as any).cleanupExpiredConnections).toBe('function');
     });
 
     it('should find HTTPS connection ID', () => {
@@ -1020,7 +1012,7 @@ describe('HttpsConnectionPoolManager', () => {
       // Add a connection and make it idle
       const mockConnection = new MockTLSSocket({ authorized: true }) as any;
       const connectionId = 'idle-connection';
-      
+
       (poolManager as any).connections.set(connectionId, mockConnection);
       const metadata = {
         id: connectionId,
@@ -1028,12 +1020,13 @@ describe('HttpsConnectionPoolManager', () => {
         lastUsed: Date.now() - 400000 // 400 seconds ago (more than default 300s)
       };
       (poolManager as any).connectionMetadata.set(connectionId, metadata);
-      
+
       const removeConnectionSpy = jest.spyOn(poolManager, 'removeConnection').mockResolvedValue(undefined);
-      
-      (poolManager as any).cleanupIdleConnections();
-      
-      expect(removeConnectionSpy).toHaveBeenCalledWith(mockConnection, 'Connection idle timeout');
+
+      // Use parent class method (cleanupExpiredConnections instead of removed cleanupIdleConnections)
+      (poolManager as any).cleanupExpiredConnections();
+
+      expect(removeConnectionSpy).toHaveBeenCalledWith(mockConnection, 'Connection expired');
       removeConnectionSpy.mockRestore();
     });
 

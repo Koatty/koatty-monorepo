@@ -17,6 +17,16 @@ export class ConnectionPoolFactory {
   private static registered = new Map<string, new (config: ConnectionPoolConfig) => ConnectionPoolManager>();
 
   /**
+   * 稳定序列化对象，确保相同内容不同键顺序产生相同字符串
+   */
+  private static stableStringify(obj: any): string {
+    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+    if (Array.isArray(obj)) return JSON.stringify(obj.map(i => this.stableStringify(i)));
+    const sortedKeys = Object.keys(obj).sort();
+    return '{' + sortedKeys.map(k => `${JSON.stringify(k)}:${this.stableStringify(obj[k])}`).join(',') + '}';
+  }
+
+  /**
    * 注册协议的连接池实现
    */
   static register<T extends ConnectionPoolManager>(
@@ -30,7 +40,7 @@ export class ConnectionPoolFactory {
    * 根据协议创建连接池实例
    */
   static create(protocol: string, config: ConnectionPoolConfig = {}): ConnectionPoolManager {
-    const key = `${protocol.toLowerCase()}_${JSON.stringify(config)}`;
+    const key = `${protocol.toLowerCase()}_${this.stableStringify(config)}`;
     
     // 如果已存在实例，直接返回
     if (this.instances.has(key)) {

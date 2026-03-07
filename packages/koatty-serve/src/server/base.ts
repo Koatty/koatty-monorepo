@@ -49,11 +49,13 @@ export interface ConfigChangeAnalysis {
 /**
  * Base server class with template method pattern
  * 模板方法模式：定义算法骨架，子类实现具体步骤
+ * @template T - Options type extending ListeningOptions
+ * @template S - Server instance type (defaults to any for backward compatibility)
  */
-export abstract class BaseServer<T extends ListeningOptions = ListeningOptions>
+export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, S = any>
   implements KoattyServer {
   options: T;
-  readonly server: any;
+  protected server!: S;
   readonly protocol: string;
   status: number;
   listenCallback?: () => void;
@@ -99,9 +101,6 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions>
       port: options.port,
       serverId: this.serverId
     });
-
-    // 模板方法：初始化服务器（定义好执行顺序）
-    this.initializeServer();
   }
 
   /**

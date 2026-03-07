@@ -109,11 +109,10 @@ export interface Http3Session {
 export class Http3ConnectionPoolManager extends ConnectionPoolManager<Http3Session> {
   private readonly activeStreams = new Map<string, Set<Http3StreamMetadata>>();
   private pingInterval?: NodeJS.Timeout;
-  private healthCheckInterval?: NodeJS.Timeout;
 
   constructor(config: ConnectionPoolConfig = {}) {
     super('http3', config);
-    
+
     // 启动HTTP/3特有的监控任务
     this.startHttp3MonitoringTasks();
   }

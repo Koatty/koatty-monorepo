@@ -160,6 +160,15 @@ describe('ConnectionPoolFactory', () => {
       expect(pool1).toBe(pool2);
     });
 
+    it('should return the same instance for configs with different key order', () => {
+      const config1 = { a: 1, b: 2, maxConnections: 10 };
+      const config2 = { b: 2, a: 1, maxConnections: 10 };
+      const pool1 = ConnectionPoolFactory.create('test', config1);
+      const pool2 = ConnectionPoolFactory.create('test', config2);
+      
+      expect(pool1).toBe(pool2);
+    });
+
     it('should create different instances for different configurations', () => {
       const config1 = { maxConnections: 10 };
       const config2 = { maxConnections: 20 };

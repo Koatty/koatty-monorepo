@@ -41,19 +41,19 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate, isCertificateContent } from "../utils/cert-loader";
 import { Http3ConnectionPoolManager, Http3Session } from "../pools/http3";
 import { ConfigHelper, Http3ServerOptions, ListeningOptions, SSL3Config } from "../config/config";
-import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version, hasNativeHttp3Support, waitForMatrixaiQuic, isMatrixaiQuicReady } from "../adapters/http3-matrixai";
+import { Http3ServerAdapter, Http3ServerConfig, getHttp3Version } from "../adapters/http3-matrixai";
 
 /**
  * HTTP/3 Server implementation using template method pattern
  * 继承BaseServer，只实现HTTP/3特定的逻辑
  */
-export class Http3Server extends BaseServer<Http3ServerOptions> {
-  readonly server: any;  // QUIC 服务器实例（类型取决于使用的库）
+export class Http3Server extends BaseServer<Http3ServerOptions, any> {
   protected connectionPool!: Http3ConnectionPoolManager;
 
   constructor(app: KoattyApplication, options: Http3ServerOptions) {
     super(app, options);
     this.options = ConfigHelper.createHttp3Config(options);
+    this.initializeServer();
     CreateTerminus(app, this);
   }
 
@@ -102,7 +102,7 @@ export class Http3Server extends BaseServer<Http3ServerOptions> {
         qpackBlockedStreams: this.options.http3?.qpackBlockedStreams,
       };
       
-      (this as any).server = new Http3ServerAdapter(http3Config);
+      this.server = new Http3ServerAdapter(http3Config);
       
       // 设置请求处理器
       this.setupHttp3Handlers();

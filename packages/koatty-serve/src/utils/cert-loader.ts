@@ -9,9 +9,33 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
+import * as path from 'path';
 import { createLogger } from './logger';
 
 const logger = createLogger({ module: 'cert-loader' });
+
+/**
+ * 验证并清理证书路径，防止路径遍历攻击
+ * 
+ * @param certPath - 待验证的证书路径
+ * @returns 清理后的绝对路径
+ * @throws 如果检测到路径遍历或空字节注入
+ */
+function sanitizeCertPath(certPath: string): string {
+  // 防止空字节注入
+  if (certPath.includes('\0')) {
+    throw new Error(`Invalid certificate path: null byte injection detected`);
+  }
+
+  // 防止路径遍历：检查路径分段中是否包含 '..'
+  // 使用分段检查而非字符串包含，避免误报（如 'cert..backup' 这样的合法文件名）
+  const segments = certPath.split(/[/\\]/);
+  if (segments.includes('..')) {
+    throw new Error(`Invalid certificate path: path traversal detected`);
+  }
+
+  return path.resolve(certPath);
+}
 
 /**
  * 检测字符串是否为证书内容
@@ -61,26 +85,29 @@ export function loadCertificate(keyOrPath: string, type: string, traceId?: strin
       return keyOrPath;
     }
     
+    // 验证路径安全性，防止路径遍历攻击
+    const sanitizedPath = sanitizeCertPath(keyOrPath);
+    
     // 判断是文件路径
-    if (!existsSync(keyOrPath)) {
-      throw new Error(`${type} file not found: ${keyOrPath}`);
+    if (!existsSync(sanitizedPath)) {
+      throw new Error(`${type} file not found: ${sanitizedPath}`);
     }
     
-    const content = readFileSync(keyOrPath, 'utf8');
-    logger.debug(`Loaded ${type} from file`, { traceId, path: keyOrPath });
+    const content = readFileSync(sanitizedPath, 'utf8');
+    logger.debug(`Loaded ${type} from file`, { traceId, path: sanitizedPath });
     
     // 验证加载的内容是否是有效的证书
     if (!isCertificateContent(content)) {
       logger.warn(`${type} file content does not appear to be a valid certificate`, {
         traceId,
-        path: keyOrPath
+        path: sanitizedPath
       });
     }
     
     return content;
     
   } catch (error) {
-    logger.error(`Failed to load ${type}`, { traceId }, { path: keyOrPath, error });
+    logger.error(`Failed to load ${type}`, { traceId }, { error });
     throw new Error(`Failed to load ${type}: ${(error as Error).message}`);
   }
 }
