@@ -9,9 +9,9 @@ HTTPS Server implementation using template method pattern 继承BaseServer，只
 **Signature:**
 
 ```typescript
-export declare class HttpsServer extends BaseServer<HttpsServerOptions> 
+export declare class HttpsServer extends BaseServer<HttpsServerOptions, Server> 
 ```
-**Extends:** BaseServer&lt;HttpsServerOptions&gt;
+**Extends:** BaseServer&lt;HttpsServerOptions, Server&gt;
 
 ## Constructors
 
@@ -83,25 +83,6 @@ Description
 </td><td>
 
 HttpsConnectionPoolManager
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[server](./koatty_serve.httpsserver.server.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-Server
 
 
 </td><td>

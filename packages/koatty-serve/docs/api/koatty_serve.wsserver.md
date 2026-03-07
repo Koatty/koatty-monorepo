@@ -9,9 +9,9 @@ WebSocket Server implementation using template method pattern 继承BaseServer�
 **Signature:**
 
 ```typescript
-export declare class WsServer extends BaseServer<WebSocketServerOptions> 
+export declare class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketServer> 
 ```
-**Extends:** BaseServer&lt;WebSocketServerOptions&gt;
+**Extends:** BaseServer&lt;WebSocketServerOptions, WS.WebSocketServer&gt;
 
 ## Constructors
 
@@ -102,25 +102,6 @@ WebSocketConnectionPoolManager
 </td><td>
 
 HttpServer \| HttpsServer
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[server](./koatty_serve.wsserver.server.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-WS.WebSocketServer
 
 
 </td><td>

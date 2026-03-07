@@ -7,9 +7,9 @@
 **Signature:**
 
 ```typescript
-export declare class GrpcServer extends BaseServer<GrpcServerOptions> 
+export declare class GrpcServer extends BaseServer<GrpcServerOptions, Server> 
 ```
-**Extends:** BaseServer&lt;GrpcServerOptions&gt;
+**Extends:** BaseServer&lt;GrpcServerOptions, Server&gt;
 
 ## Constructors
 
@@ -98,25 +98,6 @@ GrpcConnectionPoolManager
 </td><td>
 
 GrpcServerOptions
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[server](./koatty_serve.grpcserver.server.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-Server
 
 
 </td><td>

@@ -9,9 +9,9 @@ HTTP/3 Server implementation using template method pattern 继承BaseServer，�
 **Signature:**
 
 ```typescript
-export declare class Http3Server extends BaseServer<Http3ServerOptions> 
+export declare class Http3Server extends BaseServer<Http3ServerOptions, any> 
 ```
-**Extends:** BaseServer&lt;Http3ServerOptions&gt;
+**Extends:** BaseServer&lt;Http3ServerOptions, any&gt;
 
 ## Constructors
 
@@ -83,25 +83,6 @@ Description
 </td><td>
 
 Http3ConnectionPoolManager
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[server](./koatty_serve.http3server.server.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-any
 
 
 </td><td>

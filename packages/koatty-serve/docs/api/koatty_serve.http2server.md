@@ -9,9 +9,9 @@ HTTP/2 Server implementation using template method pattern 继承BaseServer，�
 **Signature:**
 
 ```typescript
-export declare class Http2Server extends BaseServer<Http2ServerOptions> 
+export declare class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServer> 
 ```
-**Extends:** BaseServer&lt;Http2ServerOptions&gt;
+**Extends:** BaseServer&lt;Http2ServerOptions, Http2SecureServer&gt;
 
 ## Constructors
 
@@ -83,25 +83,6 @@ Description
 </td><td>
 
 Http2ConnectionPoolManager
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[server](./koatty_serve.http2server.server.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-Http2SecureServer
 
 
 </td><td>
