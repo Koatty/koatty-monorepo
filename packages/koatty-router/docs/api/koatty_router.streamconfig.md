@@ -94,25 +94,6 @@ _(Optional)_ 最大并发流数量，默认50
 </td></tr>
 <tr><td>
 
-[streamBufferSize?](./koatty_router.streamconfig.streambuffersize.md)
-
-
-</td><td>
-
-
-</td><td>
-
-number
-
-
-</td><td>
-
-_(Optional)_ 流缓冲区大小，默认1024
-
-
-</td></tr>
-<tr><td>
-
 [streamTimeout?](./koatty_router.streamconfig.streamtimeout.md)
 
 

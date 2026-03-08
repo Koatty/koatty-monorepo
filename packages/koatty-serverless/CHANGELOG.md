@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5
+
+### Patch Changes
+
+- koatty@4.1.14
+- koatty_core@2.1.9
+
 ## 1.0.4
 
 ### Patch Changes

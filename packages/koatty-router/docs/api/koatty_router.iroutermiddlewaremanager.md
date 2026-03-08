@@ -36,6 +36,15 @@ Description
 </td></tr>
 <tr><td>
 
+[createGroup(groupName, middlewareNames)](./koatty_router.iroutermiddlewaremanager.creategroup.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [getMiddleware(nameOrInstanceId)](./koatty_router.iroutermiddlewaremanager.getmiddleware.md)
 
 
