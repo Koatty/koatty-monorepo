@@ -64,7 +64,7 @@ export class Koatty extends Koa implements KoattyApplication {
    */
   silent: boolean;
 
-  context: KoattyContext;
+  declare context: KoattyContext;
   private handledResponse: boolean = false;
   private metadata: KoattyMetadata;
   private contextPrototypes: Map<string, any> = new Map();
