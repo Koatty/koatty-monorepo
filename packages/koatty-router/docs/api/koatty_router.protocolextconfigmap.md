@@ -88,6 +88,40 @@ Description
 </td></tr>
 <tr><td>
 
+[http2](./koatty_router.protocolextconfigmap.http2.md)
+
+
+</td><td>
+
+
+</td><td>
+
+[HttpExtConfig](./koatty_router.httpextconfig.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[http3](./koatty_router.protocolextconfigmap.http3.md)
+
+
+</td><td>
+
+
+</td><td>
+
+[HttpExtConfig](./koatty_router.httpextconfig.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [https](./koatty_router.protocolextconfigmap.https.md)
 
 
