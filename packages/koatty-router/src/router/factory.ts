@@ -72,6 +72,12 @@ export class RouterFactory implements IRouterFactory {
    * Create router instance
    */
   public create(protocol: string, app: KoattyApplication, options: RouterOptions): KoattyRouter {
+    // Allow re-initialization after shutdown (for hot restart scenarios)
+    if (this.hasShutdown) {
+      Logger.Debug('RouterFactory: Resetting shutdown state for new router creation');
+      this.hasShutdown = false;
+    }
+    
     const normalizedProtocol = protocol.toLowerCase();
     const RouterClass = this.routerRegistry.get(normalizedProtocol);
     

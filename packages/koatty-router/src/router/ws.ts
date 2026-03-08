@@ -205,7 +205,7 @@ export class WebsocketRouter implements KoattyRouter {
    * @returns 
    */
   SetRouter(name: string, impl?: RouterImplementation) {
-    if (Helper.isEmpty(impl.path)) return;
+    if (!impl || Helper.isEmpty(impl.path)) return;
 
     const routeHandler = <any>impl.implementation;
     this.router.get(impl.path, routeHandler);

@@ -23,7 +23,7 @@ import { injectParamMetaData, injectRouter, ParamMetadata } from "../utils/injec
 import { parsePath } from "../utils/path";
 import { RouterOptions } from "./router";
 import { Handler } from "../utils/handler";
-import { getProtocolConfig, validateProtocolConfig } from "./types";
+import { getProtocolConfig, validateProtocolConfig, StreamConfig } from "./types";
 
 /**
  * gRPC流类型枚举
@@ -36,22 +36,10 @@ export enum GrpcStreamType {
 }
 
 /**
- * 流处理配置
- */
-export interface StreamConfig {
-  maxConcurrentStreams?: number;
-  streamTimeout?: number;
-  backpressureThreshold?: number;
-  bufferSize?: number;
-}
-
-/**
  * GrpcRouter Options
  */
 export interface GrpcRouterOptions extends RouterOptions {
   protoFile: string;
-  poolSize?: number;
-  batchSize?: number;
   streamConfig?: StreamConfig;
 }
 
@@ -68,248 +56,6 @@ interface StreamState {
 }
 
 /**
- * Connection pool for gRPC clients
- */
-class GrpcConnectionPool {
-  private pool: Map<string, any[]>;
-  private maxSize: number;
-
-  constructor(maxSize: number = 10) {
-    this.pool = new Map();
-    this.maxSize = maxSize;
-  }
-
-  /**
-   * Get connection from pool or create new one
-   */
-  get(serviceName: string, options?: any): any {
-    const connections = this.pool.get(serviceName);
-    if (connections && connections.length > 0) {
-      const conn = connections.pop();
-      Logger.Debug(`Reused connection from pool for service: ${serviceName}`);
-      return conn;
-    }
-    
-    // No available connection, create new one
-    Logger.Debug(`Creating new connection for service: ${serviceName}`);
-    return this.create(serviceName, options);
-  }
-
-  /**
-   * Release connection back to pool
-   */
-  release(serviceName: string, connection: any): void {
-    if (!connection) return;
-    
-    if (!this.pool.has(serviceName)) {
-      this.pool.set(serviceName, []);
-    }
-    
-    const connections = this.pool.get(serviceName)!;
-    if (connections.length < this.maxSize) {
-      connections.push(connection);
-      Logger.Debug(`Connection released back to pool for service: ${serviceName}, pool size: ${connections.length}`);
-    } else {
-      // Pool is full, close the connection
-      if (connection.close && typeof connection.close === 'function') {
-        connection.close();
-      }
-      Logger.Debug(`Pool full for service: ${serviceName}, connection closed`);
-    }
-  }
-
-  /**
-   * Create new connection
-   * @param serviceName - Name of the gRPC service
-   * @param options - gRPC client options
-   * @returns Connection object (placeholder, actual implementation depends on gRPC client library)
-   */
-  private create(serviceName: string, options?: any): any {
-    // NOTE: This is a placeholder implementation
-    // In a real scenario, you would create an actual gRPC client connection:
-    // 
-    // Example with @grpc/grpc-js:
-    // const grpc = require('@grpc/grpc-js');
-    // const client = new ServiceClient(
-    //   'localhost:50051',
-    //   grpc.credentials.createInsecure(),
-    //   options
-    // );
-    // return client;
-    
-    Logger.Debug(`Creating connection stub for service: ${serviceName}`);
-    return {
-      serviceName,
-      createdAt: Date.now(),
-      options,
-      // Placeholder methods
-      close: () => {
-        Logger.Debug(`Closing connection for service: ${serviceName}`);
-      }
-    };
-  }
-
-  /**
-   * Cleanup all connections in the pool
-   */
-  clear(): void {
-    let totalConnections = 0;
-    
-    // Close all connections before clearing
-    for (const [_serviceName, connections] of this.pool.entries()) {
-      for (const connection of connections) {
-        if (connection && connection.close && typeof connection.close === 'function') {
-          connection.close();
-        }
-        totalConnections++;
-      }
-    }
-    
-    this.pool.clear();
-    Logger.Info(`gRPC connection pool cleared, closed ${totalConnections} connections`);
-  }
-  
-  /**
-   * Get pool statistics
-   */
-  getStats(): Record<string, number> {
-    const stats: Record<string, number> = {};
-    for (const [serviceName, connections] of this.pool.entries()) {
-      stats[serviceName] = connections.length;
-    }
-    return stats;
-  }
-}
-
-/**
- * Batch processor for gRPC requests
- */
-class GrpcBatchProcessor {
-  private batchSize: number;
-  private batchQueue: Map<string, any[]>;
-  private batchTimers: Map<string, NodeJS.Timeout>;
-
-  constructor(batchSize: number = 10) {
-    this.batchSize = batchSize;
-    this.batchQueue = new Map();
-    this.batchTimers = new Map();
-  }
-
-  /**
-   * Add request to batch
-   */
-  addRequest(serviceName: string, request: any): Promise<any> {
-    return new Promise((resolve, reject) => {
-      if (!this.batchQueue.has(serviceName)) {
-        this.batchQueue.set(serviceName, []);
-      }
-
-      const queue = this.batchQueue.get(serviceName)!;
-      queue.push({ request, resolve, reject });
-
-      // Process batch if size reached
-      if (queue.length >= this.batchSize) {
-        this.processBatch(serviceName);
-      } else if (!this.batchTimers.has(serviceName)) {
-        // Start timer for batch processing
-        this.batchTimers.set(serviceName, setTimeout(() => {
-          this.processBatch(serviceName);
-        }, 100));
-      }
-    });
-  }
-
-  /**
-   * Process batch of requests
-   */
-  private processBatch(serviceName: string): void {
-    const queue = this.batchQueue.get(serviceName);
-    if (!queue || queue.length === 0) return;
-
-    const timer = this.batchTimers.get(serviceName);
-    if (timer) {
-      clearTimeout(timer);
-      this.batchTimers.delete(serviceName);
-    }
-    
-    Logger.Debug(`Processing batch for service ${serviceName}, ${queue.length} requests`);
-    
-    // NOTE: This is a placeholder implementation
-    // In a real scenario, you would:
-    // 1. Combine all requests into a single gRPC batch call
-    // 2. Send the batch to the service
-    // 3. Process the batch response
-    // 4. Resolve/reject each individual promise
-    
-    // Example implementation:
-    // const batchRequest = { requests: queue.map(item => item.request) };
-    // grpcClient.batchCall(batchRequest, (error, response) => {
-    //   if (error) {
-    //     queue.forEach(item => item.reject(error));
-    //   } else {
-    //     response.results.forEach((result, index) => {
-    //       queue[index].resolve(result);
-    //     });
-    //   }
-    // });
-    
-    // Placeholder: immediately resolve all requests
-    queue.forEach((item, index) => {
-      try {
-        // Simulate successful response
-        item.resolve({
-          success: true,
-          data: item.request,
-          batchIndex: index,
-          batchSize: queue.length
-        });
-      } catch (error) {
-        item.reject(error);
-      }
-    });
-
-    this.batchQueue.delete(serviceName);
-    Logger.Debug(`Batch processing completed for service ${serviceName}`);
-  }
-
-  /**
-   * Flush all pending batches and cleanup
-   */
-  flush(): void {
-    let totalProcessed = 0;
-    
-    // Process all pending batches
-    for (const serviceName of this.batchQueue.keys()) {
-      const queueSize = this.batchQueue.get(serviceName)?.length || 0;
-      this.processBatch(serviceName);
-      totalProcessed += queueSize;
-    }
-
-    // Clear all timers
-    for (const timer of this.batchTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.batchTimers.clear();
-
-    Logger.Info(`gRPC batch processor flushed, processed ${totalProcessed} pending requests`);
-  }
-  
-  /**
-   * Get batch queue statistics
-   */
-  getStats(): { serviceName: string; queueSize: number }[] {
-    const stats: { serviceName: string; queueSize: number }[] = [];
-    for (const [serviceName, queue] of this.batchQueue.entries()) {
-      stats.push({
-        serviceName,
-        queueSize: queue.length
-      });
-    }
-    return stats;
-  }
-}
-
-/**
  * 流管理器
  */
 class StreamManager {
@@ -322,7 +68,6 @@ class StreamManager {
       maxConcurrentStreams: config.maxConcurrentStreams || 100,
       streamTimeout: config.streamTimeout || 300000, // 5分钟
       backpressureThreshold: config.backpressureThreshold || 1000,
-      bufferSize: config.bufferSize || 64 * 1024, // 64KB
       ...config
     };
   }
@@ -347,6 +92,20 @@ class StreamManager {
   }
 
   /**
+   * 移除流
+   */
+  removeStream(id: string): void {
+    this.streams.delete(id);
+  }
+
+  /**
+   * 获取流状态
+   */
+  getStreamState(id: string): StreamState | undefined {
+    return this.streams.get(id);
+  }
+
+  /**
    * 更新流状态
    */
   updateStream(id: string, updates: Partial<StreamState>): void {
@@ -354,13 +113,6 @@ class StreamManager {
     if (state) {
       Object.assign(state, updates);
     }
-  }
-
-  /**
-   * 移除流
-   */
-  removeStream(id: string): void {
-    this.streams.delete(id);
   }
 
   /**
@@ -431,8 +183,6 @@ export class GrpcRouter implements KoattyRouter {
   readonly protocol: string;
   options: GrpcRouterOptions;
   router: Map<string, RouterImplementation>;
-  private connectionPool: GrpcConnectionPool;
-  private batchProcessor: GrpcBatchProcessor;
   private streamManager: StreamManager;
 
   constructor(app: Koatty, options: RouterOptions = { protocol: "grpc", prefix: "" }) {
@@ -449,22 +199,18 @@ export class GrpcRouter implements KoattyRouter {
     
     // Resolve protoFile path: if relative, resolve against app.rootPath
     let protoFilePath = extConfig.protoFile;
-    if (protoFilePath && !path.isAbsolute(protoFilePath)) {
+    if (protoFilePath && !path.isAbsolute(protoFilePath) && app.rootPath) {
       protoFilePath = path.resolve(app.rootPath, protoFilePath);
     }
     
     this.options = {
       ...options,
       protoFile: protoFilePath,
-      poolSize: extConfig.poolSize || 10,
-      batchSize: extConfig.batchSize || 10,
       streamConfig: extConfig.streamConfig || {}
     } as GrpcRouterOptions;
     
     this.protocol = options.protocol || "grpc";
     this.router = new Map();
-    this.connectionPool = new GrpcConnectionPool(this.options.poolSize);
-    this.batchProcessor = new GrpcBatchProcessor(this.options.batchSize);
     this.streamManager = new StreamManager(this.options.streamConfig);
   }
 
@@ -565,7 +311,7 @@ export class GrpcRouter implements KoattyRouter {
     ctlItem: any
   ): Promise<void> {
     const streamId = `server_${Date.now()}_${Math.random()}`;
-    const streamState = this.streamManager.registerStream(streamId, GrpcStreamType.SERVER_STREAMING);
+    this.streamManager.registerStream(streamId, GrpcStreamType.SERVER_STREAMING);
     
     try {
       Logger.Debug(`[GRPC_ROUTER] Handling server streaming call for ${ctlItem.name}.${ctlItem.method}`);
@@ -601,9 +347,10 @@ export class GrpcRouter implements KoattyRouter {
         }
         
         call.write(data);
-        this.streamManager.updateStream(streamId, { 
-          messageCount: streamState.messageCount + 1 
-        });
+        const currentState = this.streamManager.getStreamState(streamId);
+        if (currentState) {
+          currentState.messageCount++;
+        }
         return true;
       };
       
@@ -634,7 +381,7 @@ export class GrpcRouter implements KoattyRouter {
     ctlItem: any
   ): void {
     const streamId = `client_${Date.now()}_${Math.random()}`;
-    const streamState = this.streamManager.registerStream(streamId, GrpcStreamType.CLIENT_STREAMING);
+    this.streamManager.registerStream(streamId, GrpcStreamType.CLIENT_STREAMING);
     const messages: any[] = [];
     
     try {
@@ -650,10 +397,11 @@ export class GrpcRouter implements KoattyRouter {
       // 处理数据接收
       call.on('data', (data: any) => {
         messages.push(data);
-        this.streamManager.updateStream(streamId, { 
-          messageCount: streamState.messageCount + 1,
-          bufferSize: streamState.bufferSize + JSON.stringify(data).length
-        });
+        const currentState = this.streamManager.getStreamState(streamId);
+        if (currentState) {
+          currentState.messageCount++;
+          currentState.bufferSize += (Buffer.isBuffer(data) ? data.length : Buffer.byteLength(JSON.stringify(data)));
+        }
         
         // 检查背压
         if (this.streamManager.isBackpressureTriggered(streamId)) {
@@ -718,7 +466,7 @@ export class GrpcRouter implements KoattyRouter {
     ctlItem: any
   ): void {
     const streamId = `bidi_${Date.now()}_${Math.random()}`;
-    const streamState = this.streamManager.registerStream(streamId, GrpcStreamType.BIDIRECTIONAL_STREAMING);
+    this.streamManager.registerStream(streamId, GrpcStreamType.BIDIRECTIONAL_STREAMING);
     
     try {
       Logger.Debug(`[GRPC_ROUTER] Handling bidirectional streaming call for ${ctlItem.name}.${ctlItem.method}`);
@@ -732,10 +480,11 @@ export class GrpcRouter implements KoattyRouter {
 
       // 处理数据接收
       call.on('data', async (data: any) => {
-        this.streamManager.updateStream(streamId, { 
-          messageCount: streamState.messageCount + 1,
-          bufferSize: streamState.bufferSize + JSON.stringify(data).length
-        });
+        const currentState = this.streamManager.getStreamState(streamId);
+        if (currentState) {
+          currentState.messageCount++;
+          currentState.bufferSize += (Buffer.isBuffer(data) ? data.length : Buffer.byteLength(JSON.stringify(data)));
+        }
         
         // 检查背压
         if (this.streamManager.isBackpressureTriggered(streamId)) {
@@ -1032,12 +781,6 @@ export class GrpcRouter implements KoattyRouter {
 
     // Close all active streams
     this.streamManager.closeAllStreams();
-
-    // Flush pending batches
-    this.batchProcessor.flush();
-
-    // Clear connection pool
-    this.connectionPool.clear();
 
     Logger.Info('gRPC router cleanup completed');
   }

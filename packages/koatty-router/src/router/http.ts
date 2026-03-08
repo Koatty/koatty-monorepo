@@ -50,7 +50,7 @@ export class HttpRouter implements KoattyRouter {
    * @returns 
    */
   SetRouter(name: string, impl?: RouterImplementation) {
-    if (Helper.isEmpty(impl.path)) return;
+    if (!impl || Helper.isEmpty(impl.path)) return;
 
     const method = (impl.method || "").toLowerCase();
     const routeHandler = <any>impl.implementation;

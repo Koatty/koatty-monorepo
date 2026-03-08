@@ -84,6 +84,7 @@ export interface IRouterMiddlewareManager {
   getMiddlewareByRoute(middlewareName: string, route: string, method?: string): MiddlewareConfig | null;
   listMiddlewares(): string[];
   compose(instanceIds: string[], context?: MiddlewareExecutionContext): MiddlewareFunction;
+  createGroup(groupName: string, middlewareNames: string[]): Promise<void>;
 }
 
 /**
@@ -112,10 +113,6 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
   // 头部匹配缓存 - 限制大小
   private headerCache = new LRUCache<string, Map<string, string>>({ max: 100 });
 
-  // 缓存清理定时器
-  private cacheCleanupTimer?: NodeJS.Timeout;
-  private readonly CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5分钟
-
   /**
    * Private constructor to enforce singleton pattern
    */
@@ -126,7 +123,6 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
     }
     this._instanceId = Math.random().toString(36).substr(2, 9);
     Logger.Debug(`RouterMiddlewareManager instance created with ID: ${this._instanceId}`);
-    this.startCacheCleanup();
   }
 
   /**
@@ -166,27 +162,6 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
   }
 
   /**
-   * Start cache cleanup timer
-   */
-  private startCacheCleanup(): void {
-    this.cacheCleanupTimer = setInterval(() => {
-      this.performCacheCleanup();
-    }, this.CACHE_CLEANUP_INTERVAL);
-  }
-
-  /**
-   * Perform periodic cache cleanup
-   */
-  private performCacheCleanup(): void {
-    const beforeSize = this.getCacheSize();
-
-    const afterSize = this.getCacheSize();
-    Logger.Debug(`Cache cleanup completed. Size: ${beforeSize} -> ${afterSize}`);
-  }
-
-
-
-  /**
    * Get total cache size
    */
   private getCacheSize(): number {
@@ -202,11 +177,6 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
    * Destroy manager and cleanup resources
    */
   public destroy(): void {
-    if (this.cacheCleanupTimer) {
-      clearInterval(this.cacheCleanupTimer);
-      this.cacheCleanupTimer = undefined;
-    }
-
     this.clearCaches();
     this.middlewares.clear();
 
@@ -843,10 +813,10 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
   /**
    * Create middleware group
    */
-  public createGroup(groupName: string, middlewareNames: string[]): void {
+  public async createGroup(groupName: string, middlewareNames: string[]): Promise<void> {
     const groupMiddleware = this.compose(middlewareNames);
 
-    this.register({
+    await this.register({
       name: groupName,
       middleware: groupMiddleware,
       metadata: {

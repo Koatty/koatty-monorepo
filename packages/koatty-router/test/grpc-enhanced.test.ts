@@ -219,40 +219,6 @@ describe('GrpcRouter 增强测试', () => {
     expect((router as any).detectStreamType(bidiStreamCall)).toBe(GrpcStreamType.BIDIRECTIONAL_STREAMING);
   });
 
-  test('应该正确管理连接池', () => {
-    const { getProtocolConfig } = require('../src/router/types');
-    const { payload } = require('../src/payload/payload');
-    
-    getProtocolConfig.mockReturnValue({ 
-      protoFile: 'test.proto',
-      poolSize: 5
-    });
-    payload.mockReturnValue(() => {});
-
-    const router = new GrpcRouter(mockApp, {
-      protocol: 'grpc',
-      prefix: '',
-      ext: { protoFile: 'test.proto' }
-    });
-    const connectionPool = (router as any).connectionPool;
-    
-    // 测试获取连接（池为空时会自动创建）
-    const autoCreatedConn = connectionPool.get('TestService');
-    expect(autoCreatedConn).toBeDefined();
-    expect(autoCreatedConn).toHaveProperty('serviceName', 'TestService');
-
-    // 测试释放连接
-    const mockConnection = { id: 'conn1' };
-    connectionPool.release('TestService2', mockConnection);
-
-    // 测试从池中获取连接
-    expect(connectionPool.get('TestService2')).toBe(mockConnection);
-
-    // 再次获取会创建新连接（因为池已空）
-    const newConn = connectionPool.get('TestService2');
-    expect(newConn).toBeDefined();
-  });
-
   test('应该正确管理流状态', () => {
     const { getProtocolConfig } = require('../src/router/types');
     const { payload } = require('../src/payload/payload');

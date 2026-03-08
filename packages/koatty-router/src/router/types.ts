@@ -38,8 +38,6 @@ export interface StreamConfig {
   streamTimeout?: number;
   /** 背压阈值(字节)，默认2048 */
   backpressureThreshold?: number;
-  /** 流缓冲区大小，默认1024 */
-  streamBufferSize?: number;
   /** 是否启用流压缩，默认false */
   enableCompression?: boolean;
 }
@@ -107,6 +105,8 @@ export type ProtocolExtConfig =
 export interface ProtocolExtConfigMap {
   http: HttpExtConfig;
   https: HttpExtConfig;
+  http2: HttpExtConfig;
+  http3: HttpExtConfig;
   ws: WebSocketExtConfig;
   wss: WebSocketExtConfig;
   grpc: GrpcExtConfig;
@@ -233,6 +233,8 @@ export function validateProtocolConfig(
 
     case 'http':
     case 'https':
+    case 'http2':
+    case 'http3':
       // HTTP 配置都是可选的，无需严格验证
       break;
 

@@ -480,7 +480,6 @@ describe('GrpcRouter 流处理测试', () => {
       expect(streamManager.config.maxConcurrentStreams).toBe(100);
       expect(streamManager.config.streamTimeout).toBe(300000);
       expect(streamManager.config.backpressureThreshold).toBe(1000);
-      expect(streamManager.config.bufferSize).toBe(64 * 1024);
     });
   });
 

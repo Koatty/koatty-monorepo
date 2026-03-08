@@ -27,6 +27,11 @@ import { PayloadOptions } from "../payload/interface";
 import { convertParamsType, ClassValidator, plainToClass } from "koatty_validation";
 import { bodyParser } from "../payload/payload";
 import { Exception } from "koatty_exception";
+
+// Module-level cache for ts-morph Project (debug mode only)
+let cachedProject: Project | null = null;
+const publicMethodsCache = new Map<string, string[]>();
+
 /**
  * Parameter source type enumeration for efficient parameter extraction
  * 
@@ -710,9 +715,18 @@ export const injectParam = (
  * ```
  */
 export function getPublicMethods(classFilePath: string, className: string): string[] {
-  const project = new Project();
-  const sourceFile = project.addSourceFileAtPath(classFilePath);
-
+  const cacheKey = `${classFilePath}::${className}`;
+  
+  const cached = publicMethodsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  
+  if (!cachedProject) {
+    cachedProject = new Project();
+  }
+  
+  const sourceFile = cachedProject.addSourceFileAtPath(classFilePath);
   const classDeclaration = sourceFile.getClass(className);
   const publicMethods: string[] = [];
 
@@ -725,6 +739,7 @@ export function getPublicMethods(classFilePath: string, className: string): stri
     }
   }
 
+  publicMethodsCache.set(cacheKey, publicMethods);
   return publicMethods;
 }
 

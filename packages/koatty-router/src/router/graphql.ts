@@ -53,7 +53,7 @@ export class GraphQLRouter implements KoattyRouter {
 
     // Resolve schemaFile path: if relative, resolve against app.rootPath
     let schemaFilePath = extConfig.schemaFile;
-    if (schemaFilePath && !path.isAbsolute(schemaFilePath)) {
+    if (schemaFilePath && !path.isAbsolute(schemaFilePath) && app.rootPath) {
       schemaFilePath = path.resolve(app.rootPath, schemaFilePath);
     }
     
@@ -196,6 +196,21 @@ export class GraphQLRouter implements KoattyRouter {
   }
 
   /**
+   * Escape string for safe JavaScript embedding
+   * @private
+   */
+  private escapeJsString(str: string): string {
+    return str
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '\\"')
+      .replace(/</g, '\\x3c')
+      .replace(/>/g, '\\x3e')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r');
+  }
+
+  /**
    * Render GraphiQL interface
    * 
    * @private
@@ -203,6 +218,7 @@ export class GraphQLRouter implements KoattyRouter {
    * @returns {string} HTML content for GraphiQL
    */
   private renderGraphiQL(endpoint: string): string {
+    const safeEndpoint = this.escapeJsString(endpoint);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -230,7 +246,7 @@ export class GraphQLRouter implements KoattyRouter {
   ></script>
   <script>
     const fetcher = GraphiQL.createFetcher({
-      url: '${endpoint}',
+      url: '${safeEndpoint}',
     });
     const root = ReactDOM.createRoot(document.getElementById('graphiql'));
     root.render(

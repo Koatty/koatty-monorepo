@@ -85,28 +85,10 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
   afterEach(() => {
     // Clear all timers and cleanup resources
     if (router) {
-      // Clear batch processor timers
-      const batchProcessor = (router as any).batchProcessor;
-      if (batchProcessor && (batchProcessor as any).batchTimers) {
-        const batchTimers = (batchProcessor as any).batchTimers;
-        for (const [service, timer] of batchTimers) {
-          if (timer) {
-            clearTimeout(timer);
-          }
-        }
-        batchTimers.clear();
-      }
-      
       // Clear stream manager timers if any
       const streamManager = (router as any).streamManager;
       if (streamManager && (streamManager as any).streams) {
         (streamManager as any).streams.clear();
-      }
-      
-      // Clear connection pools
-      const connectionPool = (router as any).connectionPool;
-      if (connectionPool && (connectionPool as any).pools) {
-        (connectionPool as any).pools.clear();
       }
     }
     
@@ -151,37 +133,6 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
       
       const routers = router.ListRouter();
       expect(routers.size).toBe(0);
-    });
-  });
-
-  describe('Connection Pool', () => {
-    it('should handle connection pool operations', () => {
-      const pool = (router as any).connectionPool;
-      
-      // Test getting from empty pool - now creates new connection instead of returning null
-      const conn1 = pool.get('testService');
-      expect(conn1).toBeDefined();
-      expect(conn1).toHaveProperty('serviceName', 'testService');
-      
-      // Test adding and getting connection
-      const conn = { id: 'test' };
-      pool.release('testService', conn);
-      expect(pool.get('testService')).toBe(conn);
-      
-             // Test pool size limit  
-       for (let i = 0; i < 10; i++) {
-         pool.release('testService2', { id: i });
-       }
-       
-       // Get connections from pool (pool size is limited by maxSize)
-       const connections: any[] = [];
-       for (let i = 0; i < 5; i++) {
-         const conn = pool.get('testService2');
-         connections.push(conn);
-       }
-       // Should have retrieved 5 connections (matching the poolSize of 5)
-       expect(connections.length).toBe(5);
-       expect(connections[0]).toHaveProperty('id');
     });
   });
 
@@ -297,82 +248,6 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
     });
   });
 
-  describe('Batch Processor', () => {
-    it('should handle empty batch processing', () => {
-      const processor = (router as any).batchProcessor;
-      
-      expect(() => {
-        (processor as any).processBatch('nonExistentService');
-      }).not.toThrow();
-    });
-
-    it('should add requests to batch queue', () => {
-      const processor = (router as any).batchProcessor;
-      
-      // Add fewer requests than batch size (3) to keep them in queue
-      const promise1 = (processor as any).addRequest('testService', { data: 'test1' });
-      const promise2 = (processor as any).addRequest('testService', { data: 'test2' });
-      
-      expect(promise1).toBeInstanceOf(Promise);
-      expect(promise2).toBeInstanceOf(Promise);
-      
-      // Check batch queue has requests (should have 2, not processed yet)
-      const batchQueue = (processor as any).batchQueue;
-      expect(batchQueue.has('testService')).toBe(true);
-      expect(batchQueue.get('testService').length).toBe(2);
-    });
-
-    it('should handle batch size logic', () => {
-      const processor = (router as any).batchProcessor;
-      const batchQueue = (processor as any).batchQueue;
-      
-      // Add requests and verify they are queued
-      (processor as any).addRequest('testService', { data: 'test1' });
-      expect(batchQueue.has('testService')).toBe(true);
-      expect(batchQueue.get('testService').length).toBe(1);
-      
-      (processor as any).addRequest('testService', { data: 'test2' });
-      expect(batchQueue.get('testService').length).toBe(2);
-      
-      // Add more requests to test batch behavior
-      (processor as any).addRequest('testService', { data: 'test3' });
-      
-      // Verify batch processing behavior (queue might be cleared or maintained)
-      expect(batchQueue.has('testService')).toBeDefined();
-    });
-
-    it('should create timer for batch processing', () => {
-      const processor = (router as any).batchProcessor;
-      
-      // Add single request (below batchSize)
-      (processor as any).addRequest('newService', { data: 'test' });
-      
-      // Check timer was created
-      const batchTimers = (processor as any).batchTimers;
-      expect(batchTimers.has('newService')).toBe(true);
-    });
-
-    it('should clear batch queue and timers when processing', () => {
-      const processor = (router as any).batchProcessor;
-      
-      // Add requests and create timer
-      (processor as any).addRequest('serviceToProcess', { data: 'test1' });
-      
-      // Verify queue and timer exist
-      const batchQueue = (processor as any).batchQueue;
-      const batchTimers = (processor as any).batchTimers;
-      expect(batchQueue.has('serviceToProcess')).toBe(true);
-      expect(batchTimers.has('serviceToProcess')).toBe(true);
-      
-      // Manually trigger processBatch
-      (processor as any).processBatch('serviceToProcess');
-      
-      // Verify cleanup
-      expect(batchQueue.has('serviceToProcess')).toBe(false);
-      expect(batchTimers.has('serviceToProcess')).toBe(false);
-    });
-  });
-
   describe('LoadRouter', () => {
     it('should handle empty service list', async () => {
       expect(async () => {
@@ -432,13 +307,11 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
       expect(config.maxConcurrentStreams).toBeDefined();
       expect(config.streamTimeout).toBeDefined();
       expect(config.backpressureThreshold).toBeDefined();
-      expect(config.bufferSize).toBeDefined();
       
       // Verify our custom config values are applied
       expect(config.maxConcurrentStreams).toBeGreaterThan(0);
       expect(config.streamTimeout).toBeGreaterThan(0);
       expect(config.backpressureThreshold).toBeGreaterThan(0);
-      expect(config.bufferSize).toBeGreaterThan(0);
     });
 
     it('should handle multiple stream types', () => {
@@ -460,39 +333,6 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
     });
   });
 
-  describe('Connection Pool Advanced Features', () => {
-    it('should handle different service pools independently', () => {
-      const pool = (router as any).connectionPool;
-      
-      // Add connections for multiple services
-      pool.release('service1', { id: 'conn1-1' });
-      pool.release('service1', { id: 'conn1-2' });
-      pool.release('service2', { id: 'conn2-1' });
-      pool.release('service2', { id: 'conn2-2' });
-      
-      // Each service should have its own pool
-      expect(pool.get('service1').id).toMatch(/conn1-/);
-      expect(pool.get('service2').id).toMatch(/conn2-/);
-      
-      // Pools should be independent
-      expect(pool.get('service1').id).toMatch(/conn1-/);
-      expect(pool.get('service2').id).toMatch(/conn2-/);
-    });
-
-    it('should create connection for empty pools', () => {
-      const pool = (router as any).connectionPool;
-      
-      // New behavior: creates connection instead of returning null
-      const conn1 = pool.get('nonexistent');
-      expect(conn1).toBeDefined();
-      expect(conn1).toHaveProperty('serviceName', 'nonexistent');
-      
-      const conn2 = pool.get('empty-service');
-      expect(conn2).toBeDefined();
-      expect(conn2).toHaveProperty('serviceName', 'empty-service');
-    });
-  });
-
   describe('Router Configuration', () => {
     it('should handle different router configurations', () => {
       const customRouter = new GrpcRouter(app, {
@@ -506,15 +346,11 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
             backpressureThreshold: 500,
             bufferSize: 2048
           },
-          poolSize: 15,
           batchSize: 5
         }
       } as any);
       
       expect(customRouter.protocol).toBe('grpc');
-      // Check that options are defined (actual values might have defaults)
-      expect((customRouter as any).options.poolSize).toBeDefined();
-      expect((customRouter as any).options.batchSize).toBeDefined();
       // Check that router was created successfully
       expect(customRouter).toBeInstanceOf(GrpcRouter);
     });
@@ -536,23 +372,6 @@ describe('GrpcRouter - Simple Coverage Tests', () => {
       
       expect(() => {
         streamManager.removeStream('invalid-id');
-      }).not.toThrow();
-    });
-
-    it('should handle batch processor edge cases', () => {
-      const processor = (router as any).batchProcessor;
-      
-      // Should handle processing non-existent batches
-      expect(() => {
-        (processor as any).processBatch('non-existent');
-      }).not.toThrow();
-      
-      // Should handle empty queues
-      const batchQueue = (processor as any).batchQueue;
-      batchQueue.set('empty-service', []);
-      
-      expect(() => {
-        (processor as any).processBatch('empty-service');
       }).not.toThrow();
     });
   });
