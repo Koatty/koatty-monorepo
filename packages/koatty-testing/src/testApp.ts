@@ -7,7 +7,7 @@
 
 import { Container } from "koatty_container";
 import { KoattyApplication } from "koatty_core";
-import { Constructor, TestApplication } from "./types";
+import { Constructor, TestApplication, TestAppOptions } from "./types";
 
 /**
  * Create a test application instance from a Koatty application class
@@ -43,7 +43,7 @@ export async function createTestApp(
   // Set environment variables if provided
   if (env && Object.keys(env).length > 0) {
     Object.entries(env).forEach(([key, value]) => {
-      process.env[key] = value;
+      process.env[key] = value as string;
     });
   }
 

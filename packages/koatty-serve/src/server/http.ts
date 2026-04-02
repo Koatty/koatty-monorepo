@@ -46,19 +46,18 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
     
     this.server = createServer(async (req, res) => {
       try {
+        res.on('finish', () => {
+          if (req.socket) {
+            this.connectionPool.handleRequestComplete(
+              req.socket,
+              res.getHeaders()['content-length'] as number || 0
+            ).catch(() => {
+              // Request completion error handled silently
+            });
+          }
+        });
         await healthMiddleware(req, res, async () => {
           this.app.callback()(req, res);
-          
-          res.on('finish', () => {
-            if (req.socket) {
-              this.connectionPool.handleRequestComplete(
-                req.socket,
-                res.getHeaders()['content-length'] as number || 0
-              ).catch(() => {
-                // Request completion error handled silently
-              });
-            }
-          });
         });
       } catch (error) {
         this.logger.error('Request handling error', {}, error);
