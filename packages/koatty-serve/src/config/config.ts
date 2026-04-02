@@ -10,6 +10,7 @@ import { ChannelOptions } from "@grpc/grpc-js";
 import { ConnectionPoolConfig, PoolConfigHelper } from "./pool";
 import { createLogger } from '../utils/logger';
 import fs from 'fs';
+import { HealthCheckConfig } from '../middleware/healthCheck';
 
 // KoattyProtocol
 export type KoattyProtocol = 'http' | "https" | 'http2' | 'http3' | 'grpc' | 'ws' | 'wss';
@@ -107,6 +108,7 @@ export interface BaseServerOptions {
   protocol: string;
   trace?: boolean; // Full stack debug & trace, default: false
   connectionPool?: ConnectionPoolConfig;
+  health?: HealthCheckConfig;
   ext?: {
     [key: string]: unknown;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
   };

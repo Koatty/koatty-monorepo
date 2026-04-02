@@ -115,7 +115,7 @@ describe('Improved config() function', () => {
     });
   });
 
-  describe('Nested Level Limits', () => {
+  describe('Arbitrary Depth Support', () => {
     it('should support 1-level config', () => {
       app.config('port', 'config', 3000);
       expect(app.config('port')).toBe(3000);
@@ -126,12 +126,40 @@ describe('Improved config() function', () => {
       expect(app.config('database.host')).toBe('localhost');
     });
 
-    it('should handle 3+ levels with warning (use first 2 levels)', () => {
-      // Should log warning and use only 'redis.cluster'
-      app.config('redis.cluster.nodes.0', 'config', 'node1');
+    it('should support 3-level config', () => {
+      app.config('redis.cluster.nodes', 'config', ['node1', 'node2']);
+      expect(app.config('redis.cluster.nodes')).toEqual(['node1', 'node2']);
+    });
+
+    it('should support 4+ level config', () => {
+      app.config('cache.redis.cluster.master.host', 'config', 'redis-master.local');
+      expect(app.config('cache.redis.cluster.master.host')).toBe('redis-master.local');
+    });
+
+    it('should support 5+ level config', () => {
+      app.config('deep.nested.config.structure.value', 'config', 'deepValue');
+      expect(app.config('deep.nested.config.structure.value')).toBe('deepValue');
+    });
+
+    it('should handle deeply nested set and get', () => {
+      // Set at depth 6
+      app.config('a.b.c.d.e.f', 'config', 'level6');
+      expect(app.config('a.b.c.d.e.f')).toBe('level6');
       
-      // Access using 2 levels
-      expect(app.config('redis.cluster')).toBe('node1');
+      // Intermediate levels should be accessible
+      expect(app.config('a.b.c')).toBeDefined();
+      expect(app.config('a.b.c.d')).toBeDefined();
+      expect(app.config('a.b.c.d.e')).toBeDefined();
+    });
+
+    it('should preserve sibling values when setting nested config', () => {
+      app.config('database.master.host', 'config', 'master.local');
+      app.config('database.master.port', 'config', 3306);
+      app.config('database.slave.host', 'config', 'slave.local');
+      
+      expect(app.config('database.master.host')).toBe('master.local');
+      expect(app.config('database.master.port')).toBe(3306);
+      expect(app.config('database.slave.host')).toBe('slave.local');
     });
   });
 

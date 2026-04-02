@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2019",
+    "module": "commonjs",
+    "lib": ["ES2019"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./temp",
+    "removeComments": false,
+    "importHelpers": true,
+    "downlevelIteration": true,
+    "stripInternal": true,
+    "noImplicitAny": true,
+    "noImplicitThis": false,
+    "pretty": true,
+    "moduleResolution": "node",
+    "typeRoots": ["../../node_modules/@types", "node_modules/@types"],
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "useUnknownInCatchVariables": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*"]
+}

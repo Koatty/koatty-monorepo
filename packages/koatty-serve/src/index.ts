@@ -35,3 +35,14 @@ export {
 export { RingBuffer, DynamicRingBuffer } from "./utils/ring_buffer";
 
 export { ServeComponent } from "./ServeComponent";
+
+export {
+  HealthCheckMiddleware,
+  createHealthCheckMiddleware,
+} from "./middleware/healthCheck";
+
+export type {
+  HealthCheckConfig,
+  HealthCheckResponse,
+  ReadinessResponse,
+} from "./middleware/healthCheck";

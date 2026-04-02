@@ -284,7 +284,7 @@ export class Koatty extends Koa implements KoattyApplication {
   }
 
   /**
-   * Set configuration value
+   * Set configuration value with arbitrary depth support
    * @private
    */
   private setConfig<T>(caches: any, name: string | undefined, value: T): T | null {
@@ -309,45 +309,38 @@ export class Koatty extends Koa implements KoattyApplication {
       return null;
     }
 
-    if (keys.length === 1) {
-      // Set single level
-      caches[name] = value;
-      return value;
-    }
-
-    // Handle 2+ levels (use first 2)
-    if (keys.length > 2) {
-      Logger.Warn(
-        `Config key "${name}" has ${keys.length} levels. ` +
-        `Only 2 levels are supported, using first 2: "${keys[0]}.${keys[1]}"`
-      );
-    }
-
-    // Type conflict detection
-    const firstKey = keys[0];
-    const existingValue = caches[firstKey];
-    
-    if (existingValue !== undefined && 
-        (typeof existingValue !== 'object' || existingValue === null || Array.isArray(existingValue))) {
-      Logger.Error(
-        `Config type conflict: "${firstKey}" is ${typeof existingValue}, ` +
-        `cannot set nested property "${name}". Please use different key or remove existing value first.`
-      );
-      return null;
+    // Traverse the path, creating nested objects as needed
+    let current = caches;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      const existingValue = current[key];
+      
+      // Type conflict detection
+      if (existingValue !== undefined && 
+          (typeof existingValue !== 'object' || existingValue === null || Array.isArray(existingValue))) {
+        Logger.Error(
+          `Config type conflict: "${key}" is ${typeof existingValue}, ` +
+          `cannot set nested property "${name}". Please use different key or remove existing value first.`
+        );
+        return null;
+      }
+      
+      current[key] = current[key] || {};
+      current = current[key];
     }
     
-    caches[firstKey] = caches[firstKey] || {};
-    caches[firstKey][keys[1]] = value;
+    // Set the final value
+    current[keys[keys.length - 1]] = value;
     return value;
   }
 
   /**
-   * Get configuration value
+   * Get configuration value with arbitrary depth support
    * @private
    */
   private getConfig<T>(caches: any, name: string | undefined): T | null {
     // Get entire config type
-    if (name === undefined) {
+    if (!name) {
       return caches as T;
     }
 
@@ -361,17 +354,16 @@ export class Koatty extends Koa implements KoattyApplication {
       return null;
     }
 
-    if (keys.length === 1) {
-      return caches[name] as T;
-    }
-
-    // Access up to 2 levels
-    const firstLevel = caches[keys[0]];
-    if (!firstLevel || typeof firstLevel !== 'object') {
-      return null;
+    // Traverse the path recursively
+    let result: any = caches;
+    for (const key of keys) {
+      if (result == null || typeof result !== 'object') {
+        return null;
+      }
+      result = result[key];
     }
     
-    return firstLevel[keys[1]] as T;
+    return (result ?? null) as T;
   }
 
   /**

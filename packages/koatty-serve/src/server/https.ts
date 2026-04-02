@@ -14,6 +14,7 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
 import { HttpsConnectionPoolManager } from "../pools/https";
 import { ConfigHelper, HttpsServerOptions, ListeningOptions, SSL1Config } from "../config/config";
+import { createHealthCheckMiddleware } from "../middleware/healthCheck";
 
 /**
  * HTTPS Server implementation using template method pattern
@@ -43,27 +44,38 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
    */
   protected createProtocolServer(): void {
     const sslOptions = this.createSSLOptions();
+    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
     
-    this.server = createServer(sslOptions, (req, res) => {
-      const startTime = Date.now();
-      this.app.callback()(req, res);
-      
-      // 记录请求指标
-      res.on('finish', () => {
-        const responseTime = Date.now() - startTime;
-        const success = res.statusCode < 400;
-        this.recordRequest(success, responseTime);
-        
-        // 记录HTTPS连接池请求完成
-        if ((req as any).socket) {
-          this.connectionPool.handleRequestComplete(
-            (req as any).socket as TLSSocket, 
-            res.getHeaders()['content-length'] as number || 0
-          ).catch(() => {
-            // HTTPS request completion error handled silently
+    this.server = createServer(sslOptions, async (req, res) => {
+      try {
+        await healthMiddleware(req, res, async () => {
+          const startTime = Date.now();
+          this.app.callback()(req, res);
+          
+          // 记录请求指标
+          res.on('finish', () => {
+            const responseTime = Date.now() - startTime;
+            const success = res.statusCode < 400;
+            this.recordRequest(success, responseTime);
+            
+            // 记录HTTPS连接池请求完成
+            if ((req as any).socket) {
+              this.connectionPool.handleRequestComplete(
+                (req as any).socket as TLSSocket, 
+                res.getHeaders()['content-length'] as number || 0
+              ).catch(() => {
+                // HTTPS request completion error handled silently
+              });
+            }
           });
+        });
+      } catch (error) {
+        this.logger.error('Request handling error', {}, error);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal Server Error' }));
         }
-      });
+      }
     });
     
     // HTTPS server instance created

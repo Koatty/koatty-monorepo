@@ -13,6 +13,7 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
 import { Http2ConnectionPoolManager } from "../pools/http2";
 import { ConfigHelper, Http2ServerOptions, ListeningOptions, SSL2Config } from "../config/config";
+import { createHealthCheckMiddleware } from "../middleware/healthCheck";
 
 /**
  * HTTP/2 Server implementation using template method pattern
@@ -42,11 +43,22 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
    */
   protected createProtocolServer(): void {
     const http2Options = this.createHTTP2Options();
+    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
     
-    this.server = createSecureServer(http2Options, (req, res) => {
-      this.app.callback()(req, res);
-      
-      // 请求指标由连接池自动处理
+    this.server = createSecureServer(http2Options, async (req, res) => {
+      try {
+        await healthMiddleware(req, res, async () => {
+          this.app.callback()(req, res);
+          
+          // 请求指标由连接池自动处理
+        });
+      } catch (error) {
+        this.logger.error('Request handling error', {}, error);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal Server Error' }));
+        }
+      }
     });
     
     // HTTP/2 server instance created

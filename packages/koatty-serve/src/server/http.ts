@@ -12,6 +12,7 @@ import { CreateTerminus } from "../utils/terminus";
 import { BaseServer, ConfigChangeAnalysis } from "./base";
 import { HttpConnectionPoolManager } from "../pools/http";
 import { ConfigHelper, HttpServerOptions, ListeningOptions } from "../config/config";
+import { createHealthCheckMiddleware } from "../middleware/healthCheck";
 
 
 /**
@@ -41,20 +42,31 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
    * 创建HTTP服务器实例
    */
   protected createProtocolServer(): void {
-    this.server = createServer((req, res) => {
-      this.app.callback()(req, res);
-
-      // 记录请求指标
-      res.on('finish', () => {
-        if (req.socket) {
-          this.connectionPool.handleRequestComplete(
-            req.socket,
-            res.getHeaders()['content-length'] as number || 0
-          ).catch(() => {
-            // Request completion error handled silently
+    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
+    
+    this.server = createServer(async (req, res) => {
+      try {
+        await healthMiddleware(req, res, async () => {
+          this.app.callback()(req, res);
+          
+          res.on('finish', () => {
+            if (req.socket) {
+              this.connectionPool.handleRequestComplete(
+                req.socket,
+                res.getHeaders()['content-length'] as number || 0
+              ).catch(() => {
+                // Request completion error handled silently
+              });
+            }
           });
+        });
+      } catch (error) {
+        this.logger.error('Request handling error', {}, error);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal Server Error' }));
         }
-      });
+      }
     });
 
     // HTTP server instance created
@@ -293,7 +305,8 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
   // ============= 实现KoattyServer接口 =============
 
   Start(listenCallback?: () => void): NativeServer {
-    // Simple startup log - no traceId needed
+    this.startTime = Date.now();
+    
     this.logger.info('Server starting', {}, {
       hostname: this.options.hostname,
       port: this.options.port,
