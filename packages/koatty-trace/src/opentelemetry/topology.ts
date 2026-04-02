@@ -27,6 +27,10 @@ interface ServiceNode {
  * 
  * @class TopologyAnalyzer
  */
+const MAX_ENTRIES = 10000;
+const MAX_SERVICE_NAME_LENGTH = 100;
+const WARNING_THRESHOLD = 0.8;
+
 export class TopologyAnalyzer {
   private static instance: TopologyAnalyzer;
   private serviceMap: Map<string, ServiceNode>;
@@ -43,6 +47,24 @@ export class TopologyAnalyzer {
   }
 
   public recordServiceDependency(source: string, target: string) {
+    if (source.length > MAX_SERVICE_NAME_LENGTH) {
+      logger.warn(`Service name "${source}" exceeds max length (${MAX_SERVICE_NAME_LENGTH}), truncating.`);
+      source = source.substring(0, MAX_SERVICE_NAME_LENGTH);
+    }
+    if (target && target.length > MAX_SERVICE_NAME_LENGTH) {
+      logger.warn(`Service name "${target}" exceeds max length (${MAX_SERVICE_NAME_LENGTH}), truncating.`);
+      target = target.substring(0, MAX_SERVICE_NAME_LENGTH);
+    }
+
+    if (this.serviceMap.size >= MAX_ENTRIES && !this.serviceMap.has(source)) {
+      logger.warn(`TopologyAnalyzer capacity limit (${MAX_ENTRIES}) reached. Dropping dependency: ${source} -> ${target}`);
+      return;
+    }
+
+    if (this.serviceMap.size >= MAX_ENTRIES * WARNING_THRESHOLD) {
+      logger.warn(`TopologyAnalyzer approaching capacity: ${this.serviceMap.size}/${MAX_ENTRIES} entries.`);
+    }
+
     if (!this.serviceMap.has(source)) {
       this.serviceMap.set(source, {
         name: source,
