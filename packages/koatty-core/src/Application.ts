@@ -66,6 +66,7 @@ export class Koatty extends Koa implements KoattyApplication {
 
   declare context: KoattyContext;
   private handledResponse: boolean = false;
+  private _errorCaptured = false;
   private metadata: KoattyMetadata;
   private contextPrototypes: Map<string, any> = new Map();
   ctxStorage: AsyncLocalStorage<unknown>;
@@ -88,7 +89,8 @@ export class Koatty extends Koa implements KoattyApplication {
    * Value: composed request handler function
    *
    * Invalidated when middleware stack changes via use().
-   * Handlers with reqHandler parameter are NOT cached (dynamic registration).
+   * Note: Handlers with reqHandler parameter bypass the cache and create
+   * a fresh composition on each call to prevent middleware stack pollution.
    */
   private composedCallbackCache: Map<string,
     (req: RequestType, res: ResponseType) => Promise<any>
@@ -425,10 +427,6 @@ export class Koatty extends Koa implements KoattyApplication {
     // binding event "appStop"
     Logger.Log('Koatty', '', 'Bind App Stop event ...');
     bindProcessEvent(this, 'appStop');
-
-    // binding event "appStop"
-    Logger.Log('Koatty', '', 'Bind App Stop event ...');
-    bindProcessEvent(this, 'appStop');
     
     // Wrap callback to pass app instance
     // listenCallback expects (app: KoattyApplication) but Server.Start calls callback with no args
@@ -603,13 +601,13 @@ export class Koatty extends Koa implements KoattyApplication {
       this.initializedProtocols.add(protocol);
     }
     
-    // Add protocol-specific handler to its own stack
-    if (reqHandler) {
-      protocolMiddleware.push(reqHandler);
-    }
+    // Create temporary middleware stack (don't mutate persistent array)
+    const middlewareToCompose = reqHandler
+      ? [...protocolMiddleware, reqHandler]
+      : [...protocolMiddleware];
     
     // Compose middleware for this protocol only
-    const fn = koaCompose(protocolMiddleware as any);
+    const fn = koaCompose(middlewareToCompose as any);
     if (!this.listenerCount('error')) this.on('error', this.onerror);
 
     const handler = (req: RequestType, res: ResponseType) => {
@@ -663,21 +661,21 @@ export class Koatty extends Koa implements KoattyApplication {
    * @private
    */
   private captureError(): void {
+    if (this._errorCaptured) return;
+    this._errorCaptured = true;
+    
     // koa error
     this.removeAllListeners('error');
     this.on('error', (err: Error) => {
       if (!isPrevent(err)) Logger.Error(err);
     });
     // warning
-    process.removeAllListeners('warning');
     process.on('warning', Logger.Warn);
     // promise reject error
-    process.removeAllListeners('unhandledRejection');
     process.on('unhandledRejection', (reason: Error) => {
       if (!isPrevent(reason)) Logger.Error(reason);
     });
     // uncaught exception
-    process.removeAllListeners('uncaughtException');
     process.on('uncaughtException', (err) => {
       if (err.message.includes('EADDRINUSE')) {
         Logger.Fatal(Helper.toString(err));
