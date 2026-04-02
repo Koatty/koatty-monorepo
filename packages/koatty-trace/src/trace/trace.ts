@@ -11,6 +11,7 @@ import { IOCContainer } from "koatty_container";
 import { AppEvent, Koatty, KoattyContext, KoattyNext } from "koatty_core";
 import { Helper } from "koatty_lib";
 import { SpanManager } from '../opentelemetry/spanManager';
+import { SpanStatusCode } from '@opentelemetry/api';
 import { performance } from 'node:perf_hooks';
 import { HandlerFactory } from '../handler/factory';
 import { ProtocolType } from '../handler/base';
@@ -22,6 +23,16 @@ import { getRequestId, getTraceId } from '../utils/utils';
 import { collectRequestMetrics, initPrometheusExporter } from '../opentelemetry/prometheus';
 import { DefaultLogger as Logger } from "koatty_logger";
 import { initializeRequestProperties } from '../utils/contextInit';
+
+/**
+ * Default retry condition - only retry transient network errors
+ */
+const defaultRetryCondition = (error: Error): boolean => {
+  const transientCodes = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE'];
+  const code = (error as any).code;
+  return transientCodes.includes(code) || 
+    (error.message && /timeout|ECONNRESET|socket hang up/i.test(error.message));
+};
 
 /** 
  * defaultOptions
@@ -313,7 +324,7 @@ export function Trace(options: TraceOptions, app: Koatty) {
       if (tracer) {
         const serviceName = app.name || "unknownKoattyProject";
         spanManager.createSpan(tracer, ctx, serviceName);
-        // Note: Span cleanup is handled by SpanManager.destroy() on app stop
+        // Span is ended in handleRequest finally block after request completion
       }
     }
 
@@ -385,7 +396,7 @@ async function handleRequest(
           // Check if error should be retried
           const shouldRetry = retryConf.conditions
             ? retryConf.conditions(error)
-            : true;
+            : defaultRetryCondition(error);
 
           if (!shouldRetry || attempt === maxRetries) {
             throw error;
@@ -403,10 +414,10 @@ async function handleRequest(
   } finally {
     // Calculate request duration
     const duration = performance.now() - startTime;
-    
+
     // Collect request metrics using the new metrics collector
     collectRequestMetrics(ctx, duration);
-    
+
     // Legacy metrics reporter support (for backward compatibility)
     const metricsConf = options.metricsConf || {};
     if (metricsConf.reporter) {
@@ -425,6 +436,19 @@ async function handleRequest(
       } catch (error) {
         // Don't let metrics reporting errors affect the request
         Logger.warn('Metrics reporter error:', error);
+      }
+    }
+
+    // End span on request completion to ensure accurate durations and prevent memory leaks
+    if (ext.spanManager) {
+      const span = ext.spanManager.getSpan(ctx);
+      if (span) {
+        try {
+          span.setStatus({ code: ctx.status >= 400 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
+          ext.spanManager.endSpan(ctx);
+        } catch (error) {
+          Logger.warn('Error ending span:', error);
+        }
       }
     }
   }

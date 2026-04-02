@@ -1,12 +1,25 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/koatty" },
+    { "path": "./packages/koatty-cacheable" },
+    { "path": "./packages/koatty-config" },
+    { "path": "./packages/koatty-container" },
     { "path": "./packages/koatty-core" },
     { "path": "./packages/koatty-exception" },
+    { "path": "./packages/koatty-graphql" },
+    { "path": "./packages/koatty-lib" },
+    { "path": "./packages/koatty-loader" },
+    { "path": "./packages/koatty-logger" },
+    { "path": "./packages/koatty-proto" },
     { "path": "./packages/koatty-router" },
+    { "path": "./packages/koatty-schedule" },
     { "path": "./packages/koatty-serve" },
+    { "path": "./packages/koatty-serverless" },
+    { "path": "./packages/koatty-store" },
     { "path": "./packages/koatty-trace" },
-    { "path": "./packages/koatty" }
+    { "path": "./packages/koatty-typeorm" },
+    { "path": "./packages/koatty-validation" }
   ]
 }
 

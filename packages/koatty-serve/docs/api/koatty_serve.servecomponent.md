@@ -95,18 +95,6 @@ Initialize server
 </td></tr>
 <tr><td>
 
-[run(\_app)](./koatty_serve.servecomponent.run.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
 [stopServer(app)](./koatty_serve.servecomponent.stopserver.md)
 
 

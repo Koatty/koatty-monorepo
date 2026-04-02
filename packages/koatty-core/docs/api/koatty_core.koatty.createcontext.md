@@ -17,7 +17,7 @@ Thread safety: - Context creation is synchronous and occurs within the Node.js e
 **Signature:**
 
 ```typescript
-createContext(req: RequestType, res: ResponseType, protocol?: string): any;
+createContext(req: RequestType, res: ResponseType, protocol?: string): KoattyContext;
 ```
 
 ## Parameters
@@ -90,7 +90,7 @@ _(Optional)_ Protocol type: 'http' \| 'https' \| 'ws' \| 'wss' \| 'grpc' \| 'gra
 
 **Returns:**
 
-any
+[KoattyContext](./koatty_core.koattycontext.md)
 
-{<!-- -->any<!-- -->} Koatty context object with protocol-specific properties
+{<!-- -->KoattyContext<!-- -->} Koatty context object with protocol-specific properties
 

@@ -125,11 +125,11 @@ export class ComponentManager {
         // Core components: enabled by default unless explicitly disabled
         shouldEnable = options.enabled !== false;
       } else {
-        // User components: backward compatibility - enable if in list OR config.enabled=true
+        // User components: must be in plugin list AND enabled in config
         const pluginList = this.app.config('list', 'plugin') || [];
         const isInList = pluginList.includes(identifier);
         const isEnabledInConfig = options.enabled !== false;
-        shouldEnable = isInList || isEnabledInConfig;
+        shouldEnable = isInList && isEnabledInConfig;
       }
 
       if (!shouldEnable) {

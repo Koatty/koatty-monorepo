@@ -55,12 +55,28 @@ export class ServeComponent implements IComponent {
       const basePort = Helper.isArray(serveOpts.port) ? serveOpts.port : [serveOpts.port];
       const ports: number[] = [];
 
+      const portMap: Map<number, string> = new Map();
       for (let i = 0; i < protocols.length; i++) {
+        let assignedPort: number;
         if (i < basePort.length) {
-          ports.push(Helper.toNumber(basePort[i]));
+          assignedPort = Helper.toNumber(basePort[i]);
         } else {
-          ports.push(Helper.toNumber(basePort[0]) + i);
+          assignedPort = Helper.toNumber(basePort[0]) + i;
         }
+
+        const existingProtocol = portMap.get(assignedPort);
+        if (existingProtocol) {
+          const newPort = assignedPort + protocols.length;
+          Logger.Warn('ServeComponent', 
+            `Port ${assignedPort} is already in use by ${existingProtocol}. Auto-assigning port ${newPort} for ${protocols[i]}.`);
+          assignedPort = newPort;
+        } else if (i >= basePort.length) {
+          Logger.Warn('ServeComponent', 
+            `No port configured for ${protocols[i]}. Auto-assigning port ${assignedPort}.`);
+        }
+
+        ports.push(assignedPort);
+        portMap.set(assignedPort, protocols[i]);
       }
 
       for (let i = 0; i < protocols.length; i++) {
@@ -79,11 +95,6 @@ export class ServeComponent implements IComponent {
     }
 
     Logger.Log('Koatty', '', '✓ Server initialized');
-  }
-
-  // @OnEvent(AppEvent.appReady)
-  async run(_app: KoattyApplication): Promise<void> {
-    // ...
   }
 
   /**

@@ -68,7 +68,6 @@ export class Koatty extends Koa implements KoattyApplication {
   private handledResponse: boolean = false;
   private _errorCaptured = false;
   private metadata: KoattyMetadata;
-  private contextPrototypes: Map<string, any> = new Map();
   ctxStorage: AsyncLocalStorage<unknown>;
 
   /**
@@ -402,10 +401,10 @@ export class Koatty extends Koa implements KoattyApplication {
    * @param {RequestType} req Request object (HTTP IncomingMessage, gRPC call, WS request, etc.)
    * @param {ResponseType} res Response object (HTTP ServerResponse, gRPC callback, WS socket, etc.)
    * @param {string} [protocol='http'] Protocol type: 'http' | 'https' | 'ws' | 'wss' | 'grpc' | 'graphql'
-   * @returns {any} Koatty context object with protocol-specific properties
+   * @returns {KoattyContext} Koatty context object with protocol-specific properties
    * @public
    */
-  createContext(req: RequestType, res: ResponseType, protocol = "http"): any {
+  createContext(req: RequestType, res: ResponseType, protocol = "http"): KoattyContext {
     const resp = ['ws', 'wss', 'grpc'].includes(protocol) ?
       new ServerResponse(<IncomingMessage>req) : res;
     // create context
