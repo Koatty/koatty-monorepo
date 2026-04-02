@@ -44,3 +44,9 @@
 [submodule "packages/koatty-serverless"]
 	path = packages/koatty-serverless
 	url = https://github.com/Koatty/koatty_serverless.git
+[submodule "packages/koatty-ai"]
+	path = packages/koatty-ai
+	url = https://github.com/koatty/koatty-ai.git
+[submodule "packages/koatty-swagger"]
+	path = packages/koatty-swagger
+	url = https://github.com/Koatty/koatty_swagger.git
