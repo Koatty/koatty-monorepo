@@ -5,14 +5,18 @@
  * @ version: 2026-04-02
  */
 
-import { Container } from "koatty_container";
+import { createApplication } from "koatty";
 import { KoattyApplication } from "koatty_core";
 import { Constructor, TestApplication, TestAppOptions } from "./types";
 
 /**
  * Create a test application instance from a Koatty application class
  * 
- * @param AppClass - The Koatty application class constructor
+ * IMPORTANT: The AppClass must be decorated with @Bootstrap() for proper initialization.
+ * createApplication() runs the full 11-step bootstrap sequence (appBoot → loadConfigure →
+ * loadComponent → ... → appReady) WITHOUT starting the server, making it ideal for testing.
+ * 
+ * @param AppClass - The Koatty application class constructor (must have @Bootstrap() decorator)
  * @param options - Optional configuration for test app
  * @returns Promise resolving to a TestApplication wrapper
  * 
@@ -21,11 +25,16 @@ import { Constructor, TestApplication, TestAppOptions } from "./types";
  * import { createTestApp } from 'koatty_testing';
  * import { TestApp } from './src/TestApp';
  * 
+ * @Bootstrap()
+ * class MyTestApp extends Koatty {
+ *   // ...
+ * }
+ * 
  * describe('My Tests', () => {
  *   let testApp: TestApplication;
  *   
  *   beforeAll(async () => {
- *     testApp = await createTestApp(TestApp);
+ *     testApp = await createTestApp(MyTestApp);
  *   });
  *   
  *   afterAll(async () => {
@@ -38,37 +47,58 @@ export async function createTestApp(
   AppClass: Constructor<KoattyApplication>,
   options?: TestAppOptions
 ): Promise<TestApplication> {
-  const { autoInit = true, env = {} } = options || {};
+  const { env = {} } = options || {};
 
-  // Set environment variables if provided
-  if (env && Object.keys(env).length > 0) {
-    Object.entries(env).forEach(([key, value]) => {
-      process.env[key] = value as string;
+  // Save original environment variables before setting new ones
+  const originalEnv: Record<string, string | undefined> = {};
+  Object.keys(env).forEach(key => {
+    originalEnv[key] = process.env[key];
+  });
+
+  // Set environment variables
+  Object.entries(env).forEach(([key, value]) => {
+    process.env[key] = value;
+  });
+
+  // createApplication() runs full bootstrap without starting server
+  // NOTE: AppClass must be decorated with @Bootstrap()
+  let app: KoattyApplication;
+  try {
+    app = await createApplication(AppClass);
+  } catch (err) {
+    // Restore env on bootstrap failure so partial env changes don't leak
+    Object.keys(originalEnv).forEach(key => {
+      if (originalEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = originalEnv[key];
+      }
     });
+    throw err;
   }
 
-  // Create application instance
-  const app = new AppClass();
-
-  // Initialize if autoInit is true
-  if (autoInit && typeof (app as any).init === 'function') {
-    await (app as any).init();
-  }
-
-  // Return TestApplication wrapper
   return {
     app,
-    async start(): Promise<void> {
+    async start() {
       if (typeof (app as any).listen === 'function') {
         await (app as any).listen();
       }
     },
-    async stop(): Promise<void> {
+    async stop() {
       if (typeof (app as any).stop === 'function') {
         await (app as any).stop();
       }
+      
+      // Restore original environment variables
+      Object.keys(originalEnv).forEach(key => {
+        if (originalEnv[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = originalEnv[key];
+        }
+      });
     },
-    getServer(): any {
+    getServer() {
       return (app as any).server || null;
     }
   };

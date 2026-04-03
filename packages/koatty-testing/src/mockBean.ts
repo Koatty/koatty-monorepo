@@ -7,9 +7,32 @@
 
 import { Container } from "koatty_container";
 
+// Module-level mock store
+const mockStore = new Map<string, any>();
+let patched = false;
+let originalGet: typeof Container.prototype.get | null = null;
+
 /**
- * Mock a bean in the container with a custom implementation
- * Useful for replacing dependencies in tests
+ * Ensure Container.prototype.get is monkey-patched to check mockStore first.
+ * This patch is applied exactly once.
+ */
+function ensurePatched(): void {
+  if (patched) return;
+  patched = true;
+
+  originalGet = Container.prototype.get;
+  Container.prototype.get = function<T>(identifier: any, ...args: any[]): T {
+    const id = typeof identifier === 'string' ? identifier : String(identifier);
+    if (mockStore.has(id)) {
+      return mockStore.get(id) as T;
+    }
+    return originalGet!.call(this, identifier, ...args);
+  };
+}
+
+/**
+ * Mock a bean in the container with a custom implementation.
+ * Uses monkey-patching of Container.prototype.get to intercept bean lookups.
  * 
  * @param identifier - The identifier of the bean to mock
  * @param mock - The mock implementation or value
@@ -26,16 +49,18 @@ import { Container } from "koatty_container";
  * ```
  */
 export function mockBean(identifier: string, mock: any): void {
-  const container = Container.getInstance();
-  
-  // Register the mock in the container
-  container.reg(identifier, mock);
+  ensurePatched();
+  mockStore.set(identifier, mock);
 }
 
 /**
- * Reset the container to a clean state
- * This clears all instances while preserving class registrations and metadata
- * Safe to use in afterEach hooks - idempotent operation
+ * Reset the container to a clean state.
+ * Clears all mocks and instances while preserving class registrations and metadata.
+ * Safe to use in afterEach hooks - idempotent operation.
+ * 
+ * Note: The Container.prototype.get monkey-patch remains active after resetContainer()
+ * but is harmless — an empty mockStore transparently delegates to the original get().
+ * Use clearAll() if you need to fully remove the patch (e.g., after all tests complete).
  * 
  * @example
  * ```ts
@@ -47,17 +72,16 @@ export function mockBean(identifier: string, mock: any): void {
  * ```
  */
 export function resetContainer(): void {
+  mockStore.clear();
   const container = Container.getInstance();
-  
-  // Clear instances only, preserve class registrations and metadata
-  // This is idempotent - calling multiple times has the same effect
   container.clearInstances();
 }
 
 /**
- * Clear all mocks and reset container to initial state
- * More aggressive reset - clears instances, classes, and metadata
- * Use with caution - this will require re-registration of all beans
+ * Clear all mocks and reset container to initial state.
+ * More aggressive reset - clears instances, classes, and metadata.
+ * Also restores the original Container.prototype.get method.
+ * Use with caution - this will require re-registration of all beans.
  * 
  * @example
  * ```ts
@@ -69,10 +93,16 @@ export function resetContainer(): void {
  * ```
  */
 export function clearAll(): void {
+  mockStore.clear();
   const container = Container.getInstance();
-  
-  // Clear everything
   container.clearInstances();
   container.clearClass();
   container.clearMetadata();
+  
+  // Restore original Container.prototype.get
+  if (patched && originalGet) {
+    Container.prototype.get = originalGet;
+    patched = false;
+    originalGet = null;
+  }
 }

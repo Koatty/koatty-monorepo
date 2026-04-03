@@ -17,12 +17,6 @@ export type Constructor<T = any> = new (...args: any[]) => T;
  */
 export interface TestAppOptions {
   /**
-   * Whether to automatically initialize the app
-   * @default true
-   */
-  autoInit?: boolean;
-
-  /**
    * Environment variables to set before creating the app
    */
   env?: Record<string, string>;
