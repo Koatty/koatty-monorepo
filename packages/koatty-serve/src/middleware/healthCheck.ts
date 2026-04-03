@@ -15,6 +15,7 @@ export interface HealthCheckConfig {
   path?: string;
   readiness?: string;
   detailed?: boolean;
+  memoryThresholdMB?: number;
 }
 
 export interface HealthCheckResponse {
@@ -42,6 +43,7 @@ export class HealthCheckMiddleware {
       path: config.path ?? '/health',
       readiness: config.readiness ?? '/ready',
       detailed: config.detailed ?? false,
+      memoryThresholdMB: config.memoryThresholdMB ?? 500,
     };
     this.startTime = Date.now();
   }
@@ -94,7 +96,7 @@ export class HealthCheckMiddleware {
   private checkMemoryHealth(): boolean {
     const memoryUsage = process.memoryUsage();
     const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
-    return heapUsedMB < 500;
+    return heapUsedMB < this.config.memoryThresholdMB;
   }
   private sendJsonResponse(res: any, statusCode: number, data: any): void {
     res.writeHead(statusCode, {
