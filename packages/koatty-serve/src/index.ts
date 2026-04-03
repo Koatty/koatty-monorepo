@@ -46,3 +46,11 @@ export type {
   HealthCheckResponse,
   ReadinessResponse,
 } from "./middleware/healthCheck";
+
+export {
+  createRateLimitMiddleware,
+} from "./middleware/rateLimit";
+
+export type {
+  RateLimitOptions,
+} from "./middleware/rateLimit";

@@ -33,7 +33,7 @@ export function createRateLimitMiddleware(options: RateLimitOptions = {}) {
 
   const store = new Map<string, RateLimitEntry>();
 
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of store) {
       if (now > entry.resetTime) {
@@ -41,6 +41,7 @@ export function createRateLimitMiddleware(options: RateLimitOptions = {}) {
       }
     }
   }, config.windowMs);
+  cleanupTimer.unref();
 
   return async (req: IncomingMessage, res: ServerResponse, next: () => Promise<void>) => {
     const key = config.keyGenerator(req);
