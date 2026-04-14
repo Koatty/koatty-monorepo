@@ -376,9 +376,12 @@ export class QPACKDecoder {
     
     const stringBuffer = buffer.slice(offset + lengthBytes, offset + lengthBytes + length);
     
-    // 简化实现：当前不支持 Huffman 解码
     if (useHuffman) {
-      logger.warn('Huffman decoding not implemented, returning raw string');
+      throw new Error(
+        'HTTP/3 Huffman decoding is not supported. ' +
+        'QPACK Huffman encoding (RFC 9204 §4.1) is used by all major HTTP/3 clients. ' +
+        'HTTP/3 support is currently experimental - use HTTP/2 for production deployments.'
+      );
     }
     
     const value = stringBuffer.toString('utf8');

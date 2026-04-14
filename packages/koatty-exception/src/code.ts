@@ -500,7 +500,7 @@ export const GrpcStatusCodeMap = new Map([
   [13, "INTERNAL"],
   [14, "UNAVAILABLE"],
   [15, "DATA_LOSS"],
-  [14, "UNAUTHENTICATED"],
+  [16, "UNAUTHENTICATED"],
 ]);
 
 /**

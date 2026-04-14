@@ -394,7 +394,7 @@ export class Exception extends Error {
       }
       return ctx.rpc.callback({
         code: this.code,
-        details: JSON.stringify(ctx.body || responseBody)
+        details: JSON.stringify(ctx.body || responseBody || this.message || "Internal error")
       }, null);
     }
 

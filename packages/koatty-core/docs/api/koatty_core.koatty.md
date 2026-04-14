@@ -437,20 +437,7 @@ Get middleware stack statistics
 
 
 </td></tr>
-<tr><td>
 
-[getPerformanceMetrics()](./koatty_core.koatty.getperformancemetrics.md)
-
-
-</td><td>
-
-
-</td><td>
-
-Get comprehensive performance metrics
-
-
-</td></tr>
 <tr><td>
 
 [getProtocolMiddleware(protocol)](./koatty_core.koatty.getprotocolmiddleware.md)

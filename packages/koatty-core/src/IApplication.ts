@@ -247,7 +247,7 @@ export interface KoattyApplication extends Koa {
  * @property {Function} RegisterService - Register gRPC service implementation
  */
 export interface KoattyServer {
-  options: any;
+  options: Record<string, unknown>;
   readonly Start: (listenCallback: () => void) => NativeServer;
   readonly Stop: (callback?: () => void) => void;
   readonly getStatus?: (protocolType?: string, port?: number) => number;
@@ -279,10 +279,11 @@ export type IGraphQLImplementation = {
 };
 
 /**
- * GraphQLSchemaDefinition
- * TODO
+ * GraphQL schema definition type.
+ * Represents a GraphQL schema object used by graphql-http handler.
+ * Consumers should cast to the appropriate GraphQLSchema type from 'graphql' package.
  */
-type GraphQLSchemaDefinition = any;
+type GraphQLSchemaDefinition = unknown;
 /**
  * RouterImplementation
  *
@@ -318,7 +319,7 @@ export interface KoattyRouter {
   /**
    * router options
    */
-  options: any;
+  options: Record<string, unknown>;
   /**
    * KoaRouter or custom router
    */

@@ -189,7 +189,6 @@ const defaultOptions = {
  */
 export function Trace(options: TraceOptions, app: Koatty) {
   options = { ...defaultOptions, ...options };
-  const geh: any = IOCContainer.getClass("ExceptionHandler", "COMPONENT");
 
   // ============================================
   // 应用级别初始化（在 middleware 创建时完成）
@@ -278,7 +277,11 @@ export function Trace(options: TraceOptions, app: Koatty) {
     debug: app.appDebug,
     timeout: options.timeout,
     encoding: options.encoding,
-    globalErrorHandler: geh,
+    get globalErrorHandler() {
+      const handler = IOCContainer.getClass("ExceptionHandler", "COMPONENT");
+      Object.defineProperty(this, 'globalErrorHandler', { value: handler });
+      return handler;
+    },
   };
 
   return async (ctx: KoattyContext, next: KoattyNext) => {
@@ -435,7 +438,7 @@ async function handleRequest(
         });
       } catch (error) {
         // Don't let metrics reporting errors affect the request
-        Logger.warn('Metrics reporter error:', error);
+        Logger.Warn('Metrics reporter error:', error);
       }
     }
 
@@ -447,7 +450,7 @@ async function handleRequest(
           span.setStatus({ code: ctx.status >= 400 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
           ext.spanManager.endSpan(ctx);
         } catch (error) {
-          Logger.warn('Error ending span:', error);
+          Logger.Warn('Error ending span:', error);
         }
       }
     }

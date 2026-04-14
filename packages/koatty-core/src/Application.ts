@@ -520,19 +520,6 @@ export class Koatty extends Koa implements KoattyApplication {
   }
 
   /**
-   * Get comprehensive performance metrics
-   * @returns Performance metrics including middleware stacks and connection pools
-   */
-  getPerformanceMetrics(): {
-    middlewareStacks: { global: number; protocols: Record<string, number> };
-    connectionPools?: Record<string, any>;
-  } {
-    return {
-      middlewareStacks: this.getMiddlewareStats(),
-    };
-  }
-
-  /**
    * Stop all servers gracefully.
    * - For single protocol: stops the single server
    * - For multi-protocol: stops all servers sequentially

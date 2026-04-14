@@ -663,8 +663,12 @@ export class GrpcRouter implements KoattyRouter {
           // This handler will never be called because koatty_serve will call app.callback instead
           // But we still need to register it so grpc server knows this method exists
           impl[handler.name] = (call: IRpcServerCall<any, any>, callback: IRpcServerCallback<any>) => {
-            Logger.Warn(`[GRPC_ROUTER] ⚠️ Placeholder handler called for: ${handler.name} - this should not happen!`);
-            callback(new Error('This handler should not be called - routing should go through middleware'));
+            const methodPath = `${si.name}/${handler.name}`;
+            Logger.Warn(`[GRPC_ROUTER] Placeholder handler invoked for ${methodPath}. No controller matched this gRPC method.`);
+            callback({
+              code: 12, // UNIMPLEMENTED
+              message: `Method ${methodPath} not implemented. Ensure a controller with @GrpcMethod('${handler.name}') is registered.`
+            } as any);
           };
         }
         

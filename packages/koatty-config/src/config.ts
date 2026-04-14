@@ -37,6 +37,10 @@ export function decrypt(encryptedValue: string, key?: Buffer): string {
   if (!derivedKey) throw new Error("KOATTY_CONFIG_KEY environment variable is required for decryption");
   const payload = encryptedValue.slice(ENC_PREFIX.length, -ENC_SUFFIX.length);
   const data = Buffer.from(payload, "base64");
+  const MIN_PAYLOAD_LENGTH = IV_LENGTH + 16 + 1;
+  if (data.length < MIN_PAYLOAD_LENGTH) {
+    throw new Error(`Invalid encrypted payload: too short (${data.length} bytes, minimum ${MIN_PAYLOAD_LENGTH})`);
+  }
   const iv = data.subarray(0, IV_LENGTH);
   const tag = data.subarray(IV_LENGTH, IV_LENGTH + 16);
   const encrypted = data.subarray(IV_LENGTH + 16);
@@ -49,13 +53,18 @@ export function decrypt(encryptedValue: string, key?: Buffer): string {
   }
 }
 
-function decryptConfigValues(conf: any): void {
+function decryptConfigValues(conf: any, parentPath = ""): void {
   if (!conf || typeof conf !== "object") return;
   for (const k of Object.keys(conf)) {
-    if (typeof conf[k] === "string" && conf[k].startsWith(ENC_PREFIX) && conf[k].endsWith(ENC_SUFFIX)) {
-      conf[k] = decrypt(conf[k]);
-    } else if (typeof conf[k] === "object" && conf[k] !== null) {
-      decryptConfigValues(conf[k]);
+    const currentPath = parentPath ? `${parentPath}.${k}` : k;
+    try {
+      if (typeof conf[k] === "string" && conf[k].startsWith(ENC_PREFIX) && conf[k].endsWith(ENC_SUFFIX)) {
+        conf[k] = decrypt(conf[k]);
+      } else if (typeof conf[k] === "object" && conf[k] !== null) {
+        decryptConfigValues(conf[k], currentPath);
+      }
+    } catch (err) {
+      throw new Error(`Failed to decrypt config key '${currentPath}': ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 }

@@ -93,12 +93,12 @@ export class RetryOTLPTraceExporter extends OTLPTraceExporter {
     this.circuitState = 'OPEN';
     this.lastFailureTime = Date.now();
     this.failureCount = 0;
-    Logger.warn('Circuit breaker tripped - stopping exports temporarily');
+    Logger.Warn('Circuit breaker tripped - stopping exports temporarily');
   }
 
   private resetCircuit() {
     this.circuitState = 'CLOSED';
     this.failureCount = 0;
-    Logger.info('Circuit breaker reset - exports resumed');
+    Logger.Info('Circuit breaker reset - exports resumed');
   }
 }

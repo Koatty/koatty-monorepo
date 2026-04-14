@@ -20,14 +20,14 @@ import { DefaultLogger } from "koatty_logger";
 export class Logger {
 /** Log an error scenario that was not expected and caused the requested operation to fail. */
   error(...args: any[]) {
-    DefaultLogger.error(args);
+    DefaultLogger.Error(args);
   }
   /**
    * Log a warning scenario to inform the developer of an issues that should be investigated.
    * The requested operation may or may not have succeeded or completed.
    */
   warn(...args: any[]) {
-    DefaultLogger.warn(args);
+    DefaultLogger.Warn(args);
   }
   /**
    * Log a general informational message, this should not affect functionality.
@@ -35,7 +35,7 @@ export class Logger {
    * debugging level information.
    */
   info(...args: any[]) {
-    DefaultLogger.info(args);
+    DefaultLogger.Info(args);
   }
   /**
    * Log a general debug message that can be useful for identifying a failure.
@@ -44,7 +44,7 @@ export class Logger {
    * For example: Logging the order of execution of async operations.
    */
   debug(...args: any[]) {
-    DefaultLogger.debug(args);
+    DefaultLogger.Debug(args);
   }
   /**
    * Log a detailed (verbose) trace level logging that can be used to identify failures
@@ -54,6 +54,6 @@ export class Logger {
    * in a production environment.
    */
   verbose(...args: any[]) {
-    DefaultLogger.debug(args);
+    DefaultLogger.Debug(args);
   }
 }

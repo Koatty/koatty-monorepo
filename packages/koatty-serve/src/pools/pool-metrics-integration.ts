@@ -8,8 +8,6 @@ import { ConnectionPoolFactory } from "./factory";
 
 /**
  * Register connection pool metrics callback with Application instance
- * This allows Application.getPerformanceMetrics() to include connection pool statistics
- * without creating a circular dependency between koatty-core and koatty-serve
  *
  * @param {KoattyApplication} app - Application instance
  * @returns {void}

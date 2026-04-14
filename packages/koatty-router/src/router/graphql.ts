@@ -121,12 +121,21 @@ export class GraphQLRouter implements KoattyRouter {
 
     // Create graphql-http handler
     const handler = createHandler({
-      schema: impl.schema,
+      schema: impl.schema as any,
       rootValue: routeHandler,
       validationRules: validationRules.length > 0 ? validationRules : undefined,
       formatError: this.options.ext?.debug ? undefined : (error) => {
-        // Return formatted GraphQLError
-        return new Error(error.message);
+        const formatted: any = { message: error.message };
+        if (error.extensions) {
+          formatted.extensions = error.extensions;
+        }
+        if (error.locations) {
+          formatted.locations = error.locations;
+        }
+        if (error.path) {
+          formatted.path = error.path;
+        }
+        return formatted;
       },
       context: (req: any) => {
         // Extract Koa context from request

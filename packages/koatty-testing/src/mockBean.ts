@@ -22,9 +22,11 @@ function ensurePatched(): void {
 
   originalGet = Container.prototype.get;
   Container.prototype.get = function<T>(identifier: any, ...args: any[]): T {
-    const id = typeof identifier === 'string' ? identifier : String(identifier);
-    if (mockStore.has(id)) {
-      return mockStore.get(id) as T;
+    const key = (typeof identifier === 'function' && identifier.name)
+      ? identifier.name
+      : String(identifier);
+    if (mockStore.has(key)) {
+      return mockStore.get(key) as T;
     }
     return originalGet!.call(this, identifier, ...args);
   };

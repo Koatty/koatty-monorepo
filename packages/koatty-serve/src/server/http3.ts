@@ -75,8 +75,11 @@ export class Http3Server extends BaseServer<Http3ServerOptions, any> {
    * 实际的可用性检查将在 Http3ServerAdapter.listen() 中进行
    */
   protected createProtocolServer(): void {
-    // 注意：不在这里进行同步检查，因为 @matrixai/quic 是 ESM 模块需要异步加载
-    // 真正的检查会在 Http3ServerAdapter.listen() 方法中进行
+    this.logger.warn(
+      'HTTP/3 server is experimental. QPACK Huffman decoding is not implemented, ' +
+      'which may cause header parsing failures with some clients. ' +
+      'Use HTTP/2 for production deployments.'
+    );
     this.logger.info('Initializing HTTP/3 server', {}, { 
       library: '@matrixai/quic',
       note: 'Module availability will be checked when server starts'
@@ -652,10 +655,8 @@ export class Http3Server extends BaseServer<Http3ServerOptions, any> {
       // Error logs keep traceId for troubleshooting
       const errorTraceId = generateTraceId();
       this.logger.error('Failed to start HTTP/3 server', { traceId: errorTraceId }, error);
-      // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
-      setImmediate(() => {
-        throw error;
-      });
+      // 通过 EventEmitter error 事件传递错误，使调用方可通过 server.on('error', ...) 捕获
+      this.server.emit('error', error);
     });
 
     return this.server;

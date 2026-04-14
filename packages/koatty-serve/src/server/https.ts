@@ -492,10 +492,8 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
       // Error logs keep traceId for troubleshooting
       const errorTraceId = generateTraceId();
       this.logger.error('Server startup error', { traceId: errorTraceId }, error);
-      // 使用 setImmediate 而不是 nextTick，确保错误处理在当前事件循环完成后执行
-      setImmediate(() => {
-        throw error;
-      });
+      // 通过 EventEmitter error 事件传递错误，使调用方可通过 server.on('error', ...) 捕获
+      this.server.emit('error', error);
     };
 
     // 检查server是否支持once方法（避免测试中的mock对象问题）
