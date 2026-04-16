@@ -294,5 +294,82 @@ describe('QPACK Encoder/Decoder', () => {
       expect(decoded[0][0]).toBe('content-type'); // HTTP/3 uses lowercase
     });
   });
+
+  describe('Huffman decoding', () => {
+    it('should decode Huffman-encoded single character', () => {
+      const dec = new QPACKDecoder(4096);
+      // Literal with name ref: 01|nameIdx(6bit) value
+      // static_table[15] = [':method', 'CONNECT']
+      // 0x40 | 15 = 0x4F
+      // Value: Huffman '0' = 00000 (5 bits) + 111 padding = 00000111 = 0x07
+      // String header: H=1, length=1 => 0x81, then 0x07
+      const encoded = Buffer.from([0x4F, 0x81, 0x07]);
+      const result = dec.decode(encoded);
+      expect(result).toHaveLength(1);
+      expect(result[0][0]).toBe(':method');
+      expect(result[0][1]).toBe('0');
+    });
+
+    it('should decode Huffman-encoded "GET"', () => {
+      const dec = new QPACKDecoder(4096);
+      // G=0x62(1100010,7) E=0x60(1100000,7) T=0x6f(1101111,7)
+      // Bits: 1100010 1100000 1101111 = 21 bits
+      // Padded to 24 bits: 1100010 1100000 1101111 111
+      // Bytes: 11000101 10000011 01111111 = 0xC5 0x83 0x7F
+      const encoded = Buffer.from([0x4F, 0x83, 0xC5, 0x83, 0x7F]);
+      const result = dec.decode(encoded);
+      expect(result).toHaveLength(1);
+      expect(result[0][0]).toBe(':method');
+      expect(result[0][1]).toBe('GET');
+    });
+
+    it('should decode Huffman-encoded "aeiou"', () => {
+      const dec = new QPACKDecoder(4096);
+      // a=0x03(00011,5) e=0x05(00101,5) i=0x06(00110,5) o=0x07(00111,5) u=0x2d(101101,6)
+      // Bits: 00011 00101 00110 00111 101101 = 26 bits
+      // Pad to 32 bits: ...101101 111111 = 00011001 01001100 01111011 01111111
+      // = 0x19 0x4C 0x7B 0x7F
+      const encoded = Buffer.from([0x4F, 0x84, 0x19, 0x4C, 0x7B, 0x7F]);
+      const result = dec.decode(encoded);
+      expect(result).toHaveLength(1);
+      expect(result[0][0]).toBe(':method');
+      expect(result[0][1]).toBe('aeiou');
+    });
+
+    it('should handle Huffman-encoded value with literal name', () => {
+      const dec = new QPACKDecoder(4096);
+      // Literal with literal name: 001xxxxx prefix = 0x20
+      // Name: non-Huffman 'x-test' = 0x06 78 2d 74 65 73 74
+      // Value: Huffman 'ok' = o=0x07(00111,5) k=0x75(1110101,7) = 00111 1110101 = 12 bits
+      // Pad to 16 bits: 00111 1110101 1111 = 00111111 01011111 = 0x3F 0x5F
+      const encoded = Buffer.from([
+        0x20,
+        0x06, 0x78, 0x2d, 0x74, 0x65, 0x73, 0x74,
+        0x82, 0x3F, 0x5F,
+      ]);
+      const result = dec.decode(encoded);
+      expect(result).toHaveLength(1);
+      expect(result[0][0]).toBe('x-test');
+      expect(result[0][1]).toBe('ok');
+    });
+
+    it('should handle invalid Huffman padding gracefully', () => {
+      const dec = new QPACKDecoder(4096);
+      // '0' with bad padding: 00000 000 = 0x00 (padding has 0 bits, not 1s)
+      const encoded = Buffer.from([0x4F, 0x81, 0x00]);
+      const result = dec.decode(encoded);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle empty Huffman-encoded string', () => {
+      const dec = new QPACKDecoder(4096);
+      // Empty Huffman string: H=1, length=0 => 0x80
+      const encoded = Buffer.from([0x4F, 0x80]);
+      const result = dec.decode(encoded);
+      expect(result).toHaveLength(1);
+      expect(result[0][0]).toBe(':method');
+      expect(result[0][1]).toBe('');
+    });
+  });
 });
 
