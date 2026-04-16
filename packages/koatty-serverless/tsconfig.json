@@ -22,6 +22,8 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "useUnknownInCatchVariables": false,
+    "useDefineForClassFields": false,
+
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
