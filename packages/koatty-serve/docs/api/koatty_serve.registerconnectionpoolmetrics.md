@@ -4,7 +4,7 @@
 
 ## registerConnectionPoolMetrics() function
 
-Register connection pool metrics callback with Application instance This allows Application.getPerformanceMetrics() to include connection pool statistics without creating a circular dependency between koatty-core and koatty-serve
+Register connection pool metrics callback with Application instance
 
 **Signature:**
 

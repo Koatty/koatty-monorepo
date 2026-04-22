@@ -31,6 +31,24 @@ Indicates that an decorated configuration as a property.
 </td></tr>
 <tr><td>
 
+[decrypt(encryptedValue, key)](./koatty_config.decrypt.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[encrypt(plaintext, key)](./koatty_config.encrypt.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [LoadConfigs(loadPath, baseDir, pattern, ignore)](./koatty_config.loadconfigs.md)
 
 

@@ -43,6 +43,15 @@ Use cases: - High-frequency metrics collection - Adaptive performance monitoring
 </td></tr>
 <tr><td>
 
+[HealthCheckMiddleware](./koatty_serve.healthcheckmiddleware.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [Http2Server](./koatty_serve.http2server.md)
 
 
@@ -152,6 +161,24 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[createHealthCheckMiddleware(config)](./koatty_serve.createhealthcheckmiddleware.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[createRateLimitMiddleware(options)](./koatty_serve.createratelimitmiddleware.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [NewServe(app, opt)](./koatty_serve.newserve.md)
 
 
@@ -169,7 +196,7 @@ Create Server
 
 </td><td>
 
-Register connection pool metrics callback with Application instance This allows Application.getPerformanceMetrics() to include connection pool statistics without creating a circular dependency between koatty-core and koatty-serve
+Register connection pool metrics callback with Application instance
 
 
 </td></tr>
@@ -201,6 +228,24 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[HealthCheckConfig](./koatty_serve.healthcheckconfig.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[HealthCheckResponse](./koatty_serve.healthcheckresponse.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [ListeningOptions](./koatty_serve.listeningoptions.md)
 
 
@@ -209,6 +254,24 @@ Description
 listening options
 
  ListeningOptions
+
+
+</td></tr>
+<tr><td>
+
+[RateLimitOptions](./koatty_serve.ratelimitoptions.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[ReadinessResponse](./koatty_serve.readinessresponse.md)
+
+
+</td><td>
 
 
 </td></tr>

@@ -129,7 +129,7 @@ _(Optional)_
 
 </td><td>
 
-any
+Record&lt;string, unknown&gt;
 
 
 </td><td>

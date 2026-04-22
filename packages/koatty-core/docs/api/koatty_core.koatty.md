@@ -437,7 +437,6 @@ Get middleware stack statistics
 
 
 </td></tr>
-
 <tr><td>
 
 [getProtocolMiddleware(protocol)](./koatty_core.koatty.getprotocolmiddleware.md)

@@ -9,5 +9,5 @@ router options
 **Signature:**
 
 ```typescript
-options: any;
+options: Record<string, unknown>;
 ```

@@ -91,7 +91,7 @@ load router list and register handler
 
 </td><td>
 
-any
+Record&lt;string, unknown&gt;
 
 
 </td><td>
