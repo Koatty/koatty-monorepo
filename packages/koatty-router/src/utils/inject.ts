@@ -734,6 +734,7 @@ export function compileTypeConverter(type: string): ((value: any) => any) | null
   switch (normalizedType) {
     case 'number':
       return (value: any) => {
+        if (typeof value === 'number') return value;
         if (value === null || value === undefined || value === '') return value;
         const num = Number(value);
         return isNaN(num) ? value : num;
@@ -741,8 +742,8 @@ export function compileTypeConverter(type: string): ((value: any) => any) | null
     
     case 'boolean':
       return (value: any) => {
-        if (value === null || value === undefined) return value;
         if (typeof value === 'boolean') return value;
+        if (value === null || value === undefined) return value;
         if (typeof value === 'string') {
           const lower = value.toLowerCase();
           if (lower === 'true' || lower === '1') return true;
@@ -769,7 +770,7 @@ export function compileTypeConverter(type: string): ((value: any) => any) | null
     case 'object':
       return (value: any) => {
         if (value === null || value === undefined) return value;
-        if (typeof value === 'object') return value;
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value;
         if (typeof value === 'string') {
           try {
             return JSON.parse(value);

@@ -14,8 +14,7 @@ import {
   ClassValidator,
   plainToClass,
   ValidOtpions,
-  ValidRules,
-  convertParamsType
+  ValidRules
 } from "koatty_validation";
 import { DefaultLogger as Logger } from "koatty_logger";
 import { bodyParser } from "../payload/payload";
@@ -211,8 +210,6 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
       let convertedValue = value;
       if (compiledTypeConverter) {
         convertedValue = compiledTypeConverter(value);
-      } else if (opt.type && opt.type !== 'string') {
-        convertedValue = convertParamsType(value, opt.type);
       }
 
       if (compiledValidator) {
