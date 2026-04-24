@@ -11,7 +11,7 @@
 import { KoattyContext } from "koatty_core";
 import { injectParam, ParamSourceType } from "../utils/inject";
 import { bodyParser, queryParser } from "../payload/payload";
-import { PayloadOptions } from "../payload/interface";
+import { PayloadOptions, FILE_KEY } from "../payload/interface";
 
 /**
  * Get request header.
@@ -84,9 +84,11 @@ export function Get(name?: string, defaultValue?: any): ParameterDecorator {
 export function Post(name?: string, defaultValue?: any): ParameterDecorator {
   return injectParam(
     async (ctx: KoattyContext, opt?: PayloadOptions) => {
-      const data = await bodyParser(ctx, opt);
-      const params = data.body ?? data;
-      return name ? params[name] : params;
+      const data = await bodyParser(ctx, opt) as any;
+      if (name) return data[name];
+      // Return body without FILE_KEY
+      const { [FILE_KEY]: _files, ...bodyOnly } = data || {};
+      return bodyOnly;
     },
     "Post",
     ParamSourceType.BODY,
@@ -106,8 +108,8 @@ export function Post(name?: string, defaultValue?: any): ParameterDecorator {
 export function File(name?: string, defaultValue?: any): ParameterDecorator {
   return injectParam(
     async (ctx: KoattyContext, opt?: PayloadOptions) => {
-      const body = await bodyParser(ctx, opt);
-      const params = body.file ?? {};
+      const body = await bodyParser(ctx, opt) as any;
+      const params = body[FILE_KEY] ?? {};
       return name ? params[name] : params;
     },
     "File",
@@ -119,10 +121,11 @@ export function File(name?: string, defaultValue?: any): ParameterDecorator {
 
 
 /**
- * Get parsed body(form variable and file object).
+ * Get parsed request body as a flat object.
+ * For multipart requests, use FILE_KEY symbol from payload/interface to access uploaded files.
  *
  * @export
- * @returns ex: {body: {...}, file: {...}}
+ * @returns Flat body object. Files (if any) accessible via body[FILE_KEY].
  */
 export function RequestBody(): ParameterDecorator {
   return injectParam(

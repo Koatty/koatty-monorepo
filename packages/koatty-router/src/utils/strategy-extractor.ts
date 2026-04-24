@@ -18,6 +18,7 @@ import {
 } from "koatty_validation";
 import { DefaultLogger as Logger } from "koatty_logger";
 import { bodyParser } from "../payload/payload";
+import { FILE_KEY } from "../payload/interface";
 import { IOC } from "koatty_container";
 
 /**
@@ -63,7 +64,7 @@ export type StrategyHandler = (ctx: KoattyContext, params: ParamMetadata[]) => P
  */
 interface ParamSource {
   query: Record<string, unknown>;
-  body: Record<string, unknown> & { file?: Record<string, unknown> };
+  body: Record<string | symbol, unknown>;
   params: Record<string, unknown>;
   headers: Record<string, unknown>;
 }
@@ -101,8 +102,11 @@ function extractValueFromSource(source: ParamSource, param: ParamMetadata): unkn
     case ParamSourceType.QUERY:
       return paramName ? source.query?.[paramName] : source.query;
 
-    case ParamSourceType.BODY:
-      return paramName ? source.body?.[paramName] : source.body;
+    case ParamSourceType.BODY: {
+      if (paramName) return source.body?.[paramName];
+      const { [FILE_KEY]: _files, ...bodyFields } = (source.body || {}) as any;
+      return bodyFields;
+    }
 
     case ParamSourceType.HEADER:
       return paramName ? source.headers?.[paramName] : source.headers;
@@ -110,8 +114,10 @@ function extractValueFromSource(source: ParamSource, param: ParamMetadata): unkn
     case ParamSourceType.PATH:
       return paramName ? source.params?.[paramName] : source.params;
 
-    case ParamSourceType.FILE:
-      return paramName ? source.body?.file?.[paramName] : source.body?.file;
+    case ParamSourceType.FILE: {
+      const files = (source.body?.[FILE_KEY] as Record<string, unknown>) || {};
+      return paramName ? files[paramName] : files;
+    }
 
     case ParamSourceType.CUSTOM:
       return null;
@@ -131,13 +137,14 @@ async function extractParamSources(ctx: KoattyContext, params: ParamMetadata[]):
            param.sourceType === ParamSourceType.FILE;
   });
 
-  let bodyContent: Record<string, unknown> = {};
-  let fileContent: Record<string, unknown> = {};
+  let body: Record<string | symbol, unknown> = {};
   if (needsBody) {
     try {
-      const parsedBody = await bodyParser(ctx, params[0]?.options) as Record<string, unknown> | undefined;
-      bodyContent = (parsedBody?.body ?? parsedBody ?? {}) as Record<string, unknown>;
-      fileContent = (parsedBody?.file ?? {}) as Record<string, unknown>;
+      // TODO(P3): When a method has multiple BODY/FILE params with different options,
+      // only params[0]?.options is used here; options for subsequent params are ignored.
+      // To fix: resolve per-param bodyParser calls keyed by options hash.
+      const parsedBody = await bodyParser(ctx, params[0]?.options) as Record<string | symbol, unknown> | undefined;
+      body = parsedBody || {};
     } catch (err) {
       Logger.Error(`extractParamSources: Failed to parse body: ${(err as Error).message}`);
     }
@@ -145,7 +152,7 @@ async function extractParamSources(ctx: KoattyContext, params: ParamMetadata[]):
 
   return {
     query: ctx.query || {},
-    body: { ...bodyContent, file: fileContent } as Record<string, unknown> & { file?: Record<string, unknown> },
+    body,
     params: ctx.params || {},
     headers: ctx.headers || {}
   };

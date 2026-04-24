@@ -10,7 +10,7 @@
 
 import { DefaultLogger as Logger } from "koatty_logger";
 import { KoattyContext } from "koatty_core";
-import { PayloadOptions } from "../interface";
+import { PayloadOptions, FILE_KEY } from "../interface";
 import { BufferEncoding, IncomingForm } from "formidable";
 import onFinished from "on-finished";
 import { deleteFiles } from "../../utils/path";
@@ -20,7 +20,7 @@ import { deleteFiles } from "../../utils/path";
  * 
  * @param ctx KoattyContext - The Koatty context object
  * @param opts PayloadOptions - Configuration options for parsing
- * @returns Promise<{body: any, file: any}> - Resolves with parsed fields and files
+ * @returns Promise<Record<string, any>> - Resolves with parsed fields; files accessible via [FILE_KEY]
  * 
  * @description
  * Handles multipart form data parsing using IncomingForm.
@@ -28,12 +28,13 @@ import { deleteFiles } from "../../utils/path";
  * Returns empty objects if content-type is not multipart or if parsing fails.
  * 
  * @example
- * const { body, file } = await parseMultipart(ctx, {
+ * const result = await parseMultipart(ctx, {
  *   encoding: 'utf-8',
  *   multiples: true,
  *   keepExtensions: true,
  *   limit: 20 // Max file size in MB
  * });
+ * const files = result[FILE_KEY];
  */
 export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
   const form = new IncomingForm({
@@ -63,14 +64,11 @@ export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
         cleanup();
         Logger.Error('[MultipartParseError]', err);
 
-        return resolve({ body: {}, file: {} });
+        return resolve({});
       }
 
       uploadFiles = files;
-      resolve({
-        body: fields,
-        file: files
-      });
+      resolve({ ...fields, [FILE_KEY]: files });
     });
   });
 }

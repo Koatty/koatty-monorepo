@@ -24,3 +24,11 @@ export interface PayloadOptions {
    */
   protoFile?: string;
 }
+
+/**
+ * Symbol key for uploaded files in parsed multipart body.
+ * Use this key to access files from the parsed body object:
+ * @example
+ * const files = parsedBody[FILE_KEY];
+ */
+export const FILE_KEY = Symbol.for('koatty.files');

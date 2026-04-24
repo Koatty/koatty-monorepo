@@ -30,14 +30,17 @@ const xmlParser = new XMLParser({
  * Parse XML payload from request body
  * @param ctx KoattyContext instance
  * @param opts Payload parsing options
- * @returns {Promise<{body?: any}>} Parsed XML object in body property or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed XML object or empty object if parsing fails
  */
 export async function parseXml(ctx: KoattyContext, opts: PayloadOptions) {
   const str = await parseText(ctx, opts);
   if (!str) return {};
 
   try {
-    return { body: xmlParser.parse(str) };
+    const parsed = xmlParser.parse(str);
+    return (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed))
+      ? parsed
+      : { value: parsed };
   } catch (error) {
     Logger.Error(error);
 

@@ -23,7 +23,7 @@ import {
   paramterTypes, ValidOtpions, ValidRules,
 } from "koatty_validation";
 import { RouterMiddlewareManager } from "../middleware/manager";
-import { PayloadOptions } from "../payload/interface";
+import { PayloadOptions, FILE_KEY } from "../payload/interface";
 import { bodyParser } from "../payload/payload";
 import { convertParamsType } from "koatty_validation";
 import { Exception } from "koatty_exception";
@@ -833,13 +833,15 @@ export function generatePrecompiledExtractor(param: ParamMetadata): ((ctx: any) 
         if (paramName !== undefined) {
           return async (ctx: any) => {
             const parsed = await bodyParser(ctx, bodyOpts) as any;
-            const body = parsed?.body ?? parsed ?? {};
-            return body[paramName];
+            return (parsed ?? {})[paramName];
           };
         } else {
+          // Return full body, stripping FILE_KEY
           return async (ctx: any) => {
             const parsed = await bodyParser(ctx, bodyOpts) as any;
-            return parsed?.body ?? parsed ?? {};
+            if (!parsed) return {};
+            const { [FILE_KEY]: _files, ...bodyOnly } = parsed;
+            return bodyOnly;
           };
         }
       }

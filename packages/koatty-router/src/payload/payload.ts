@@ -15,7 +15,7 @@ import {
   DEFAULT_ENCODING, DEFAULT_LIMIT, IDENTITY_ENCODING, ParserFunction,
   ParserMap
 } from "./payload_cache";
-import { PayloadOptions } from "./interface";
+import { PayloadOptions, FILE_KEY } from "./interface";
 
 // 使用 Set 和预编译正则表达式
 const supportedMethods = new Set(['POST', 'PUT', 'DELETE', 'PATCH', 'LINK', 'UNLINK']);
@@ -103,8 +103,8 @@ export function payload(options?: PayloadOptions) {
     }
     if (!Object.prototype.hasOwnProperty.call(ctx, 'requestFile')) {
       Helper.define(ctx, "requestFile", async (name?: string) => {
-        const body = await bodyParser(ctx, opts);
-        const files = body.file ?? {};
+        const body = await bodyParser(ctx, opts) as any;
+        const files = body[FILE_KEY] ?? {};
         return name ? files[name] : files;
       });
     }

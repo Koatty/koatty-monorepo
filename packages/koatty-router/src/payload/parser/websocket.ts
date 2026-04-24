@@ -27,11 +27,14 @@ export async function parseWebSocket(ctx: KoattyContext, opts: PayloadOptions) {
     const str = await parseText(ctx, opts);
     if (!str) return {};
 
-    // WebSocket消息可能是JSON或纯文本
+    // WebSocket messages may be JSON or plain text
     try {
-      return { body: JSON.parse(str) };
+      const parsed = JSON.parse(str);
+      return (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed))
+        ? parsed
+        : { value: parsed };
     } catch {
-      return str;
+      return { value: str };  // Plain text fallback
     }
   } catch (error) {
     Logger.Error('[WebSocketParseError]', error);

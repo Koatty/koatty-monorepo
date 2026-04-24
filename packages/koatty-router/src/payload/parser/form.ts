@@ -19,7 +19,7 @@ import { parse } from "fast-querystring";
  * 
  * @param {KoattyContext} ctx - The Koatty context object
  * @param {PayloadOptions} opts - The payload parsing options
- * @returns {Promise<{body?: any}>} Parsed form data object with body property, or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed form data object, or empty object if parsing fails
  * @private
  */
 export async function parseForm(ctx: KoattyContext, opts: PayloadOptions) {
@@ -30,9 +30,7 @@ export async function parseForm(ctx: KoattyContext, opts: PayloadOptions) {
 
   try {
     const result = parse(str);
-    return {
-      body: result
-    };
+    return result;  // Already a flat object
   } catch (error) {
     Logger.Error('[FormParseError]', error);
 

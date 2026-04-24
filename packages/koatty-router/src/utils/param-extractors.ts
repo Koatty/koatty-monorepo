@@ -9,7 +9,7 @@
  */
 
 import { KoattyContext } from "koatty_core";
-import { PayloadOptions } from "../payload/interface";
+import { PayloadOptions, FILE_KEY } from "../payload/interface";
 import { bodyParser } from "../payload/payload";
 
 /**
@@ -74,8 +74,8 @@ export const ParamExtractors = {
    * @returns File object or specific file field
    */
   async file(ctx: KoattyContext, paramName?: string, options?: PayloadOptions): Promise<any> {
-    const body = await bodyParser(ctx, options);
-    const files = body.file || {};
+    const body = await bodyParser(ctx, options) as any;
+    const files = body[FILE_KEY] || {};
     return paramName ? files[paramName] : files;
   },
 

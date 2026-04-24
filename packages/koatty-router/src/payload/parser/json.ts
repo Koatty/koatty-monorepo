@@ -18,14 +18,18 @@ import { parseText } from "./text";
  * Parse request body as JSON
  * @param {KoattyContext} ctx - Koatty context object
  * @param {PayloadOptions} opts - Payload parsing options
- * @returns {Promise<{body?: any}>} Parsed JSON object with body property, or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed JSON object, or empty object if parsing fails
  */
 export async function parseJson(ctx: KoattyContext, opts: PayloadOptions) {
   const str = await parseText(ctx, opts);
   if (!str) return {};
 
   try {
-    return { body: JSON.parse(str) };
+    const parsed = JSON.parse(str);
+    // Return flat object; wrap non-object values for consistency
+    return (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed))
+      ? parsed
+      : { value: parsed };
   } catch (error) {
     Logger.Error(error);
 
