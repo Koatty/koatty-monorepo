@@ -24,6 +24,13 @@ import inflate from "inflation";
  * gRPC uses Protocol Buffers binary format. This parser returns the raw buffer
  * for manual decoding in controllers using proto definitions.
  * The buffer should NOT be converted to string as it will corrupt the binary data.
+ *
+ * NOTE: This parser intentionally retains the legacy `{ body: buffer }` wrapper format
+ * rather than the flat object format used by HTTP parsers (json/form/xml/websocket).
+ * Reason: gRPC requests are handled by the dedicated gRPC router which reads the raw
+ * buffer directly and does NOT go through the generic HTTP body extraction path
+ * (extractParamSources / generatePrecompiledExtractor). Unifying the format here
+ * would require changes to the gRPC router with no benefit to the HTTP path.
  */
 export async function parseGrpc(ctx: KoattyContext, opts: PayloadOptions) {
   try {

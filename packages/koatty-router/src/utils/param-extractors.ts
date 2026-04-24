@@ -41,8 +41,11 @@ export const ParamExtractors = {
    * @returns Body value or entire body object
    */
   async body(ctx: KoattyContext, paramName?: string, options?: PayloadOptions): Promise<any> {
-    const body = await bodyParser(ctx, options);
-    return paramName ? body?.[paramName] : body;
+    const body = await bodyParser(ctx, options) as any;
+    if (paramName) return body?.[paramName];
+    // Strip FILE_KEY when returning the full body object, consistent with other extraction paths
+    const { [FILE_KEY]: _files, ...bodyOnly } = body || {};
+    return bodyOnly;
   },
 
   /**
