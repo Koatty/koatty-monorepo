@@ -308,7 +308,7 @@ Decorator for auto-registering custom routers
 
 </td><td>
 
-Get parsed body(form variable and file object).
+Get parsed request body as a flat object. For multipart requests, use FILE\_KEY symbol from payload/interface to access uploaded files.
 
 
 

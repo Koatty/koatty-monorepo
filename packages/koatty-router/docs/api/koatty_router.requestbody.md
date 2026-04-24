@@ -4,7 +4,7 @@
 
 ## RequestBody() function
 
-Get parsed body(form variable and file object).
+Get parsed request body as a flat object. For multipart requests, use FILE\_KEY symbol from payload/interface to access uploaded files.
 
 
 **Signature:**
@@ -16,5 +16,5 @@ export declare function RequestBody(): ParameterDecorator;
 
 ParameterDecorator
 
-ex: {<!-- -->body: {<!-- -->...<!-- -->}<!-- -->, file: {<!-- -->...<!-- -->}<!-- -->}
+Flat body object. Files (if any) accessible via body\[FILE\_KEY\].
 
