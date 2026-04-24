@@ -23,12 +23,6 @@ import { parse } from "fast-querystring";
  * @private
  */
 export async function parseForm(ctx: KoattyContext, opts: PayloadOptions) {
-  // Early return for empty or invalid content
-  if (!ctx.request.headers['content-length'] ||
-    !ctx.request.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
-    return {};
-  }
-
   const str = await parseText(ctx, opts);
   if (!str || str.trim().length === 0) {
     return {};

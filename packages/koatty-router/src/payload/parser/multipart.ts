@@ -36,11 +36,6 @@ import { deleteFiles } from "../../utils/path";
  * });
  */
 export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
-  // Early validation
-  if (!ctx.request.headers['content-type']?.includes('multipart/form-data')) {
-    return Promise.resolve({ body: {}, file: {} });
-  }
-
   const form = new IncomingForm({
     encoding: <BufferEncoding>opts.encoding,
     multiples: opts.multiples,

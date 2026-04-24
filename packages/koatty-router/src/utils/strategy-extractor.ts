@@ -657,26 +657,26 @@ export class StrategyHandlerFactory {
     return async (ctx: KoattyContext) => {
       const bodyData = await extractParamSources(ctx, params);
 
-      const asyncResults = asyncParams.map(p => {
-        if (p.sourceType === ParamSourceType.BODY && p.fn && typeof p.fn === 'function') {
-          return Promise.resolve(p.fn(ctx, p.options)).then(value => {
-            if (value === undefined && p.defaultValue !== undefined) return p.defaultValue;
-            const paramOptions = p.precompiledOptions || createParamOptions(p, 0);
-            return validateParam(app, ctx, value, paramOptions, p.compiledValidator, p.compiledTypeConverter);
-          });
+      const asyncResults = asyncParams.map(async p => {
+        if (p.precompiledExtractor) {
+          const rawValue = await p.precompiledExtractor(ctx);
+          const value = rawValue === undefined && p.defaultValue !== undefined ? p.defaultValue : rawValue;
+          const paramOptions = p.precompiledOptions || createParamOptions(p, p.index ?? 0);
+          return validateParam(app, ctx, value, paramOptions, p.compiledValidator, p.compiledTypeConverter);
+        }
+
+        if (p.fn && typeof p.fn === 'function') {
+          const rawValue = await Promise.resolve(p.fn(ctx, p.options));
+          const value = rawValue === undefined && p.defaultValue !== undefined ? p.defaultValue : rawValue;
+          const paramOptions = p.precompiledOptions || createParamOptions(p, p.index ?? 0);
+          return validateParam(app, ctx, value, paramOptions, p.compiledValidator, p.compiledTypeConverter);
         }
 
         const rawValue = extractValueFromSource(bodyData, p);
-
-        if (rawValue === null && p.fn) {
-          return p.fn(ctx, p.options);
-        }
-
         if (rawValue === undefined && p.defaultValue !== undefined) {
           return p.defaultValue;
         }
-
-        const paramOptions = p.precompiledOptions || createParamOptions(p, 0);
+        const paramOptions = p.precompiledOptions || createParamOptions(p, p.index ?? 0);
         return validateParam(app, ctx, rawValue, paramOptions, p.compiledValidator, p.compiledTypeConverter);
       });
 
@@ -752,26 +752,26 @@ export class StrategyHandlerFactory {
     return async (ctx: KoattyContext) => {
       const sources = await extractParamSources(ctx, params);
 
-      const paramPromises = params.map((v, k) => {
-        if (v.sourceType === ParamSourceType.BODY && v.fn && typeof v.fn === 'function') {
-          return Promise.resolve(v.fn(ctx, v.options)).then(value => {
-            if (value === undefined && v.defaultValue !== undefined) return v.defaultValue;
-            const paramOptions = v.precompiledOptions || createParamOptions(v, k);
-            return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
-          });
+      const paramPromises = params.map(async (v, k) => {
+        if (v.precompiledExtractor) {
+          const rawValue = await v.precompiledExtractor(ctx);
+          const value = rawValue === undefined && v.defaultValue !== undefined ? v.defaultValue : rawValue;
+          const paramOptions = v.precompiledOptions || createParamOptions(v, v.index ?? k);
+          return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
+        }
+
+        if (v.fn && typeof v.fn === 'function') {
+          const rawValue = await Promise.resolve(v.fn(ctx, v.options));
+          const value = rawValue === undefined && v.defaultValue !== undefined ? v.defaultValue : rawValue;
+          const paramOptions = v.precompiledOptions || createParamOptions(v, v.index ?? k);
+          return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
         }
 
         let rawValue = extractValueFromSource(sources, v);
-
-        if (rawValue === null && v.fn) {
-          rawValue = v.fn(ctx, v.options);
-        }
-
         if (rawValue === undefined && v.defaultValue !== undefined) {
-          rawValue = v.defaultValue;
+          return v.defaultValue;
         }
-
-        const paramOptions = v.precompiledOptions || createParamOptions(v, k);
+        const paramOptions = v.precompiledOptions || createParamOptions(v, v.index ?? k);
         return validateParam(app, ctx, rawValue, paramOptions, v.compiledValidator, v.compiledTypeConverter);
       });
 

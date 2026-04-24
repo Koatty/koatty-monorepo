@@ -24,8 +24,8 @@ import {
 } from "koatty_validation";
 import { RouterMiddlewareManager } from "../middleware/manager";
 import { PayloadOptions } from "../payload/interface";
-import { convertParamsType, ClassValidator, plainToClass } from "koatty_validation";
 import { bodyParser } from "../payload/payload";
+import { convertParamsType } from "koatty_validation";
 import { Exception } from "koatty_exception";
 
 // Module-level cache for ts-morph Project (debug mode only)
@@ -400,12 +400,10 @@ export interface ParamMetadata {
   "dtoRule": Map<string, string>;
   "compiledValidator"?: (value: any) => void;
   "precompiledOptions"?: any;
-  "fastPathHandler"?: FastPathHandler;
   "compiledTypeConverter"?: ((value: any) => any) | null;
   "sourceType": ParamSourceType;   // Parameter source type
   "paramName"?: string;             // Parameter name (e.g., "id")
-  "extractorType"?: string;         // Extractor type for unified extraction
-  "precompiledExtractor"?: (ctx: any) => any; // Pre-compiled extractor function
+  "precompiledExtractor"?: (ctx: any) => any | Promise<any>; // Pre-compiled extractor function
   "defaultValue"?: any;             // Default value if extraction returns undefined
 }
 
@@ -418,13 +416,9 @@ export interface ParamMetadata {
  * 
  * @property hasAsyncParams - Indicates if the method has any async parameters (BODY/FILE/DTO).
  *                            When false, enables fast synchronous extraction path.
- * @property fastPathHandler - Pre-compiled handler for zero-validation scenarios.
- *                             Created during Task 2.x when all parameters can be extracted
- *                             and validated in a single optimized function.
  * 
  * @performance
  * - Sync path (hasAsyncParams=false): ~40% faster than async path
- * - Fast path handler: ~60% faster than normal path
  * 
  * @example
  * ```typescript
@@ -443,9 +437,6 @@ export interface ParamMetadata {
 export interface CompiledMethodParams extends Array<ParamMetadata> {
   /** Indicates if method has async parameters requiring bodyParser or DTO validation */
   hasAsyncParams?: boolean;
-  
-  /** Pre-compiled fast path handler for zero-validation scenarios */
-  fastPathHandler?: any;
 }
 
 /**
@@ -499,29 +490,6 @@ export function injectParamMetaData(app: Koatty, target: any,
       if (!v.sourceType) {
         v.sourceType = ParamSourceType.CUSTOM;
       }
-      
-      // Task 4.5: Set extractorType based on sourceType for unified extraction
-      switch(v.sourceType) {
-        case ParamSourceType.QUERY:
-          v.extractorType = 'query';
-          break;
-        case ParamSourceType.BODY:
-          v.extractorType = 'body';
-          break;
-        case ParamSourceType.HEADER:
-          v.extractorType = 'header';
-          break;
-        case ParamSourceType.PATH:
-          v.extractorType = 'path';
-          break;
-        case ParamSourceType.FILE:
-          v.extractorType = 'file';
-          break;
-        case ParamSourceType.CUSTOM:
-          v.extractorType = 'custom';
-          break;
-      }
-      Logger.Debug(`Set extractorType ${v.extractorType} for param ${v.name}`);
       
       const validEntry = validData.find((it: any) => v.index === it.index && it.name === v.name);
       if (validEntry) {
@@ -609,23 +577,6 @@ export function injectParamMetaData(app: Koatty, target: any,
         }
       }
     });
-    
-    // Task 2.3: Detect and create fast path handler if possible
-    const fastPathScenario = detectFastPathScenario(data);
-    if (fastPathScenario) {
-      const fastPathHandler = createFastPathHandler(fastPathScenario, data);
-      if (fastPathHandler) {
-        // Store the fast path handler in metadata
-        // Since we need to store it somewhere accessible, we'll add it to the first parameter
-        // or create a method-level metadata
-        Logger.Debug(`Created fast path handler for ${target.constructor.name}.${meta}, scenario: ${fastPathScenario}`);
-        
-        // Store in each parameter for easy access, or we can store it once per method
-        // For now, let's add a reference in the metadata map itself
-        (data as any).fastPathHandler = fastPathHandler;
-        (data as any).fastPathScenario = fastPathScenario;
-      }
-    }
     
     // Task 4.4: Detect if method has async parameters
     const hasAsyncParams = data.some(p => 
@@ -752,162 +703,13 @@ function getControllerPath(className: string): string {
   return process.env.APP_PATH + "/controller/" + className + ".ts";
 }
 
-/**
- * Fast path handler type - optimized parameter extraction function
- * @internal
- */
-export type FastPathHandler = (ctx: any) => any[] | Promise<any[]>;
 
-/**
- * Fast path scenario types
- * @internal
- */
-export enum FastPathScenario {
-  SINGLE_QUERY_NO_VALIDATION = 'SINGLE_QUERY_NO_VALIDATION',      // 场景 A: 单个 query 参数，无验证
-  SINGLE_DTO_FROM_BODY = 'SINGLE_DTO_FROM_BODY',                  // 场景 B: 单个 DTO 参数，来自 body
-  MULTIPLE_QUERY_NO_VALIDATION = 'MULTIPLE_QUERY_NO_VALIDATION'   // 场景 C: 多个 query 参数，无验证
-}
 
-/**
- * Detect if parameters match a fast path scenario
- * Returns the scenario type if a fast path can be used, null otherwise
- * 
- * @param params - Array of parameter metadata
- * @returns FastPathScenario or null
- * @internal
- */
-export function detectFastPathScenario(params: ParamMetadata[]): FastPathScenario | null {
-  if (!params || params.length === 0) {
-    return null;
-  }
 
-  // 场景 A: 单个 query 参数，无验证
-  if (params.length === 1) {
-    const param = params[0];
-    const fnName = param.fn?.name || '';
-    
-    // 检查是否是 Get 装饰器，且没有验证规则
-    if (fnName === 'Get' && !param.validRule && !param.isDto) {
-      Logger.Debug(`Detected fast path scenario A: single query param without validation`);
-      return FastPathScenario.SINGLE_QUERY_NO_VALIDATION;
-    }
-    
-    // 场景 B: 单个 DTO 参数，来自 body
-    if ((fnName === 'Post' || fnName === 'RequestBody') && param.isDto) {
-      Logger.Debug(`Detected fast path scenario B: single DTO from body`);
-      return FastPathScenario.SINGLE_DTO_FROM_BODY;
-    }
-  }
-  
-  // 场景 C: 多个 query 参数，无验证
-  if (params.length > 1) {
-    const allQueryNoValidation = params.every(param => {
-      const fnName = param.fn?.name || '';
-      return fnName === 'Get' && !param.validRule && !param.isDto;
-    });
-    
-    if (allQueryNoValidation) {
-      Logger.Debug(`Detected fast path scenario C: multiple query params without validation`);
-      return FastPathScenario.MULTIPLE_QUERY_NO_VALIDATION;
-    }
-  }
-  
-  // 复杂场景，不能使用快速路径
-  return null;
-}
 
-/**
- * Create an optimized fast path handler for detected scenarios
- * 
- * @param scenario - The detected fast path scenario
- * @param params - Array of parameter metadata
- * @returns FastPathHandler function or null if cannot create
- * @internal
- */
-export function createFastPathHandler(
-  scenario: FastPathScenario, 
-  params: ParamMetadata[]
-): FastPathHandler | null {
-  
-  switch (scenario) {
-    case FastPathScenario.SINGLE_QUERY_NO_VALIDATION: {
-      // 场景 A: 单个 query 参数，无验证
-      const param = params[0];
-      const paramName = param.name;
-      const paramType = param.type;
-      
-      if (paramName) {
-        // 有名称的参数，直接提取
-        return (ctx: any) => {
-          const value = ctx.query?.[paramName];
-          const converted = convertParamsType(value, paramType);
-          return [converted];
-        };
-      } else {
-        // 无名称的参数，返回整个 query 对象
-        return (ctx: any) => {
-          const query = ctx.query || {};
-          return [query];
-        };
-      }
-    }
-    
-    case FastPathScenario.SINGLE_DTO_FROM_BODY: {
-      // 场景 B: 单个 DTO 参数，来自 body
-      const param = params[0];
-      const clazz = param.clazz;
-      const dtoCheck = param.dtoCheck;
-      
-      if (!clazz) {
-        Logger.Debug(`Cannot create fast path: DTO class not found`);
-        return null;
-      }
-      
-      // 返回异步处理器
-      return async (ctx: any) => {
-        const body = await bodyParser(ctx, param.options);
-        
-        let validatedValue;
-        if (dtoCheck) {
-          validatedValue = await ClassValidator.valid(clazz, body, true);
-        } else {
-          validatedValue = plainToClass(clazz, body, true);
-        }
-        
-        return [validatedValue];
-      };
-    }
-    
-    case FastPathScenario.MULTIPLE_QUERY_NO_VALIDATION: {
-      // 场景 C: 多个 query 参数，无验证
-      // 预编译参数名称和类型数组
-      const paramConfigs = params.map(p => ({
-        name: p.name,
-        type: p.type
-      }));
-      
-      return (ctx: any) => {
-        const query = ctx.query || {};
-        const results: any[] = [];
-        
-        for (const config of paramConfigs) {
-          if (config.name) {
-            const value = query[config.name];
-            const converted = convertParamsType(value, config.type);
-            results.push(converted);
-          } else {
-            results.push(query);
-          }
-        }
-        
-        return results;
-      };
-    }
-    
-    default:
-      return null;
-  }
-}
+
+
+
 
 /**
  * Compile type converter function at startup time.
@@ -1021,7 +823,7 @@ export function compileTypeConverter(type: string): ((value: any) => any) | null
  * @since 1.20.0-8
  * @category Parameter Extraction
  */
-export function generatePrecompiledExtractor(param: ParamMetadata): ((ctx: any) => any) | null {
+export function generatePrecompiledExtractor(param: ParamMetadata): ((ctx: any) => any | Promise<any>) | null {
   // paramName is the specific key to extract, if undefined, extract the entire collection
   const paramName = param.paramName !== undefined ? param.paramName : undefined;
   
@@ -1051,6 +853,22 @@ export function generatePrecompiledExtractor(param: ParamMetadata): ((ctx: any) 
       }
     
     case ParamSourceType.BODY:
+      {
+        const bodyOpts = param.options;
+        if (paramName !== undefined) {
+          return async (ctx: any) => {
+            const parsed = await bodyParser(ctx, bodyOpts) as any;
+            const body = parsed?.body ?? parsed ?? {};
+            return body[paramName];
+          };
+        } else {
+          return async (ctx: any) => {
+            const parsed = await bodyParser(ctx, bodyOpts) as any;
+            return parsed?.body ?? parsed ?? {};
+          };
+        }
+      }
+
     case ParamSourceType.FILE:
       // Body and file require async parsing, cannot pre-compile
       return null;
