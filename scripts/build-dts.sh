@@ -22,6 +22,14 @@ if ! node "$WORKSPACE_ROOT/scripts/wait-for-deps.js"; then
   echo "   (This is expected in parallel builds - dependencies will be available soon)"
 fi
 
+# Remove stale tsbuildinfo whenever the expected tsc output (temp/index.d.ts) is missing.
+# A stale tsbuildinfo causes tsc to report "already up-to-date" and skip emission even
+# when the output files have been deleted (e.g. after 'clean' removes temp/).
+TEMP_ENTRY="$PACKAGE_DIR/temp/index.d.ts"
+if [ ! -f "$TEMP_ENTRY" ]; then
+  rm -f "$PACKAGE_DIR/tsconfig.tsbuildinfo"
+fi
+
 # 运行 tsc
 echo "📝 Running TypeScript compiler..."
 npx tsc --skipLibCheck || {

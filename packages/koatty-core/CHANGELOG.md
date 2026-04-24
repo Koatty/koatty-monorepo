@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.2.0
+
+### Minor Changes
+
+- build
+- build
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - koatty_exception@2.2.0
+  - koatty_container@3.0.0
+  - koatty_lib@1.5.0
+  - koatty_logger@3.0.0
+
+## 2.1.10
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_exception@2.1.10
+  - koatty_container@2.0.10
+  - koatty_lib@1.4.10
+  - koatty_logger@2.8.6
+
 ## 2.1.9
 
 ### Patch Changes
@@ -256,14 +283,12 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🚀 性能优化 (Performance Improvements)
 
 - **Context**: 实现上下文对象池化，提升 HTTP/HTTPS 上下文创建性能
-
   - 添加`ContextPool`类支持上下文复用
   - 减少对象创建和垃圾回收开销
   - 支持池大小配置和统计监控
   - HTTP 上下文创建性能提升至 < 0.1ms/个
 
 - **Metadata**: 优化元数据访问性能
-
   - 实现`getMap()`结果缓存机制
   - 避免重复的对象转换操作
   - 在数据变更时自动失效缓存
@@ -277,7 +302,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### ✨ 新特性 (Features)
 
 - **GraphQL**: 添加 GraphQL 协议支持
-
   - 新增`GraphQLContextFactory`类
   - 支持 GraphQL 查询、变量和操作名解析
   - 实现 GraphQL 特定的元数据处理
@@ -291,7 +315,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🐛 修复 (Bug Fixes)
 
 - **Context**: 修复上下文属性重置问题
-
   - 解决 GraphQL 上下文池化时的只读属性问题
   - 优化上下文重置逻辑，避免属性删除错误
   - 改进错误处理机制
@@ -303,7 +326,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### 📊 测试改进 (Testing)
 
 - **Performance**: 新增性能测试套件
-
   - 上下文创建性能测试
   - 元数据操作性能测试
   - 内存使用监控测试

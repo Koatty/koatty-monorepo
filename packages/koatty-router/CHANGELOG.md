@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.2.0
+
+### Minor Changes
+
+- build
+- build
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - koatty_exception@2.2.0
+  - koatty_core@2.2.0
+  - koatty_container@3.0.0
+  - koatty_graphql@2.0.0
+  - koatty_lib@1.5.0
+  - koatty_logger@3.0.0
+  - koatty_proto@2.0.0
+  - koatty_validation@3.0.0
+
+## 2.1.11
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_exception@2.1.10
+  - koatty_core@2.1.10
+  - koatty_container@2.0.10
+  - koatty_graphql@1.1.10
+  - koatty_lib@1.4.10
+  - koatty_logger@2.8.6
+  - koatty_proto@1.3.10
+  - koatty_validation@2.0.8
+
 ## 2.1.10
 
 ### Patch Changes
@@ -289,12 +324,10 @@ This is a major release focusing on **performance**, **memory efficiency**, and 
 **If upgrading from v1.20.0-8 or earlier:**
 
 1. **Validator Compilation**: Ensure all validation rules are compatible with pre-compilation
-
    - Custom validation functions must be pure functions
    - All `ValidRules` references must exist in `FunctionValidator`
 
 2. **Error Handling**: Applications will now fail at startup (not runtime) if validators cannot compile
-
    - Check application startup logs for compilation errors
    - Fix any custom validators that throw during compilation
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.1.0
+
+### Minor Changes
+
+- build
+- build
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - koatty_core@2.2.0
+  - koatty@4.2.0
+
+## 1.0.7
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_core@2.1.10
+  - koatty@4.1.15
+
+## 1.0.6
+
+### Patch Changes
+
+- build
+- Updated dependencies
+- Updated dependencies
+  - koatty@4.1.15
+  - koatty_core@2.1.10
+
 ## 1.0.5
 
 ### Patch Changes

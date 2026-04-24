@@ -1,6 +1,6 @@
 {
   "name": "koatty_testing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Testing utilities for Koatty applications.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:cp",
@@ -66,10 +66,10 @@
     "koatty_lib": "workspace:*"
   },
   "peerDependencies": {
-    "koatty": "^4.0.0",
-    "koatty_container": "^2.0.8",
-    "koatty_core": "^2.0.8",
-    "koatty_lib": "^1.4.8",
+    "koatty": "^4.2.0",
+    "koatty_container": "^2.1.0",
+    "koatty_core": "^2.2.0",
+    "koatty_lib": "^1.5.0",
     "supertest": "^6.0.0 || ^7.0.0"
   },
   "peerDependenciesMeta": {

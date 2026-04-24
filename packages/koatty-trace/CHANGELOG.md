@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.2.0
+
+### Minor Changes
+
+- build
+- build
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - koatty_container@3.0.0
+  - koatty_lib@1.5.0
+  - koatty_logger@3.0.0
+
+## 2.1.11
+
+### Patch Changes
+
+- build
+- Updated dependencies
+  - koatty_container@2.0.10
+  - koatty_lib@1.4.10
+  - koatty_logger@2.8.6
+
 ## 2.1.10
 
 ### Patch Changes
@@ -255,7 +280,6 @@ All notable changes to this project will be documented in this file. See [standa
 ### Features
 
 - **metrics**: 完成基础 HTTP 指标的实际收集功能 ([#新增])
-
   - 实现完整的 MetricsCollector 类，支持 HTTP 请求指标收集
   - 新增 http_requests_total 计数器，统计 HTTP 请求总数
   - 新增 http_errors_total 计数器，统计 HTTP 错误请求数（状态码>=400）
@@ -266,7 +290,6 @@ All notable changes to this project will be documented in this file. See [standa
   - 添加完整的测试覆盖，确保指标收集功能的稳定性
 
 - **integration**: 增强请求处理器的指标收集能力 ([#改进])
-
   - 在 BaseHandler 中集成指标收集功能
   - 在 trace.ts 中添加指标收集调用
   - 支持错误类型分类（client_error, server_error）

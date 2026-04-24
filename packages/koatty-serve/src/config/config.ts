@@ -94,6 +94,7 @@ export interface ListeningOptions {
     [key: string]: unknown;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
   };
   connectionPool?: ConnectionPoolConfig;
+  [key: string]: unknown;  // satisfies KoattyServer.options: Record<string, unknown>
 }
 
 /**
@@ -112,6 +113,7 @@ export interface BaseServerOptions {
   ext?: {
     [key: string]: unknown;  // 扩展配置字段（包括内部使用的 _underlyingProtocol、_actualProtocol 等）
   };
+  [key: string]: unknown;  // satisfies KoattyServer.options: Record<string, unknown>
 }
 
 /**
