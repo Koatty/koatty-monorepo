@@ -713,76 +713,50 @@ function getControllerPath(className: string): string {
 
 /**
  * Compile type converter function at startup time.
- * This pre-compilation optimizes type conversion by:
+ * Uses a typeof short-circuit + delegate pattern:
  * - Returning null for string types (no conversion needed)
- * - Creating specialized converters for other types
- * - Avoiding runtime type checks
- * 
+ * - For number/boolean/array/object: typeof/Array.isArray fast-path short-circuit,
+ *   then delegate to convertParamsType for actual conversion (single source of truth)
+ * - Default case delegates directly to convertParamsType
+ *
  * @param type - Parameter type (string, number, boolean, array, etc.)
  * @returns Compiled type converter function or null if no conversion needed
  * @internal
  */
 export function compileTypeConverter(type: string): ((value: any) => any) | null {
   const normalizedType = type.toLowerCase();
-  
-  // String type doesn't need conversion
+
   if (normalizedType === 'string') {
     return null;
   }
-  
-  // Create specialized converters for common types
+
   switch (normalizedType) {
     case 'number':
       return (value: any) => {
         if (typeof value === 'number') return value;
-        if (value === null || value === undefined || value === '') return value;
-        const num = Number(value);
-        return isNaN(num) ? value : num;
+        if (value === null || value === undefined || value === '') return value; // preserve passthrough
+        return convertParamsType(value, 'number');
       };
-    
+
     case 'boolean':
       return (value: any) => {
         if (typeof value === 'boolean') return value;
-        if (value === null || value === undefined) return value;
-        if (typeof value === 'string') {
-          const lower = value.toLowerCase();
-          if (lower === 'true' || lower === '1') return true;
-          if (lower === 'false' || lower === '0') return false;
-        }
-        return Boolean(value);
+        return convertParamsType(value, 'boolean');
       };
-    
+
     case 'array':
       return (value: any) => {
-        if (value === null || value === undefined) return value;
         if (Array.isArray(value)) return value;
-        if (typeof value === 'string') {
-          try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [value];
-          } catch {
-            return [value];
-          }
-        }
-        return [value];
+        return convertParamsType(value, 'array');
       };
-    
+
     case 'object':
       return (value: any) => {
-        if (value === null || value === undefined) return value;
         if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value;
-        if (typeof value === 'string') {
-          try {
-            return JSON.parse(value);
-          } catch {
-            return value;
-          }
-        }
-        return value;
+        return convertParamsType(value, 'object');
       };
-    
+
     default:
-      // For other types, use the generic convertParamsType
       return (value: any) => convertParamsType(value, type);
   }
 }

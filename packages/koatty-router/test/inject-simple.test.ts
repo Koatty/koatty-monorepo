@@ -42,8 +42,48 @@ jest.mock('koatty_validation', () => ({
     })
   },
   convertParamsType: jest.fn((value, type) => {
-    if (type === 'number') return Number(value);
-    return value;
+    if (value === null) {
+      if (type === 'number') return NaN;
+      return null;
+    }
+    if (value === undefined) {
+      if (type === 'number') return NaN;
+      return undefined;
+    }
+    switch (type) {
+      case 'number':
+        return Number(value);
+      case 'boolean':
+        if (typeof value === 'string') {
+          const lower = value.toLowerCase();
+          if (lower === 'true' || lower === '1') return true;
+          if (lower === 'false' || lower === '0') return false;
+        }
+        return Boolean(value);
+      case 'array':
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [value];
+          } catch {
+            return [value];
+          }
+        }
+        return [value];
+      case 'object':
+        if (typeof value === 'object' && !Array.isArray(value)) return value;
+        if (typeof value === 'string') {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        }
+        return value;
+      default:
+        return value;
+    }
   }),
   ClassValidator: {
     valid: jest.fn()
@@ -1194,10 +1234,10 @@ describe('Inject Simple Tests', () => {
       
       expect(converter('123')).toBe(123);
       expect(converter('45.67')).toBe(45.67);
-      expect(converter(null)).toBeNull();
-      expect(converter(undefined)).toBeUndefined();
-      expect(converter('')).toBe('');
-      expect(converter('invalid')).toBe('invalid'); // NaN case returns original
+      expect(converter(null)).toBeNull(); // passthrough preserved
+      expect(converter(undefined)).toBeUndefined(); // passthrough preserved
+      expect(converter('')).toBe(''); // passthrough preserved
+      expect(converter('invalid')).toBeNaN(); // delegates to convertParamsType which returns NaN
     });
 
     it('should compile boolean converter', () => {
