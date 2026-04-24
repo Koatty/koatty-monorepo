@@ -658,8 +658,12 @@ export class StrategyHandlerFactory {
       };
     });
 
+    const allAsyncHaveExtractor = asyncParams.every(
+      p => !!p.precompiledExtractor || (p.fn && typeof p.fn === 'function')
+    );
+
     return async (ctx: KoattyContext) => {
-      const bodyData = await extractParamSources(ctx, params);
+      const bodyData = allAsyncHaveExtractor ? null : await extractParamSources(ctx, params);
 
       const asyncResults = asyncParams.map(async p => {
         if (p.precompiledExtractor) {
@@ -676,7 +680,7 @@ export class StrategyHandlerFactory {
           return validateParam(app, ctx, value, paramOptions, p.compiledValidator, p.compiledTypeConverter);
         }
 
-        const rawValue = extractValueFromSource(bodyData, p);
+        const rawValue = bodyData ? extractValueFromSource(bodyData, p) : undefined;
         if (rawValue === undefined && p.defaultValue !== undefined) {
           return p.defaultValue;
         }
@@ -753,8 +757,10 @@ export class StrategyHandlerFactory {
     params: ParamMetadata[],
     app: Koatty
   ): StrategyHandler {
+    const allHaveExtractorOrFn = params.every(p => !!p.precompiledExtractor || (p.fn && typeof p.fn === 'function'));
+
     return async (ctx: KoattyContext) => {
-      const sources = await extractParamSources(ctx, params);
+      const sources = allHaveExtractorOrFn ? null : await extractParamSources(ctx, params);
 
       const paramPromises = params.map(async (v, k) => {
         if (v.precompiledExtractor) {
@@ -771,7 +777,7 @@ export class StrategyHandlerFactory {
           return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
         }
 
-        let rawValue = extractValueFromSource(sources, v);
+        let rawValue = sources ? extractValueFromSource(sources, v) : undefined;
         if (rawValue === undefined && v.defaultValue !== undefined) {
           return v.defaultValue;
         }

@@ -17,6 +17,9 @@ import {
 } from "./payload_cache";
 import { PayloadOptions, FILE_KEY } from "./interface";
 
+/** Module-level body cache using WeakMap for automatic GC when ctx is collected */
+const bodyCache = new WeakMap<object, any>();
+
 // 使用 Set 和预编译正则表达式
 const supportedMethods = new Set(['POST', 'PUT', 'DELETE', 'PATCH', 'LINK', 'UNLINK']);
 
@@ -135,29 +138,44 @@ export function queryParser(ctx: KoattyContext, _options?: PayloadOptions): Reco
 }
 
 /**
- * Parse request body and store it in context metadata.
- * 
+ * Parse request body and cache the result.
+ * Returns cached result synchronously on subsequent calls (avoids microtask overhead).
+ * First call returns a Promise that resolves after parsing.
+ *
  * @param {KoattyContext} ctx - Koatty context object
  * @param {PayloadOptions} [options] - Optional payload parsing options
- * @returns {Promise<any>} Parsed request body
- * @throws {Error} When body parsing fails
+ * @returns {any} Parsed body (synchronous if cached) or Promise<any> (first parse)
  */
-export async function bodyParser(ctx: KoattyContext, options?: PayloadOptions): Promise<any> {
-  try {
-    // 性能优化：快速检查缓存
-    let body = ctx.getMetaData("_body")[0];
-    if (!Helper.isEmpty(body)) {
-      return body;
-    }
+export function bodyParser(ctx: KoattyContext, options?: PayloadOptions): any {
+  // Fast synchronous path: return cached body directly (no Promise, no microtask)
+  const cached = bodyCache.get(ctx);
+  if (cached !== undefined) return cached;
 
-    // 性能优化：使用缓存的合并选项
+  // Slow async path: first-time parsing
+  return parseBodyAndCache(ctx, options);
+}
+
+/**
+ * Internal: parse body and store in WeakMap cache.
+ * @internal
+ */
+async function parseBodyAndCache(ctx: KoattyContext, options?: PayloadOptions): Promise<any> {
+  try {
+    // Double-check after async boundary (prevents duplicate parsing under concurrency)
+    const cached = bodyCache.get(ctx);
+    if (cached !== undefined) return cached;
+
     const opts = cacheManager.getMergedOptions(options);
-    body = await parseBody(ctx, opts);
-    ctx.setMetaData("_body", body);
+    const body = await parseBody(ctx, opts);
+    bodyCache.set(ctx, body);
+    // Backward compatibility: also write to ctx metadata for direct getMetaData('_body') callers
+    try { ctx.setMetaData("_body", body); } catch { /* ignore if metadata not initialized */ }
     return body;
   } catch (err) {
     Logger.Error(err);
-    return {};
+    const empty = {};
+    bodyCache.set(ctx, empty);
+    return empty;
   }
 }
 
