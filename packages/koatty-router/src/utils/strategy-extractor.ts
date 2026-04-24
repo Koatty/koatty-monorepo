@@ -132,14 +132,13 @@ async function extractParamSources(ctx: KoattyContext, params: ParamMetadata[]):
            param.sourceType === ParamSourceType.FILE;
   });
 
-  const bodyData: Record<string, unknown> = {};
+  let bodyContent: Record<string, unknown> = {};
+  let fileContent: Record<string, unknown> = {};
   if (needsBody) {
     try {
-      const parsedBody = await bodyParser(ctx, params[0]?.options);
-      bodyData.body = parsedBody;
-      if (typeof parsedBody === 'object' && 'file' in parsedBody) {
-        bodyData.file = (parsedBody as Record<string, unknown>).file;
-      }
+      const parsedBody = await bodyParser(ctx, params[0]?.options) as Record<string, unknown> | undefined;
+      bodyContent = (parsedBody?.body ?? parsedBody ?? {}) as Record<string, unknown>;
+      fileContent = (parsedBody?.file ?? {}) as Record<string, unknown>;
     } catch (err) {
       Logger.Error(`extractParamSources: Failed to parse body: ${(err as Error).message}`);
     }
@@ -147,7 +146,7 @@ async function extractParamSources(ctx: KoattyContext, params: ParamMetadata[]):
 
   return {
     query: ctx.query || {},
-    body: bodyData,
+    body: { ...bodyContent, file: fileContent } as Record<string, unknown> & { file?: Record<string, unknown> },
     params: ctx.params || {},
     headers: ctx.headers || {}
   };
@@ -202,7 +201,7 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
       }
       return validatedValue;
     } else {
-      const needsConversion = compiledTypeConverter !== null;
+      const needsConversion = compiledTypeConverter != null;
       const needsValidation = !!(compiledValidator || opt.validRule);
 
       if (!needsConversion && !needsValidation) {
@@ -659,6 +658,14 @@ export class StrategyHandlerFactory {
       const bodyData = await extractParamSources(ctx, params);
 
       const asyncResults = asyncParams.map(p => {
+        if (p.sourceType === ParamSourceType.BODY && p.fn && typeof p.fn === 'function') {
+          return Promise.resolve(p.fn(ctx, p.options)).then(value => {
+            if (value === undefined && p.defaultValue !== undefined) return p.defaultValue;
+            const paramOptions = p.precompiledOptions || createParamOptions(p, 0);
+            return validateParam(app, ctx, value, paramOptions, p.compiledValidator, p.compiledTypeConverter);
+          });
+        }
+
         const rawValue = extractValueFromSource(bodyData, p);
 
         if (rawValue === null && p.fn) {
@@ -746,6 +753,14 @@ export class StrategyHandlerFactory {
       const sources = await extractParamSources(ctx, params);
 
       const paramPromises = params.map((v, k) => {
+        if (v.sourceType === ParamSourceType.BODY && v.fn && typeof v.fn === 'function') {
+          return Promise.resolve(v.fn(ctx, v.options)).then(value => {
+            if (value === undefined && v.defaultValue !== undefined) return v.defaultValue;
+            const paramOptions = v.precompiledOptions || createParamOptions(v, k);
+            return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
+          });
+        }
+
         let rawValue = extractValueFromSource(sources, v);
 
         if (rawValue === null && v.fn) {
