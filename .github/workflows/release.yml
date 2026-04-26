@@ -14,6 +14,9 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,3 +63,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_ENV: production
+
+  sync-koatty:
+    name: Sync koatty to standalone repo
+    needs: release
+    runs-on: ubuntu-latest
+    # Only run when packages were actually published and koatty is among them
+    if: |
+      needs.release.outputs.published == 'true' &&
+      contains(needs.release.outputs.publishedPackages, '"koatty"')
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Sync packages/koatty → Koatty/koatty#monorepo
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: bash scripts/sync-koatty-to-standalone.sh
