@@ -5,6 +5,11 @@
 **Status:** Draft  
 **Author:** Coder Agent (TASK-4-3)
 
+> ⚠️ **本方案已被整合到** [`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md)（2026-05-11）  
+> 整合方案在阶段路线图、ADR、风险登记上**优先于本文档**。  
+> 本文档保留作为装饰器双模式实现、DTO 替代方案、`@Payload`/`@Inject` 重构、`reflect-metadata` 审计的详细参考。  
+> 实施前请先阅读整合方案 §1-§4 章节。
+
 ---
 
 ## Executive Summary
