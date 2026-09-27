@@ -640,7 +640,11 @@ export function initPrometheusExporter(app: Koatty, options: TraceOptions): Mete
   try {
     const exporter = new PrometheusExporter({
       endpoint: options.metricsConf.metricsEndpoint,
-      port: options.metricsConf.metricsPort || 9464
+      port: options.metricsConf.metricsPort || 9464,
+      // SEC-06 / B-6: bind the metrics port to loopback by default so the
+      // exporter is never reachable from external networks. Explicitly set
+      // metricsConf.host to override.
+      host: (options.metricsConf as any).host || '127.0.0.1'
     });
 
     const meterProvider = new MeterProvider({

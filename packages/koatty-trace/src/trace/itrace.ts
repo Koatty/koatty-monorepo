@@ -20,11 +20,18 @@ import { SpanManager } from '../opentelemetry/spanManager';
  */
 export interface TraceOptions {
   // response timeout in milliseconds
-  timeout?: number; 
+  timeout?: number;
   // request id header name
   requestIdHeaderName?: string;
   // request id name
   requestIdName?: string;
+  /**
+   * Accept request IDs from the query string (SEC-07 / B-7).
+   * Disabled by default: URLs end up in access logs, referrer headers and
+   * proxy logs, so query-based IDs leak and get spoofed. External IDs are
+   * always validated against /^[A-Za-z0-9._:-]{1,128}$/ regardless.
+   */
+  requestIdFromQuery?: boolean;
   // id factory function
   idFactory?: Function;
   // encoding
@@ -62,12 +69,23 @@ export interface TraceOptions {
      * Prometheus metrics port (default: 9464)
      */
     metricsPort?: number;
+    /**
+     * Bind address for the Prometheus metrics endpoint
+     * (SEC-06 / B-6: defaults to 127.0.0.1)
+     */
+    host?: string;
   };
   
   /**
    * OpenTelemetry configuration
    */
   opentelemetryConf?: {
+    /**
+     * Trust the client-supplied `service` header for topology records
+     * (SEC-15 / B-7). Disabled by default; when enabled, the value must
+     * still match /^[A-Za-z0-9._:-]{1,128}$/.
+     */
+    trustServiceHeader?: boolean;
     /**
      * OTLP endpoint URL
      */

@@ -7,7 +7,7 @@
  * @License: BSD (3-Clause)
  * @Copyright (c): <richenlin(at)gmail.com>
  */
-import { BaseHandler, Handler } from './base';
+import { BaseHandler, Handler, buildRequestLogData } from './base';
 import { Transform, Stream } from 'stream';
 import * as zlib from 'zlib';
 import { IRpcServerCallImpl, KoattyContext } from "koatty_core";
@@ -121,10 +121,8 @@ export class GrpcHandler extends BaseHandler implements Handler {
       // 统一在 finally 块中记录日志和结束追踪
       // 只记录成功请求或非4xx/5xx的日志（错误日志已由Exception.handler记录）
       if (!error || ctx.status < 400) {
-        const now = Date.now();
         const status = StatusCodeConvert(ctx.status);
-        const msg = `{"action":"${ctx.method}","status":"${status}","startTime":"${ctx.startTime}","duration":"${(now - ctx.startTime) || 0}","requestId":"${ctx.requestId}","endTime":"${now}","path":"${ctx.originalPath}"}`;
-        this.commonPostHandle(ctx, ext, msg);
+        this.commonPostHandle(ctx, ext, buildRequestLogData(ctx, status));
       } else {
         // 错误情况只处理追踪和指标，日志已经记录过了
         this.endTraceSpanOnly(ctx, ext);
@@ -141,17 +139,16 @@ export class GrpcHandler extends BaseHandler implements Handler {
    */
   private endTraceSpanOnly(ctx: KoattyContext, ext: extensionOptions) {
     if (ext.spanManager) {
-      const now = Date.now();
       const status = StatusCodeConvert(ctx.status);
-      const msg = `{"action":"${ctx.method}","status":"${status}","startTime":"${ctx.startTime}","duration":"${(now - ctx.startTime) || 0}","requestId":"${ctx.requestId}","endTime":"${now}","path":"${ctx.originalPath}"}`;
-      
+      const msg = buildRequestLogData(ctx, status);
+
       // 设置span属性
       ext.spanManager.setSpanAttributes(ctx, {
         [SemanticAttributes.HTTP_STATUS_CODE]: ctx.status,
         [SemanticAttributes.HTTP_METHOD]: ctx.method,
         [SemanticAttributes.HTTP_URL]: ctx.url
       });
-      ext.spanManager.addSpanEvent(ctx, "request", { "message": msg });
+      ext.spanManager.addSpanEvent(ctx, "request", { "message": JSON.stringify(msg) });
       ext.spanManager.endSpan(ctx);
     }
   }

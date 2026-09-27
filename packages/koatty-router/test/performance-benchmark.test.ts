@@ -8,7 +8,21 @@
 import 'reflect-metadata';
 
 // Mock dependencies
-jest.mock('koatty_lib');
+// NOTE: manual factory mock (not bare automock). In the real koatty_lib build,
+// Helper.isError is a getter/non-configurable export that automock cannot copy
+// as a function, which made Handler() throw `Helper.isError is not a function`
+// (handler.ts:71). Spreading requireActual() invokes the getters and copies the
+// real functions into a fresh writable object; isError is provided explicitly.
+jest.mock('koatty_lib', () => {
+  const actual = jest.requireActual('koatty_lib');
+  return {
+    ...actual,
+    Helper: {
+      ...actual.Helper,
+      isError: actual.isError
+    }
+  };
+});
 jest.mock('koatty_container');
 jest.mock('koatty_validation');
 jest.mock('../src/payload/payload');

@@ -27,6 +27,7 @@ describe('HttpHandler', () => {
           recordException: jest.fn()
         }),
         setSpanAttributes: jest.fn(),
+        addSpanEvent: jest.fn(),
         activeSpans: new Map(),
         span: {
           spanContext: () => ({ traceId: 'mock-trace-id', spanId: 'mock-span-id' })

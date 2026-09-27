@@ -623,592 +623,289 @@ describe('Inject Simple Tests', () => {
     });
   });
 
-  describe('Task 2.1: Fast Path Scenario Detection', () => {
-    let detectFastPathScenario: any;
-    let FastPathScenario: any;
+  describe('Strategy-based Extraction (replaces FastPath)', () => {
+    let strategyModule: any;
+    let ParamSourceType: any;
+    let compileTypeConverterFn: any;
 
     beforeEach(async () => {
+      strategyModule = await import('../src/utils/strategy-extractor');
       const injectModule = await import('../src/utils/inject');
-      detectFastPathScenario = injectModule.detectFastPathScenario;
-      FastPathScenario = injectModule.FastPathScenario;
+      ParamSourceType = injectModule.ParamSourceType;
+      compileTypeConverterFn = injectModule.compileTypeConverter;
     });
 
-    it('should detect scenario A: single query param without validation', () => {
-      const params = [
-        {
-          fn: function Get() {},
+    describe('detectExtractionStrategy', () => {
+      it('should detect SYNC_SINGLE_NO_VALIDATION for single query param without validation', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [{
+          fn: function Get() { /* noop */ },
           name: 'id',
           index: 0,
           type: 'string',
           isDto: false,
-          validRule: undefined
-        }
-      ];
+          sourceType: ParamSourceType.QUERY
+        }];
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBe(FastPathScenario.SINGLE_QUERY_NO_VALIDATION);
-    });
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.SYNC_SINGLE_NO_VALIDATION);
+      });
 
-    it('should detect scenario B: single DTO from body', () => {
-      const params = [
-        {
-          fn: function Post() {},
+      it('should detect SYNC_MULTI_NO_VALIDATION for multiple sync params without validation', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [
+          { fn: function Get() { /* noop */ }, name: 'page', index: 0, type: 'string', isDto: false, sourceType: ParamSourceType.QUERY },
+          { fn: function Get() { /* noop */ }, name: 'limit', index: 1, type: 'string', isDto: false, sourceType: ParamSourceType.QUERY }
+        ];
+
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.SYNC_MULTI_NO_VALIDATION);
+      });
+
+      it('should detect SYNC_SINGLE_SIMPLE_VALIDATION for single query param with validation', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [{
+          fn: function Get() { /* noop */ },
+          name: 'email',
+          index: 0,
+          type: 'string',
+          isDto: false,
+          validRule: 'isEmail',
+          sourceType: ParamSourceType.QUERY
+        }];
+
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.SYNC_SINGLE_SIMPLE_VALIDATION);
+      });
+
+      it('should detect SYNC_DTO_NO_VALIDATION for single DTO param without validation', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [{
+          fn: function Post() { /* noop */ },
           name: 'userData',
           index: 0,
           type: 'UserDTO',
           isDto: true,
-          validRule: undefined
-        }
-      ];
+          sourceType: ParamSourceType.BODY
+        }];
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBe(FastPathScenario.SINGLE_DTO_FROM_BODY);
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.SYNC_DTO_NO_VALIDATION);
+      });
+
+      it('should detect ASYNC_DTO_VALIDATION when a DTO param coexists with other params', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [
+          { fn: function Post() { /* noop */ }, name: 'userData', index: 0, type: 'UserDTO', isDto: true, sourceType: ParamSourceType.BODY },
+          { fn: function Get() { /* noop */ }, name: 'id', index: 1, type: 'string', isDto: false, sourceType: ParamSourceType.QUERY }
+        ];
+
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.ASYNC_DTO_VALIDATION);
+      });
+
+      it('should detect ASYNC_MIXED_PARAMS for body param without DTO', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        const params = [
+          { fn: function Get() { /* noop */ }, name: 'id', index: 0, type: 'string', isDto: false, sourceType: ParamSourceType.QUERY },
+          { fn: function Post() { /* noop */ }, name: 'data', index: 1, type: 'object', isDto: false, sourceType: ParamSourceType.BODY }
+        ];
+
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.ASYNC_MIXED_PARAMS);
+      });
+
+      it('should fall back to ASYNC_GENERIC for empty params array', () => {
+        const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
+        expect(detectExtractionStrategy([])).toBe(ExtractionStrategy.ASYNC_GENERIC);
+      });
     });
 
-    it('should detect scenario B with RequestBody decorator', () => {
-      const params = [
-        {
-          fn: function RequestBody() {},
-          name: 'data',
-          index: 0,
-          type: 'DataDTO',
-          isDto: true,
-          validRule: undefined
-        }
-      ];
-
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBe(FastPathScenario.SINGLE_DTO_FROM_BODY);
-    });
-
-    it('should detect scenario C: multiple query params without validation', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'page',
-          index: 0,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function Get() {},
-          name: 'limit',
-          index: 1,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function Get() {},
-          name: 'sort',
-          index: 2,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        }
-      ];
-
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBe(FastPathScenario.MULTIPLE_QUERY_NO_VALIDATION);
-    });
-
-    it('should return null for empty params array', () => {
-      const result = detectFastPathScenario([]);
-      expect(result).toBeNull();
-    });
-
-    it('should return null for single query param with validation', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'email',
-          index: 0,
-          type: 'string',
-          isDto: false,
-          validRule: 'isEmail'
-        }
-      ];
-
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBeNull();
-    });
-
-    it('should return null for mixed parameter types', () => {
-      const params = [
-        {
-          fn: function Get() {},
+    describe('StrategyHandlerFactory.createHandler', () => {
+      it('should create a sync handler for single query param without validation', () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const params: any = [{
+          fn: function Get() { /* noop */ },
           name: 'id',
           index: 0,
           type: 'string',
           isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function Post() {},
-          name: 'data',
-          index: 1,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        }
-      ];
+          sourceType: ParamSourceType.QUERY,
+          paramName: 'id'
+        }];
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBeNull();
-    });
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.SYNC_SINGLE_NO_VALIDATION, params, {});
 
-    it('should return null for multiple query params with one having validation', () => {
-      const params = [
-        {
-          fn: function Get() {},
+        expect(typeof handler).toBe('function');
+        expect(handler({ query: { id: '123' } }, params)).toEqual(['123']);
+      });
+
+      it('should apply defaultValue when the query param is missing', () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const params: any = [{
+          fn: function Get() { /* noop */ },
           name: 'id',
           index: 0,
           type: 'string',
           isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function Get() {},
-          name: 'email',
-          index: 1,
-          type: 'string',
-          isDto: false,
-          validRule: 'isEmail'
-        }
-      ];
+          sourceType: ParamSourceType.QUERY,
+          paramName: 'id',
+          defaultValue: 'fallback'
+        }];
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBeNull();
-    });
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.SYNC_SINGLE_NO_VALIDATION, params, {});
 
-    it('should return null for single DTO with validation rule', () => {
-      const params = [
-        {
-          fn: function Post() {},
-          name: 'data',
-          index: 0,
-          type: 'UserDTO',
-          isDto: true,
-          validRule: 'isEmail'  // DTO 一般不应该有额外的 validRule
-        }
-      ];
+        expect(handler({ query: {} }, params)).toEqual(['fallback']);
+        expect(handler({ query: { id: '1' } }, params)).toEqual(['1']);
+      });
 
-      // 即使有 validRule，DTO 场景仍然可以使用快速路径
-      // 因为 DTO 的验证由 ClassValidator 处理
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBe(FastPathScenario.SINGLE_DTO_FROM_BODY);
-    });
+      it('should create a multi-param sync handler with type conversion', () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const params: any = [
+          {
+            fn: function Get() { /* noop */ },
+            name: 'page', index: 0, type: 'number', isDto: false,
+            sourceType: ParamSourceType.QUERY, paramName: 'page',
+            compiledTypeConverter: compileTypeConverterFn('number')
+          },
+          {
+            fn: function Get() { /* noop */ },
+            name: 'limit', index: 1, type: 'number', isDto: false,
+            sourceType: ParamSourceType.QUERY, paramName: 'limit',
+            compiledTypeConverter: compileTypeConverterFn('number')
+          },
+          {
+            fn: function Get() { /* noop */ },
+            name: 'sort', index: 2, type: 'string', isDto: false,
+            sourceType: ParamSourceType.QUERY, paramName: 'sort'
+          }
+        ];
 
-    it('should return null for single Header parameter', () => {
-      const params = [
-        {
-          fn: function Header() {},
-          name: 'authorization',
-          index: 0,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        }
-      ];
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.SYNC_MULTI_NO_VALIDATION, params, {});
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBeNull();
-    });
+        const result = handler({ query: { page: '1', limit: '10', sort: 'desc' } }, params);
+        expect(result).toEqual([1, 10, 'desc']);
+      });
 
-    it('should return null for complex scenarios', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'id',
-          index: 0,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function Header() {},
-          name: 'token',
-          index: 1,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        },
-        {
-          fn: function PathVariable() {},
-          name: 'userId',
-          index: 2,
-          type: 'string',
-          isDto: false,
-          validRule: undefined
-        }
-      ];
+      it('should create an async DTO handler transforming body via plainToClass', async () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const { plainToClass } = require('koatty_validation');
+        const mockClazz = class UserDTO {};
 
-      const result = detectFastPathScenario(params as any);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('Task 2.2: Fast Path Handler Generation', () => {
-    let createFastPathHandler: any;
-    let FastPathScenario: any;
-
-    beforeEach(async () => {
-      const injectModule = await import('../src/utils/inject');
-      createFastPathHandler = injectModule.createFastPathHandler;
-      FastPathScenario = injectModule.FastPathScenario;
-    });
-
-    it('should create handler for scenario A with named parameter', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'id',
-          index: 0,
-          type: 'string',
-          isDto: false
-        }
-      ];
-
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_QUERY_NO_VALIDATION, params as any);
-      
-      expect(handler).toBeDefined();
-      expect(typeof handler).toBe('function');
-      
-      // Test the generated handler
-      const mockCtx = { query: { id: '123', other: 'value' } };
-      const result = handler(mockCtx);
-      
-      expect(result).toEqual(['123']);
-    });
-
-    it('should create handler for scenario A without parameter name', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: undefined,
-          index: 0,
-          type: 'object',
-          isDto: false
-        }
-      ];
-
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_QUERY_NO_VALIDATION, params as any);
-      
-      const mockCtx = { query: { id: '123', page: '1' } };
-      const result = handler(mockCtx);
-      
-      expect(result).toEqual([{ id: '123', page: '1' }]);
-    });
-
-    it('should create async handler for scenario B with DTO validation', async () => {
-      const { ClassValidator } = require('koatty_validation');
-      const mockClazz = class UserDTO {};
-      const params = [
-        {
-          fn: function Post() {},
-          name: 'user',
-          index: 0,
-          type: 'UserDTO',
-          isDto: true,
-          clazz: mockClazz,
-          dtoCheck: true,
-          options: {}
-        }
-      ];
-
-      ClassValidator.valid.mockResolvedValue({ validated: true });
-      
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_DTO_FROM_BODY, params as any);
-      
-      expect(handler).toBeDefined();
-      expect(typeof handler).toBe('function');
-      
-      // Test the async handler
-      const mockCtx = {};
-      const result = await handler(mockCtx);
-      
-      expect(result).toEqual([{ validated: true }]);
-    });
-
-    it('should create handler for scenario B without DTO validation', async () => {
-      const { plainToClass } = require('koatty_validation');
-      const mockClazz = class UserDTO {};
-      const params = [
-        {
-          fn: function Post() {},
+        const params: any = [{
+          fn: async () => ({ user: 'raw' }),
           name: 'user',
           index: 0,
           type: 'UserDTO',
           isDto: true,
           clazz: mockClazz,
           dtoCheck: false,
+          sourceType: ParamSourceType.BODY,
           options: {}
-        }
-      ];
+        }];
 
-      plainToClass.mockReturnValue({ plain: true });
-      
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_DTO_FROM_BODY, params as any);
-      
-      const mockCtx = {};
-      const result = await handler(mockCtx);
-      
-      expect(result).toEqual([{ plain: true }]);
-    });
+        plainToClass.mockReturnValue({ plain: true });
 
-    it('should return null for scenario B without clazz', () => {
-      const params = [
-        {
-          fn: function Post() {},
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.SYNC_DTO_NO_VALIDATION, params, {});
+
+        const result = await handler({}, params);
+
+        expect(plainToClass).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true);
+        expect(result).toEqual([{ plain: true }]);
+      });
+
+      it('should create an async DTO handler validating via ClassValidator when dtoCheck is enabled', async () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const { ClassValidator } = require('koatty_validation');
+        const mockClazz = class UserDTO {};
+
+        const params: any = [{
+          fn: async () => ({ user: 'raw' }),
           name: 'user',
           index: 0,
           type: 'UserDTO',
           isDto: true,
-          clazz: undefined,
+          clazz: mockClazz,
           dtoCheck: true,
+          sourceType: ParamSourceType.BODY,
           options: {}
-        }
-      ];
+        }];
 
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_DTO_FROM_BODY, params as any);
-      
-      expect(handler).toBeNull();
-    });
+        ClassValidator.valid.mockResolvedValue({ validated: true });
 
-    it('should create handler for scenario C with multiple query params', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'page',
-          index: 0,
-          type: 'number',
-          isDto: false
-        },
-        {
-          fn: function Get() {},
-          name: 'limit',
-          index: 1,
-          type: 'number',
-          isDto: false
-        },
-        {
-          fn: function Get() {},
-          name: 'sort',
-          index: 2,
-          type: 'string',
-          isDto: false
-        }
-      ];
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.SYNC_DTO_WITH_VALIDATION, params, {});
 
-      const handler = createFastPathHandler(FastPathScenario.MULTIPLE_QUERY_NO_VALIDATION, params as any);
-      
-      expect(handler).toBeDefined();
-      
-      const mockCtx = { query: { page: '1', limit: '10', sort: 'desc' } };
-      const result = handler(mockCtx);
-      
-      expect(result).toHaveLength(3);
-      expect(result[0]).toBe(1);      // Converted to number
-      expect(result[1]).toBe(10);     // Converted to number
-      expect(result[2]).toBe('desc'); // Remains string
-    });
+        const result = await handler({}, params);
 
-    it('should handle missing query values gracefully', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'id',
-          index: 0,
-          type: 'string',
-          isDto: false
-        }
-      ];
-
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_QUERY_NO_VALIDATION, params as any);
-      
-      const mockCtx = { query: {} };
-      const result = handler(mockCtx);
-      
-      expect(result).toEqual([undefined]);
-    });
-
-    it('should handle missing ctx.query gracefully', () => {
-      const params = [
-        {
-          fn: function Get() {},
-          name: 'id',
-          index: 0,
-          type: 'string',
-          isDto: false
-        }
-      ];
-
-      const handler = createFastPathHandler(FastPathScenario.SINGLE_QUERY_NO_VALIDATION, params as any);
-      
-      const mockCtx = {};
-      const result = handler(mockCtx);
-      
-      expect(result).toEqual([undefined]);
-    });
-  });
-
-  describe('Task 2.3: Fast Path Integration in ParamMetadata', () => {
-    let injectParamMetaData: any;
-    let IOC: any;
-    let recursiveGetMetadata: any;
-
-    beforeEach(async () => {
-      IOC = require('koatty_container').IOC;
-      recursiveGetMetadata = require('koatty_container').recursiveGetMetadata;
-      
-      const injectModule = await import('../src/utils/inject');
-      injectParamMetaData = injectModule.injectParamMetaData;
-    });
-
-    it('should add fastPathHandler for single query param without validation', () => {
-      const GetFn = function Get() {};
-      
-      recursiveGetMetadata.mockReturnValueOnce({
-        testMethod: [
-          {
-            name: 'id',
-            index: 0,
-            type: 'String',
-            isDto: false,
-            fn: GetFn
-          }
-        ]
-      }).mockReturnValueOnce({}).mockReturnValueOnce({});
-
-      const result = injectParamMetaData({}, class TestController {});
-      
-      expect(result.testMethod).toBeDefined();
-      expect((result.testMethod as any).fastPathHandler).toBeDefined();
-      expect((result.testMethod as any).fastPathScenario).toBe('SINGLE_QUERY_NO_VALIDATION');
-      expect(typeof (result.testMethod as any).fastPathHandler).toBe('function');
-    });
-
-    it('should add fastPathHandler for single DTO from body', () => {
-      const getOriginMetadata = require('koatty_container').getOriginMetadata;
-      const mockClazz = class UserDTO {};
-      const PostFn = function Post() {};
-      
-      recursiveGetMetadata.mockReturnValueOnce({
-        testMethod: [
-          {
-            name: 'user',
-            index: 0,
-            type: 'UserDTO',
-            isDto: true,
-            fn: PostFn
-          }
-        ]
-      }).mockReturnValueOnce({}).mockReturnValueOnce({
-        testMethod: {
-          dtoCheck: true
-        }
+        expect(ClassValidator.valid).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true);
+        expect(result).toEqual([{ validated: true }]);
       });
 
-      IOC.getClass.mockReturnValue(mockClazz);
-      getOriginMetadata.mockReturnValue(new Map([['name', 'string']]));
-
-      const result = injectParamMetaData({}, class TestController {});
-      
-      expect(result.testMethod).toBeDefined();
-      expect((result.testMethod as any).fastPathHandler).toBeDefined();
-      expect((result.testMethod as any).fastPathScenario).toBe('SINGLE_DTO_FROM_BODY');
-    });
-
-    it('should add fastPathHandler for multiple query params without validation', () => {
-      // Need to mock the fn attribute for detection to work
-      const GetFn = function Get() {};
-      
-      recursiveGetMetadata.mockReturnValueOnce({
-        testMethod: [
+      it('should create an async mixed handler preserving parameter order', async () => {
+        const { StrategyHandlerFactory, ExtractionStrategy } = strategyModule;
+        const params: any = [
           {
-            name: 'page',
-            index: 0,
-            type: 'String',
-            isDto: false,
-            fn: GetFn
+            fn: function Get() { /* noop */ },
+            name: 'id', index: 0, type: 'string', isDto: false,
+            sourceType: ParamSourceType.QUERY, paramName: 'id'
           },
           {
-            name: 'limit',
-            index: 1,
-            type: 'String',
-            isDto: false,
-            fn: GetFn
+            fn: async () => ({ data: 'payload' }),
+            name: 'data', index: 1, type: 'object', isDto: false,
+            sourceType: ParamSourceType.BODY, options: {}
           }
-        ]
-      }).mockReturnValueOnce({}).mockReturnValueOnce({});
+        ];
 
-      const result = injectParamMetaData({}, class TestController {});
-      
-      expect(result.testMethod).toBeDefined();
-      expect((result.testMethod as any).fastPathHandler).toBeDefined();
-      expect((result.testMethod as any).fastPathScenario).toBe('MULTIPLE_QUERY_NO_VALIDATION');
+        const handler = StrategyHandlerFactory.createHandler(
+          ExtractionStrategy.ASYNC_MIXED_PARAMS, params, {});
+
+        const result = await handler({ query: { id: 'abc' } }, params);
+
+        expect(result).toEqual(['abc', { data: 'payload' }]);
+      });
     });
 
-    it('should not add fastPathHandler for complex scenarios', () => {
-      recursiveGetMetadata.mockReturnValueOnce({
-        testMethod: [
-          {
-            name: 'email',
-            index: 0,
-            type: 'String',
-            isDto: false
-          }
-        ]
-      }).mockReturnValueOnce({
-        testMethod: [
-          {
-            name: 'email',
-            index: 0,
-            rule: 'isEmail',
-            options: {}
-          }
-        ]
-      }).mockReturnValueOnce({});
+    describe('extractParameters and strategyCache', () => {
+      it('should extract parameters via the cached strategy handler', async () => {
+        const { extractParameters } = strategyModule;
+        const params: any = [{
+          fn: function Get() { /* noop */ },
+          name: 'id',
+          index: 0,
+          type: 'string',
+          isDto: false,
+          sourceType: ParamSourceType.QUERY,
+          paramName: 'id'
+        }];
 
-      Helper.isFunction.mockReturnValue(false);
-      Helper.isString.mockReturnValue(true);
+        const result = await extractParameters({}, { query: { id: 'abc' } }, params);
 
-      const result = injectParamMetaData({}, class TestController {});
-      
-      expect(result.testMethod).toBeDefined();
-      expect((result.testMethod as any).fastPathHandler).toBeUndefined();
-      expect((result.testMethod as any).fastPathScenario).toBeUndefined();
-    });
-
-    it('should not add fastPathHandler when creation fails', () => {
-      const getOriginMetadata = require('koatty_container').getOriginMetadata;
-      
-      recursiveGetMetadata.mockReturnValueOnce({
-        testMethod: [
-          {
-            name: 'user',
-            index: 0,
-            type: 'UserDTO',
-            isDto: true
-          }
-        ]
-      }).mockReturnValueOnce({}).mockReturnValueOnce({
-        testMethod: {
-          dtoCheck: true
-        }
+        expect(result).toEqual(['abc']);
       });
 
-      // Provide a class but make getOriginMetadata return empty, which might cause issues
-      const mockClazz = class UserDTO {};
-      IOC.getClass.mockReturnValue(mockClazz);
-      getOriginMetadata.mockReturnValue(new Map());
+      it('should return an empty array for empty params', async () => {
+        const { extractParameters } = strategyModule;
+        const result = await extractParameters({}, { query: {} }, []);
+        expect(result).toEqual([]);
+      });
 
-      const result = injectParamMetaData({}, class TestController {});
-      
-      // The fastPathHandler should still be created even though dtoRule might be empty
-      // Let's just verify the function works without errors
-      expect(result.testMethod).toBeDefined();
+      it('should reuse the cached handler for the same params array', () => {
+        const { strategyCache, ExtractionStrategy } = strategyModule;
+        const params: any = [{
+          fn: function Get() { /* noop */ },
+          name: 'id',
+          index: 0,
+          type: 'string',
+          isDto: false,
+          sourceType: ParamSourceType.QUERY,
+          paramName: 'id'
+        }];
+
+        const handler1 = strategyCache.getOrCreate(params, {});
+        const handler2 = strategyCache.getOrCreate(params, {});
+
+        expect(handler2).toBe(handler1);
+        expect(strategyCache.getStrategy(params)).toBe(ExtractionStrategy.SYNC_SINGLE_NO_VALIDATION);
+      });
     });
   });
 

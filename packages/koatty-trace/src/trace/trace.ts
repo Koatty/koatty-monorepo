@@ -19,7 +19,7 @@ import { asyncLocalStorage, createAsyncResource, wrapEmitter } from './wrap';
 import { extensionOptions, TraceOptions } from "./itrace";
 import { initSDK, startTracer } from "../opentelemetry/sdk";
 import { TopologyAnalyzer } from "../opentelemetry/topology";
-import { getRequestId, getTraceId } from '../utils/utils';
+import { getRequestId, getTraceId, SERVICE_NAME_RE } from '../utils/utils';
 import { collectRequestMetrics, initPrometheusExporter } from '../opentelemetry/prometheus';
 import { DefaultLogger as Logger } from "koatty_logger";
 import { initializeRequestProperties } from '../utils/contextInit';
@@ -334,9 +334,17 @@ export function Trace(options: TraceOptions, app: Koatty) {
     // Record topology if enabled
     if (options.opentelemetryConf?.enableTopology ?? options.enableTrace) {
       const topology = TopologyAnalyzer.getInstance();
-      const serviceName = Array.isArray(ctx.headers['service'])
-        ? ctx.headers['service'][0]
-        : ctx.headers['service'] || 'unknown';
+      // SEC-15: the client-supplied `service` header is only trusted when
+      // explicitly enabled, and must match the safe pattern even then
+      let serviceName = 'unknown';
+      if (options.opentelemetryConf?.trustServiceHeader === true) {
+        const raw = Array.isArray(ctx.headers['service'])
+          ? ctx.headers['service'][0]
+          : ctx.headers['service'];
+        if (typeof raw === 'string' && SERVICE_NAME_RE.test(raw)) {
+          serviceName = raw;
+        }
+      }
       topology.recordServiceDependency(app.name, serviceName);
     }
 

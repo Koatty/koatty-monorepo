@@ -511,8 +511,10 @@ describe("Interface Implementation Checkers", () => {
     });
 
     test("should return false for null/undefined", () => {
-      expect(() => implementsPluginInterface(null)).toThrow();
-      expect(() => implementsPluginInterface(undefined)).toThrow();
+      // implementsPluginInterface performs an explicit null/undefined check
+      // and returns false (see src/Component.ts) instead of throwing
+      expect(implementsPluginInterface(null)).toBe(false);
+      expect(implementsPluginInterface(undefined)).toBe(false);
     });
   });
 

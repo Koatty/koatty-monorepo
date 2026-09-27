@@ -10,6 +10,7 @@
 import assert from 'assert';
 import { IncomingMessage, ServerResponse } from 'http';
 import { App } from "./app";
+import { createKoattyContext, ContextFactoryRegistry, type ProtocolType } from '../src/Context';
 
 // Mock helper functions
 function createMockRequest(options: { url?: string; method?: string } = {}): IncomingMessage {

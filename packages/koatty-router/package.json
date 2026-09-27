@@ -67,7 +67,7 @@
     "fast-querystring": "^1.1.2",
     "fast-xml-parser": "^5.3.3",
     "formidable": "^3.5.4",
-    "graphql-depth-limit": "^1.1.0",
+    "graphql": "^16.12.0",
     "graphql-http": "^1.22.4",
     "inflation": "^2.1.0",
     "koa-compose": "^4.1.0",

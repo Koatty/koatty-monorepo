@@ -198,14 +198,20 @@ describe('Context Initialization Utils', () => {
     it('should maintain property immutability', () => {
       const ctx: any = {};
       initializeRequestProperties(ctx, 'test-id');
-      
+
       const originalStartTime = ctx.startTime;
       const originalRequestId = ctx.requestId;
-      
-      // 尝试修改属性（应该失败或被忽略，因为是 getter）
-      ctx.startTime = Date.now() + 1000;
-      ctx.requestId = 'modified-id';
-      
+
+      // Getter-only properties are read-only: assignment throws TypeError
+      // in strict mode (ES modules / TypeScript output)
+      expect(() => {
+        ctx.startTime = Date.now() + 1000;
+      }).toThrow(TypeError);
+
+      expect(() => {
+        ctx.requestId = 'modified-id';
+      }).toThrow(TypeError);
+
       // 属性应该保持不变
       expect(ctx.startTime).toBe(originalStartTime);
       expect(ctx.requestId).toBe(originalRequestId);

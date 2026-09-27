@@ -32,7 +32,7 @@ export abstract class BaseHandler implements Handler {
     this.startTraceSpan(ctx, ext);
   }
 
-  protected commonPostHandle(ctx: KoattyContext, ext: extensionOptions, msg?: string) {
+  protected commonPostHandle(ctx: KoattyContext, ext: extensionOptions, msg?: RequestLogData | string) {
     this.logRequest(ctx, ext, msg);
     this.endTraceSpan(ctx, ext, msg);
     this.collectMetrics(ctx, ext);
@@ -97,7 +97,7 @@ export abstract class BaseHandler implements Handler {
     }
   }
 
-  private endTraceSpan(ctx: KoattyContext, ext: extensionOptions, msg?: string) {
+  private endTraceSpan(ctx: KoattyContext, ext: extensionOptions, msg?: RequestLogData | string) {
     if (ext.spanManager) {
       // ✅ 传递 ctx 参数
       ext.spanManager.setSpanAttributes(ctx, {
@@ -105,7 +105,10 @@ export abstract class BaseHandler implements Handler {
         [SemanticAttributes.HTTP_METHOD]: ctx.method,
         [SemanticAttributes.HTTP_URL]: ctx.url
       });
-      ext.spanManager.addSpanEvent(ctx, "request", { "message": msg });
+      // span event attributes must be scalar values
+      ext.spanManager.addSpanEvent(ctx, "request", {
+        "message": typeof msg === 'string' ? msg : JSON.stringify(msg ?? {})
+      });
       ext.spanManager.endSpan(ctx);
     }
   }
@@ -122,9 +125,43 @@ export abstract class BaseHandler implements Handler {
     }
   }
 
-  private logRequest(ctx: KoattyContext, ext: extensionOptions, msg: string) {
-    Logger[(ctx.status >= 400 ? 'Error' : 'Info')](msg);
+  private logRequest(ctx: KoattyContext, ext: extensionOptions, msg?: RequestLogData | string) {
+    // structured object goes to the logger as-is (winston serializes it);
+    // hand-built JSON strings are forbidden (SEC-07: log injection via
+    // template interpolation of untrusted values such as X-Request-Id)
+    Logger[(ctx.status >= 400 ? 'Error' : 'Info')](msg ?? {});
   }
+}
+
+/**
+ * Structured access-log entry (SEC-07 / B-7).
+ */
+export interface RequestLogData {
+  action: string;
+  status: number | string;
+  startTime: number;
+  duration: number;
+  requestId: string;
+  endTime: number;
+  path: string;
+}
+
+/**
+ * Build the structured access-log entry for a request. All fields are
+ * written as data (serialized by the logger), never interpolated into a
+ * hand-built JSON string.
+ */
+export function buildRequestLogData(ctx: KoattyContext, status?: number | string): RequestLogData {
+  const now = Date.now();
+  return {
+    action: ctx.method,
+    status: status ?? ctx.status,
+    startTime: ctx.startTime,
+    duration: (now - ctx.startTime) || 0,
+    requestId: ctx.requestId,
+    endTime: now,
+    path: ctx.originalPath || '/',
+  };
 }
 
 /**

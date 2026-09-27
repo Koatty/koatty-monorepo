@@ -1,13 +1,10 @@
 import { parseMultipart } from '../src/payload/parser/multipart';
+import { FILE_KEY } from '../src/payload/interface';
 
-// Mock formidable
+// Mock formidable (default implementation re-applied in beforeEach so tests
+// that override it with error paths do not leak into subsequent tests)
 jest.mock('formidable', () => ({
-  IncomingForm: jest.fn(() => ({
-    parse: jest.fn((req, callback) => {
-      // Default successful parse
-      callback(null, { name: 'test' }, { file: { path: '/tmp/test' } });
-    })
-  }))
+  IncomingForm: jest.fn()
 }));
 
 // Mock on-finished
@@ -21,9 +18,13 @@ jest.mock('../src/utils/path', () => ({
   deleteFiles: jest.fn()
 }));
 
-// Mock logger
+// Mock logger (Debug is required: the real koatty_container is loaded
+// transitively via error_policy.ts -> koatty-exception and logs at import time)
 jest.mock('koatty_logger', () => ({
   DefaultLogger: {
+    Debug: jest.fn(),
+    Info: jest.fn(),
+    Warn: jest.fn(),
     Error: jest.fn()
   }
 }));
@@ -33,7 +34,15 @@ describe('Multipart Parser Simple Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
+    // Default successful parse
+    const { IncomingForm } = require('formidable');
+    IncomingForm.mockImplementation(() => ({
+      parse: jest.fn((req, callback) => {
+        callback(null, { name: 'test' }, { file: { path: '/tmp/test' } });
+      })
+    }));
+
     mockCtx = {
       request: {
         headers: {
@@ -46,7 +55,9 @@ describe('Multipart Parser Simple Tests', () => {
   });
 
   describe('parseMultipart basic functionality', () => {
-    it('should return empty objects for non-multipart content type', async () => {
+    it('should delegate parsing to formidable regardless of content-type', async () => {
+      // parseMultipart is content-type agnostic: parseBody() selects this parser
+      // only for multipart/form-data requests.
       mockCtx.request.headers['content-type'] = 'application/json';
 
       const opts = {
@@ -59,10 +70,11 @@ describe('Multipart Parser Simple Tests', () => {
 
       const result = await parseMultipart(mockCtx, opts);
 
-      expect(result).toEqual({ body: {}, file: {} });
+      expect(result.name).toBe('test');
+      expect(result[FILE_KEY]).toEqual({ file: { path: '/tmp/test' } });
     });
 
-    it('should return empty objects when content-type is missing', async () => {
+    it('should still delegate to formidable when content-type is missing', async () => {
       mockCtx.request.headers = {};
 
       const opts = {
@@ -75,10 +87,11 @@ describe('Multipart Parser Simple Tests', () => {
 
       const result = await parseMultipart(mockCtx, opts);
 
-      expect(result).toEqual({ body: {}, file: {} });
+      expect(result.name).toBe('test');
+      expect(result[FILE_KEY]).toEqual({ file: { path: '/tmp/test' } });
     });
 
-    it('should parse multipart data successfully', async () => {
+    it('should parse multipart data into flat fields with files under FILE_KEY', async () => {
       const opts = {
         extTypes: {},
         limit: '20',
@@ -89,13 +102,15 @@ describe('Multipart Parser Simple Tests', () => {
 
       const result = await parseMultipart(mockCtx, opts);
 
-      expect(result).toEqual({
-        body: { name: 'test' },
-        file: { file: { path: '/tmp/test' } }
-      });
+      // New unified format: flat fields + files under the FILE_KEY symbol
+      expect(result.name).toBe('test');
+      expect(result[FILE_KEY]).toEqual({ file: { path: '/tmp/test' } });
+      // no legacy { body, file } wrapper
+      expect(result.body).toBeUndefined();
+      expect(result.file).toBeUndefined();
     });
 
-    it('should handle parsing errors', async () => {
+    it('should reject with an Exception on parsing errors (fail-closed default)', async () => {
       const { IncomingForm } = require('formidable');
       IncomingForm.mockImplementation(() => ({
         parse: jest.fn((req, callback) => {
@@ -111,9 +126,30 @@ describe('Multipart Parser Simple Tests', () => {
         keepExtensions: false
       };
 
+      await expect(parseMultipart(mockCtx, opts))
+        .rejects.toThrow('Invalid request payload: multipart body');
+    });
+
+    it('should resolve to an empty object when onParseError is "empty"', async () => {
+      const { IncomingForm } = require('formidable');
+      IncomingForm.mockImplementation(() => ({
+        parse: jest.fn((req, callback) => {
+          callback(new Error('Parse error'), null, null);
+        })
+      }));
+
+      const opts = {
+        extTypes: {},
+        limit: '20',
+        encoding: 'utf8' as BufferEncoding,
+        multiples: false,
+        keepExtensions: false,
+        onParseError: 'empty' as const
+      };
+
       const result = await parseMultipart(mockCtx, opts);
 
-      expect(result).toEqual({ body: {}, file: {} });
+      expect(result).toEqual({});
     });
 
     it('should setup file cleanup', async () => {
@@ -205,7 +241,7 @@ describe('Multipart Parser Simple Tests', () => {
 
       const opts = {
         extTypes: {},
-        limit: '50',
+        limit: '50mb',
         encoding: 'utf8' as BufferEncoding,
         multiples: false,
         keepExtensions: false

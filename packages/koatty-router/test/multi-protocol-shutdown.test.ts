@@ -5,8 +5,11 @@
  * @Date: 2025-10-14
  */
 
+import "reflect-metadata";
+import { AppEvent, getComponentEvents } from "koatty_core";
 import { RouterFactory } from "../src/router/factory";
 import { NewRouter } from "../src/router/router";
+import { RouterComponent } from "../src/RouterComponent";
 
 describe("Multi-Protocol Graceful Shutdown", () => {
   let mockApp: any;
@@ -36,19 +39,23 @@ describe("Multi-Protocol Graceful Shutdown", () => {
     jest.clearAllMocks();
   });
 
-  test("should register multiple appStop handlers in multi-protocol environment", () => {
+  test("should not register per-router appStop handlers (unified on RouterComponent)", () => {
     // Create routers for different protocols
     NewRouter(mockApp, { protocol: "http", prefix: "/api" });
     NewRouter(mockApp, { protocol: "ws", prefix: "/ws" });
     NewRouter(mockApp, { protocol: "grpc", prefix: "/grpc", ext: { protoFile: "./test.proto" } });
     NewRouter(mockApp, { protocol: "graphql", prefix: "/graphql", ext: { schemaFile: "./test.graphql" } });
 
-    // Verify that 4 appStop handlers were registered
+    // NewRouter no longer registers app.once("appStop") per router
     const appStopCalls = mockApp.once.mock.calls.filter(
       (call: any[]) => call[0] === "appStop"
     );
-    expect(appStopCalls.length).toBe(4);
-    expect(appStopHandlers.length).toBe(4);
+    expect(appStopCalls.length).toBe(0);
+    expect(appStopHandlers.length).toBe(0);
+
+    // Shutdown registration is unified on RouterComponent via @OnEvent(AppEvent.appStop)
+    const events = getComponentEvents(RouterComponent);
+    expect(events[AppEvent.appStop]).toContain("cleanup");
   });
 
   test("should only execute shutdownAll() once despite multiple calls", async () => {
@@ -189,28 +196,36 @@ describe("Multi-Protocol Graceful Shutdown", () => {
     expect((factory as any).activeRouters.length).toBe(0);
   });
 
-  test("integration: simulate real multi-protocol shutdown scenario", async () => {
+  test("integration: RouterComponent appStop cleanup shuts down all routers once", async () => {
     const factory = RouterFactory.getInstance();
-    
+
     // Reset state
     (factory as any).activeRouters = [];
     (factory as any).isShuttingDown = false;
     (factory as any).hasShutdown = false;
 
-    // Create routers (they will register appStop handlers)
-    NewRouter(mockApp, { protocol: "http", prefix: "/api" });
-    NewRouter(mockApp, { protocol: "ws", prefix: "/ws" });
-    NewRouter(mockApp, { protocol: "grpc", prefix: "/grpc", ext: { protoFile: "./test.proto" } });
+    // Create routers (real instances tracked by the factory)
+    const created = [
+      NewRouter(mockApp, { protocol: "http", prefix: "/api" }),
+      NewRouter(mockApp, { protocol: "ws", prefix: "/ws" }),
+      NewRouter(mockApp, { protocol: "grpc", prefix: "/grpc", ext: { protoFile: "./test.proto" } }),
+    ];
 
-    // Verify 4 routers were created (HTTP = 1, WS = 1, gRPC = 1, + initial state)
-    const routerCount = factory.getActiveRouterCount();
-    expect(routerCount).toBeGreaterThan(0);
+    const cleanupSpies = created.map(({ router }) => jest.spyOn(router as any, "cleanup"));
 
-    // Simulate app emitting appStop event (all handlers called)
-    const shutdownPromises = appStopHandlers.map((handler) => handler());
-    await Promise.all(shutdownPromises);
+    expect(factory.getActiveRouterCount()).toBe(3);
 
-    // Verify only one shutdown occurred
+    // RouterComponent binds AppEvent.appStop -> cleanup()
+    const events = getComponentEvents(RouterComponent);
+    expect(events[AppEvent.appStop]).toContain("cleanup");
+
+    // Simulate the framework dispatching the appStop event to RouterComponent
+    const component = new RouterComponent();
+    (component as any).factory = factory;
+    await component.cleanup(mockApp);
+
+    // Every router cleanup was called exactly once and the factory was emptied
+    cleanupSpies.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));
     expect((factory as any).hasShutdown).toBe(true);
     expect(factory.getActiveRouterCount()).toBe(0);
   });

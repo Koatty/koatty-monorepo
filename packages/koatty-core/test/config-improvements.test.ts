@@ -251,9 +251,10 @@ describe('Improved config() function', () => {
       app.config('nullable', 'config', null);
       expect(app.config('nullable')).toBeNull();
       
-      // undefined means "get", not "set"
+      // undefined means "get", not "set"; missing keys are normalized
+      // to null by app.config() (see getConfig)
       const result = app.config('undefined_test', 'config', undefined);
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     it('should maintain independence between config types', () => {

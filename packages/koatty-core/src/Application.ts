@@ -264,7 +264,26 @@ export class Koatty extends Koa implements KoattyApplication {
         return null;
       }
 
-      const caches = this.getMetaData('_configs')[0] || {};
+      // `_configs` is stored as a private instance property: setMetaData routes
+      // "_"-prefixed keys through Helper.define (a non-configurable, getter-only
+      // property) and getMetaData returns [value] for them. When no value was
+      // ever seeded (e.g. a standalone KoattyApplication without the framework
+      // Loader), the fallback object used to be temporary, so every write was
+      // silently lost. Create the store once and persist it on the instance
+      // instead, so that subsequent reads and writes hit the same object.
+      let caches = this.getMetaData('_configs')[0];
+      if (!caches) {
+        if (!Reflect.has(this, '_configs')) {
+          caches = {};
+          this.setMetaData('_configs', caches);
+        } else {
+          // Property exists but currently holds an empty value (null/undefined,
+          // e.g. cleared externally): reuse it instead of redefining the
+          // non-configurable property; invalid stores fall into the error
+          // handling below.
+          caches = Reflect.get(this, '_configs');
+        }
+      }
       caches[type] = caches[type] || {};
 
       // If value is provided, set configuration

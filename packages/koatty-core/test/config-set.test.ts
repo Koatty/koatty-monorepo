@@ -40,7 +40,8 @@ describe('app.config() - Set Configuration', () => {
     });
 
     test('should return null for non-existent config', () => {
-      expect(app.config('nonexistent')).toBeUndefined();
+      // Missing keys are normalized to null by app.config() (see getConfig)
+      expect(app.config('nonexistent')).toBeNull();
     });
   });
 
@@ -203,7 +204,8 @@ describe('app.config() - Set Configuration', () => {
     test('should handle error gracefully', () => {
       // Test with invalid metadata structure
       const result = app.config('nonexistent.nested.deep');
-      expect(result).toBeUndefined();
+      // Missing keys are normalized to null by app.config() (see getConfig)
+      expect(result).toBeNull();
     });
   });
 

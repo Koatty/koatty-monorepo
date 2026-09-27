@@ -7,6 +7,12 @@
 
 import 'reflect-metadata';
 import { generatePrecompiledExtractor, ParamSourceType } from '../src/utils/inject';
+import { FILE_KEY } from '../src/payload/interface';
+
+jest.mock('../src/payload/payload', () => ({
+  bodyParser: jest.fn(),
+  queryParser: jest.fn()
+}));
 
 describe('Pre-compiled Extractor Tests', () => {
   describe('Task 4.6: Pre-compiled Parameter Extractors', () => {
@@ -102,7 +108,10 @@ describe('Pre-compiled Extractor Tests', () => {
       expect(result).toEqual(mockParams);
     });
 
-    it('should return null for BODY sourceType (async required)', () => {
+    it('should generate an async body extractor that reads the parsed body', async () => {
+      const { bodyParser } = require('../src/payload/payload');
+      bodyParser.mockResolvedValue({ username: 'alice', age: 30 });
+
       const param = {
         sourceType: ParamSourceType.BODY,
         paramName: 'username',
@@ -110,7 +119,30 @@ describe('Pre-compiled Extractor Tests', () => {
       } as any;
 
       const extractor = generatePrecompiledExtractor(param);
-      expect(extractor).toBeNull();
+      expect(extractor).toBeDefined();
+      expect(typeof extractor).toBe('function');
+
+      const mockCtx = {};
+      const result = await extractor!(mockCtx);
+      expect(bodyParser).toHaveBeenCalledWith(mockCtx, param.options);
+      expect(result).toBe('alice');
+    });
+
+    it('should generate an async body extractor returning flat body without FILE_KEY', async () => {
+      const { bodyParser } = require('../src/payload/payload');
+      bodyParser.mockResolvedValue({ username: 'alice', [FILE_KEY]: { avatar: {} } });
+
+      const param = {
+        sourceType: ParamSourceType.BODY,
+        name: 'body'
+      } as any;
+
+      const extractor = generatePrecompiledExtractor(param);
+      expect(extractor).toBeDefined();
+
+      const result = await extractor!({});
+      expect(result).toEqual({ username: 'alice' });
+      expect(result[FILE_KEY]).toBeUndefined();
     });
 
     it('should return null for FILE sourceType (async required)', () => {

@@ -14,7 +14,7 @@ import { Span } from "@opentelemetry/api";
 import { SemanticAttributes } from "@opentelemetry/semantic-conventions";
 import { inspect } from "util";
 import { catcher } from "../trace/catcher";
-import { BaseHandler, Handler } from './base';
+import { BaseHandler, Handler, buildRequestLogData } from './base';
 import { extensionOptions } from "../trace/itrace";
 import { Helper } from "koatty_lib";
 
@@ -59,9 +59,7 @@ export class WsHandler extends BaseHandler implements Handler {
     this.commonPreHandle(ctx, ext);
     
     ctx?.res?.once("finish", () => {
-      const now = Date.now();
-      const msg = `{"action":"${ctx.method}","status":"${ctx.status}","startTime":"${ctx.startTime}","duration":"${(now - ctx.startTime) || 0}","requestId":"${ctx.requestId}","endTime":"${now}","path":"${ctx.originalPath || '/'}"}`;
-      this.commonPostHandle(ctx, ext, msg);
+      this.commonPostHandle(ctx, ext, buildRequestLogData(ctx));
     });
 
     try {

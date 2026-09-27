@@ -153,7 +153,8 @@ describe("App", () => {
     test("config - non-existent key", () => {
       const testApp = new App();
       testApp.setMetaData("_configs", { config: {} });
-      expect(testApp.config("nonExistent")).toBeUndefined();
+      // Missing keys are normalized to null by app.config() (see getConfig)
+      expect(testApp.config("nonExistent")).toBeNull();
     });
 
     test("config - non-string key", () => {
@@ -169,7 +170,8 @@ describe("App", () => {
       
       // Clear configs to trigger error
       testApp.setMetaData("_configs", null);
-      expect(testApp.config("anyKey")).toBeUndefined();
+      // Errors and missing keys are normalized to null by app.config()
+      expect(testApp.config("anyKey")).toBeNull();
       
       spy.mockRestore();
     });
@@ -382,7 +384,8 @@ describe("App", () => {
       // Force an error by setting invalid configs
       testApp.setMetaData("_configs", undefined);
       const result = testApp.config("test");
-      expect(result).toBeUndefined();
+      // Errors and missing keys are normalized to null by app.config()
+      expect(result).toBeNull();
       
       spy.mockRestore();
     });

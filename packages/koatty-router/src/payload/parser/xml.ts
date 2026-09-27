@@ -10,6 +10,7 @@
 
 import { KoattyContext } from "koatty_core";
 import { PayloadOptions } from "../interface";
+import { emptyFallback, payloadParseError, resolveOnParseError } from "../error_policy";
 import { XMLParser } from "fast-xml-parser";
 import { parseText } from "./text";
 

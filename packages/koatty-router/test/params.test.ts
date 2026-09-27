@@ -8,17 +8,18 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { 
-  Header, 
-  PathVariable, 
-  Get, 
-  Post, 
-  File, 
-  RequestBody, 
+import {
+  Header,
+  PathVariable,
+  Get,
+  Post,
+  File,
+  RequestBody,
   Body,
   RequestParam,
   Param
 } from '../src/params/params';
+import { FILE_KEY } from '../src/payload/interface';
 
 // Mock dependencies
 jest.mock('../src/utils/inject');
@@ -53,7 +54,13 @@ describe('Parameter Decorators', () => {
       };
     });
 
-    bodyParser.mockResolvedValue({ body: { username: 'test', password: 'secret' } });
+    // bodyParser resolves to a flat body object; uploaded files (if any) live
+    // under the FILE_KEY symbol (unified payload format)
+    bodyParser.mockResolvedValue({
+      username: 'test',
+      password: 'secret',
+      [FILE_KEY]: { avatar: { filename: 'avatar.jpg' } }
+    });
     queryParser.mockReturnValue({ page: '1', limit: '10', id: '123', name: 'test' });
   });
 
@@ -202,12 +209,14 @@ describe('Parameter Decorators', () => {
 
       const valueGetter = mockTarget['__Post_0'];
       const result = await valueGetter(mockCtx);
-      
+
       expect(bodyParser).toHaveBeenCalledWith(mockCtx, undefined);
+      // flat body fields only — files under FILE_KEY are stripped
       expect(result).toEqual({ username: 'test', password: 'secret' });
+      expect(result[FILE_KEY]).toBeUndefined();
     });
 
-    it('should handle body without body property', async () => {
+    it('should handle body without files (no FILE_KEY)', async () => {
       bodyParser.mockResolvedValueOnce({ username: 'direct' });
       
       const decorator = Post();
@@ -233,9 +242,9 @@ describe('Parameter Decorators', () => {
 
   describe('File Decorator', () => {
     it('should get specific file by name', async () => {
-      bodyParser.mockResolvedValueOnce({ 
-        body: { username: 'test' },
-        file: { avatar: { filename: 'avatar.jpg' }, doc: { filename: 'doc.pdf' } }
+      bodyParser.mockResolvedValueOnce({
+        username: 'test',
+        [FILE_KEY]: { avatar: { filename: 'avatar.jpg' }, doc: { filename: 'doc.pdf' } }
       });
 
       const decorator = File('avatar');
@@ -243,16 +252,16 @@ describe('Parameter Decorators', () => {
 
       const valueGetter = mockTarget['__File_0'];
       const result = await valueGetter(mockCtx);
-      
+
       expect(bodyParser).toHaveBeenCalledWith(mockCtx, undefined);
       expect(result).toEqual({ filename: 'avatar.jpg' });
     });
 
     it('should get all files when no name specified', async () => {
       const files = { avatar: { filename: 'avatar.jpg' }, doc: { filename: 'doc.pdf' } };
-      bodyParser.mockResolvedValueOnce({ 
-        body: { username: 'test' },
-        file: files
+      bodyParser.mockResolvedValueOnce({
+        username: 'test',
+        [FILE_KEY]: files
       });
 
       const decorator = File();
@@ -260,12 +269,12 @@ describe('Parameter Decorators', () => {
 
       const valueGetter = mockTarget['__File_0'];
       const result = await valueGetter(mockCtx);
-      
+
       expect(result).toEqual(files);
     });
 
     it('should handle missing file property', async () => {
-      bodyParser.mockResolvedValueOnce({ body: { username: 'test' } });
+      bodyParser.mockResolvedValueOnce({ username: 'test' });
 
       const decorator = File();
       decorator(mockTarget, mockPropertyKey, mockParameterIndex);
@@ -290,7 +299,7 @@ describe('Parameter Decorators', () => {
 
   describe('RequestBody Decorator', () => {
     it('should get full body parser result', async () => {
-      const expectedResult = { body: { username: 'test' }, file: { avatar: {} } };
+      const expectedResult = { username: 'test', [FILE_KEY]: { avatar: {} } };
       bodyParser.mockResolvedValueOnce(expectedResult);
 
       const decorator = RequestBody();

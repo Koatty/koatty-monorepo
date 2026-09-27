@@ -66,15 +66,15 @@ export interface GrpcExtConfig {
 export interface GraphQLExtConfig {
   /** GraphQL Schema 文件路径 */
   schemaFile: string;
-  /** 启用 GraphQL Playground，默认false */
+  /** 启用 GraphQL Playground。默认值来自安全画像：production/standard 关闭，development 开启；显式配置优先 */
   playground?: boolean;
-  /** 启用内省查询，默认true */
+  /** 启用内省查询。默认值来自安全画像：strict 关闭，standard/development 开启；显式配置优先 */
   introspection?: boolean;
   /** 调试模式，默认false */
   debug?: boolean;
-  /** 查询深度限制，默认10 */
+  /** 查询深度限制（内置实现）。默认值来自安全画像（strict 10 / standard 15 / development 20）；0 表示关闭 */
   depthLimit?: number;
-  /** 查询复杂度限制，默认1000 */
+  /** 查询复杂度限制。默认值来自安全画像（strict 1000 / standard 2000 / development 5000）；需要可选包 graphql-query-complexity，配置了但未安装时启动失败 */
   complexityLimit?: number;
   /** 自定义标量类型 */
   customScalars?: Record<string, any>;

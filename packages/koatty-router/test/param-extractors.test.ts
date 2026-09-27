@@ -7,6 +7,7 @@
 
 import 'reflect-metadata';
 import { ParamExtractors } from '../src/utils/param-extractors';
+import { FILE_KEY } from '../src/payload/interface';
 
 jest.mock('../src/payload/payload', () => ({
   bodyParser: jest.fn()
@@ -80,8 +81,10 @@ describe('ParamExtractors Tests', () => {
 
     it('should extract file parameter by name', async () => {
       const { bodyParser } = require('../src/payload/payload');
-      bodyParser.mockResolvedValue({ 
-        file: { avatar: 'avatar.jpg', document: 'doc.pdf' } 
+      // unified payload format: flat fields + files under the FILE_KEY symbol
+      bodyParser.mockResolvedValue({
+        username: 'alice',
+        [FILE_KEY]: { avatar: 'avatar.jpg', document: 'doc.pdf' }
       });
 
       const result = await ParamExtractors.file(mockCtx, 'avatar');
@@ -91,7 +94,7 @@ describe('ParamExtractors Tests', () => {
     it('should extract all files without name', async () => {
       const { bodyParser } = require('../src/payload/payload');
       const mockFiles = { avatar: 'avatar.jpg', document: 'doc.pdf' };
-      bodyParser.mockResolvedValue({ file: mockFiles });
+      bodyParser.mockResolvedValue({ username: 'alice', [FILE_KEY]: mockFiles });
 
       const result = await ParamExtractors.file(mockCtx);
       expect(result).toEqual(mockFiles);

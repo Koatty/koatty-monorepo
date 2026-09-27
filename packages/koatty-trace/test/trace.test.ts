@@ -219,6 +219,20 @@ describe('Trace Middleware', () => {
     jest.clearAllMocks();
   });
 
+  /**
+   * Trigger the appStop cleanup handler registered by Trace() so the
+   * closure-created SpanManager destroys itself (stops its cleanup interval
+   * and force-ends any remaining spans). Prevents dangling timers from
+   * keeping the jest worker alive.
+   */
+  async function cleanupTrace(app: any) {
+    const stopHandler = (app.once as jest.Mock).mock.calls
+      .find((c: any[]) => c[0] === 'appStop')?.[1] as (() => Promise<void>) | undefined;
+    if (stopHandler) {
+      await stopHandler();
+    }
+  }
+
   test('should create middleware function', () => {
     const middleware = Trace({}, mockApp);
     expect(typeof middleware).toBe('function');
@@ -261,95 +275,102 @@ describe('Trace Middleware', () => {
     expect(ctx.respond).toBe(false);
   });
 
-  test('should initialize OpenTelemetry when enabled', () => {
-    Trace({ enableTrace: true }, mockApp);
+  test('should initialize OpenTelemetry when enabled', async () => {
+    Trace({
+      enableTrace: true,
+      // avoid binding the prometheus metrics port in unit tests
+      metricsConf: { metricsEndpoint: '' },
+    }, mockApp);
     expect(mockApp.once).toHaveBeenCalled();
+    await cleanupTrace(mockApp);
   });
 
   test('should create span when tracing is enabled', async () => {
+    // The refactored Trace middleware builds its own SpanManager inside the
+    // closure and reads the tracer from app.otelTracer (trace.ts:325-331).
+    const app = { ...mockApp, otelTracer: mockTracer } as any;
+    const createSpanSpy = jest.spyOn(SpanManager.prototype, 'createSpan');
+
     const ctx = createMockContext();
-    const middleware = Trace({ 
+    const middleware = Trace({
       enableTrace: true,
       samplingRate: 1.0,
-      spanTimeout: 5000
-    }, mockApp);
-    
-    // Create a mock next function that will end the span
-    const next = jest.fn().mockImplementation(() => {
-      mockSpanManager.endSpan();
-    });
-    
+      spanTimeout: 5000,
+      // avoid binding the prometheus metrics port in unit tests
+      metricsConf: { metricsEndpoint: '' },
+    }, app);
+
+    const next = jest.fn().mockResolvedValue(undefined);
     await middleware(ctx, next);
-    
-    expect(mockSpanManager.createSpan).toHaveBeenCalledWith(
+
+    expect(createSpanSpy).toHaveBeenCalledWith(
       mockTracer,
       expect.anything(),
       expect.any(String)
     );
     expect(next).toHaveBeenCalled();
-    expect(mockSpan.end).toHaveBeenCalled();
+
+    // the span created through the mocked tracer is ended on request completion
+    const createdSpan = mockTracer.startSpan.mock.results[0]?.value;
+    expect(createdSpan?.end).toHaveBeenCalled();
+
+    createSpanSpy.mockRestore();
+    await cleanupTrace(app);
   });
 
-  test('should handle span timeout', (done) => {
+  test('should handle span timeout', async () => {
+    const app = { ...mockApp, otelTracer: mockTracer } as any;
+    // Suppress the request-completion endSpan so the periodic timeout path
+    // (spanManager.forceEndSpan) is the one ending the span.
+    const endSpanSpy = jest.spyOn(SpanManager.prototype, 'endSpan').mockImplementation(() => { /* suppressed */ });
+
     const ctx = createMockContext();
     const middleware = Trace({
       enableTrace: true,
-      spanTimeout: 100
-    }, mockApp);
-    
-    middleware(ctx, jest.fn());
-    
-    setTimeout(() => {
-      expect(mockSpan.end).toHaveBeenCalled();
-      done();
-    }, 200);
+      // spanTimeout is read from opentelemetryConf by the refactored middleware
+      opentelemetryConf: { spanTimeout: 100 } as any,
+      // avoid binding the prometheus metrics port in unit tests
+      metricsConf: { metricsEndpoint: '' },
+    }, app);
+
+    await middleware(ctx, jest.fn().mockResolvedValue(undefined));
+
+    // wait past the configured span timeout
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const createdSpan = mockTracer.startSpan.mock.results[0]?.value;
+    expect(createdSpan?.end).toHaveBeenCalled();
+
+    endSpanSpy.mockRestore();
+    await cleanupTrace(app);
   });
 
   test('should manage multiple active spans', async () => {
-    jest.clearAllMocks();
-    
+    const app = { ...mockApp, otelTracer: mockTracer } as any;
+
     const ctx1 = createMockContext();
     const ctx2 = createMockContext();
     const middleware = Trace({
       enableTrace: true,
-      samplingRate: 1.0
-    }, mockApp);
-    
-    // Create separate spans for each context with independent mocks
-    const span1 = { 
-      ...mockSpan,
-      end: jest.fn()
-    };
-    const span2 = { 
-      ...mockSpan,
-      end: jest.fn() 
-    };
-    
-    // Mock span creation and store spans for verification
-    const spans: Span[] = [];
-    mockSpanManager.createSpan
-      .mockImplementation((tracer, ctx, serviceName) => {
-        const span = ctx === ctx1 ? span1 : span2;
-        spans.push(span);
-        return span;
-      });
-    
-    // Mock span ending
-    mockSpanManager.endSpan.mockImplementation(() => {
-      const span = spans.pop();
-      if (span) {
-        span.end();
-      }
-    });
-    
+      samplingRate: 1.0,
+      // avoid binding the prometheus metrics port in unit tests
+      metricsConf: { metricsEndpoint: '' },
+    }, app);
+
     await Promise.all([
-      middleware(ctx1, () => mockSpanManager.endSpan()),
-      middleware(ctx2, () => mockSpanManager.endSpan())
+      middleware(ctx1, jest.fn().mockResolvedValue(undefined)),
+      middleware(ctx2, jest.fn().mockResolvedValue(undefined)),
     ]);
-    
-    // Verify both spans were properly ended
-    expect(span1.end).toHaveBeenCalledTimes(1);
-    expect(span2.end).toHaveBeenCalledTimes(1);
+
+    // one span per context, each properly ended exactly once
+    expect(mockTracer.startSpan).toHaveBeenCalledTimes(2);
+    const spans = mockTracer.startSpan.mock.results.map((r) => r.value);
+    expect(spans.length).toBe(2);
+    for (const span of spans) {
+      expect(span.end).toHaveBeenCalledTimes(1);
+    }
+
+    await cleanupTrace(app);
   });
 
   test('should enable async hooks when configured', async () => {
