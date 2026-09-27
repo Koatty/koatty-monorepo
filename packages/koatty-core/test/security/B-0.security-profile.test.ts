@@ -2,6 +2,7 @@
  * B-0 SecurityProfile (ADR-102) regression tests.
  * @ license: BSD (3-Clause)
  */
+import { DefaultLogger as Logger } from "koatty_logger";
 import { Koatty } from "../../src/Application";
 import {
   LEGACY_DEFAULTS,
@@ -109,6 +110,24 @@ describe("SecurityProfile - resolveProfile", () => {
     const p = resolveProfile(null, "production") as any;
     expect(Object.isFrozen(p)).toBe(true);
     expect(() => { "use strict"; p.payload = {}; }).toThrow();
+  });
+
+  test("legacyDefaults prints a startup WARN listing every reverted item", () => {
+    const warnSpy = jest.spyOn(Logger, "Warn").mockImplementation(() => {});
+    try {
+      resolveProfile({ legacyDefaults: true }, "production");
+      const messages = warnSpy.mock.calls.map((c) => c.join(" "));
+      expect(messages.some((m) => m.includes("legacyDefaults is enabled"))).toBe(true);
+      // one WARN line per reverted item + the removal notice
+      expect(messages.filter((m) => m.trim().startsWith("- ")).length).toBeGreaterThanOrEqual(14);
+      expect(messages.some((m) => m.includes("removed in koatty 5.0.0"))).toBe(true);
+      // no WARN when legacyDefaults is off
+      warnSpy.mockClear();
+      resolveProfile(null, "production");
+      expect(warnSpy.mock.calls.length).toBe(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test("profileSummary contains key facts", () => {

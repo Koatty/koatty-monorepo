@@ -75,6 +75,9 @@ function getContentLength(headers: Record<string, string | string[] | undefined>
 export function payload(options?: PayloadOptions) {
   // 性能优化：预处理选项
   const opts = cacheManager.getMergedOptions(options);
+  // ADR-102: remember whether the caller set a body limit explicitly;
+  // otherwise parseBody may substitute the security-profile limit
+  (opts as any)._limitFromUser = options?.limit !== undefined;
 
   return (ctx: KoattyContext, next: KoattyNext) => {
     // 防止重复定义：在多协议场景下，多个router会注册payload中间件
@@ -211,7 +214,20 @@ function parseBody(ctx: KoattyContext, options: PayloadOptions): Promise<unknown
 
   // 性能优化：避免重复赋值
   if (!options.encoding) options.encoding = DEFAULT_ENCODING;
-  if (!options.limit) options.limit = DEFAULT_LIMIT;
+  if (!options.limit || (!(options as any)._limitFromUser && options.limit === DEFAULT_LIMIT)) {
+    // ADR-102 / 附录 B: unless the caller configured a body limit explicitly,
+    // the security profile decides (strict '1mb'); DEFAULT_LIMIT is the
+    // last-resort fallback for non-profiled (library) usage
+    try {
+      const profileLimit = (ctx?.app as any)?.security?.payload?.limit;
+      if (profileLimit) {
+        options.limit = profileLimit;
+      }
+    } catch {
+      // profile not reachable; keep the legacy default
+    }
+    if (!options.limit) options.limit = DEFAULT_LIMIT;
+  }
 
   const contentType = ctx.request.headers['content-type'] || '';
 

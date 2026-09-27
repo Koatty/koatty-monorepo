@@ -50,7 +50,7 @@ number
 
 </td><td>
 
-_(Optional)_ 查询复杂度限制，默认1000
+_(Optional)_ 查询复杂度限制。默认值来自安全画像（strict 1000 / standard 2000 / development 5000）；需要可选包 graphql-query-complexity，配置了但未安装时启动失败
 
 
 </td></tr>
@@ -107,7 +107,7 @@ number
 
 </td><td>
 
-_(Optional)_ 查询深度限制，默认10
+_(Optional)_ 查询深度限制（内置实现）。默认值来自安全画像（strict 10 / standard 15 / development 20）；0 表示关闭
 
 
 </td></tr>
@@ -126,7 +126,7 @@ boolean
 
 </td><td>
 
-_(Optional)_ 启用内省查询，默认true
+_(Optional)_ 启用内省查询。默认值来自安全画像：strict 关闭，standard/development 开启；显式配置优先
 
 
 </td></tr>
@@ -164,7 +164,7 @@ boolean
 
 </td><td>
 
-_(Optional)_ 启用 GraphQL Playground，默认false
+_(Optional)_ 启用 GraphQL Playground。默认值来自安全画像：production/standard 关闭，development 开启；显式配置优先
 
 
 </td></tr>

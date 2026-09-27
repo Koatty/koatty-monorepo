@@ -4,7 +4,7 @@
 
 ## GraphQLExtConfig.introspection property
 
-启用内省查询，默认true
+启用内省查询。默认值来自安全画像：strict 关闭，standard/development 开启；显式配置优先
 
 **Signature:**
 

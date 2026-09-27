@@ -4,7 +4,7 @@
 
 ## GraphQLExtConfig.playground property
 
-启用 GraphQL Playground，默认false
+启用 GraphQL Playground。默认值来自安全画像：production/standard 关闭，development 开启；显式配置优先
 
 **Signature:**
 

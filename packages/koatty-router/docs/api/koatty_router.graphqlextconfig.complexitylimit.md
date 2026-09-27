@@ -4,7 +4,7 @@
 
 ## GraphQLExtConfig.complexityLimit property
 
-查询复杂度限制，默认1000
+查询复杂度限制。默认值来自安全画像（strict 1000 / standard 2000 / development 5000）；需要可选包 graphql-query-complexity，配置了但未安装时启动失败
 
 **Signature:**
 

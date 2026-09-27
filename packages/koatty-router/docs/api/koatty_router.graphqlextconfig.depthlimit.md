@@ -4,7 +4,7 @@
 
 ## GraphQLExtConfig.depthLimit property
 
-查询深度限制，默认10
+查询深度限制（内置实现）。默认值来自安全画像（strict 10 / standard 15 / development 20）；0 表示关闭
 
 **Signature:**
 

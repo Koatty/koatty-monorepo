@@ -229,3 +229,45 @@ describe("SEC-05: size helpers", () => {
     expect(safeFilename('normal.txt')).toBe('normal.txt');
   });
 });
+
+describe("SEC-02 / ADR-102: body limit from security profile", () => {
+  const { payload } = require("../../src/payload/payload");
+
+  function makeProfileCtx(content: string, profile: any): any {
+    const req = new PassThrough() as any;
+    const body = Buffer.from(content, "utf-8");
+    req.headers = {
+      "content-type": "application/json",
+      "content-length": String(body.length),
+    };
+    process.nextTick(() => {
+      req.write(body);
+      req.end();
+    });
+    const ctx: any = {
+      req,
+      res: new PassThrough(),
+      method: "POST",
+      headers: req.headers,
+      request: { headers: req.headers },
+      app: profile ? { security: { payload: profile } } : undefined,
+    };
+    payload({ extTypes: {}, encoding: "utf-8", multiples: false, keepExtensions: false } as any)(ctx, async () => {});
+    return ctx;
+  }
+
+  test("profile payload.limit (1kb) rejects a 3KB body with 413", async () => {
+    const ctx = makeProfileCtx("x".repeat(3 * 1024), { limit: "1kb", onParseError: "reject" });
+    await expect((ctx as any).requestBody()).rejects.toMatchObject({ status: 413 });
+  });
+
+  test("small body passes under the profile limit", async () => {
+    const ctx = makeProfileCtx('{"a": 1}', { limit: "1mb" });
+    await expect((ctx as any).requestBody()).resolves.toEqual({ a: 1 });
+  });
+
+  test("without a profile the legacy default (20mb) still applies", async () => {
+    const ctx = makeProfileCtx('{"a": 1}', undefined);
+    await expect((ctx as any).requestBody()).resolves.toEqual({ a: 1 });
+  });
+});

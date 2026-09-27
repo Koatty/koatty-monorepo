@@ -16,6 +16,7 @@ export * from "./params/mapping";
 export * from "./params/params";
 export * from "./middleware/manager";
 export { payload, queryParser, bodyParser } from "./payload/payload";
-export { PayloadOptions, FILE_KEY } from "./payload/interface";
+export type { PayloadOptions } from "./payload/interface";
+export { FILE_KEY } from "./payload/interface";
 export { safeFilename } from "./payload/size";
 export { RouterComponent } from "./RouterComponent";

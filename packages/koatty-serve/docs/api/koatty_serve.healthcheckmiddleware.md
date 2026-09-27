@@ -74,5 +74,19 @@ Description
 
 
 </td></tr>
+<tr><td>
+
+[setDraining(draining)](./koatty_serve.healthcheckmiddleware.setdraining.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Mark the server as draining (graceful shutdown started): /ready flips to 503 so load balancers stop routing new traffic (COR-03 / B-6).
+
+
+</td></tr>
 </tbody></table>
 

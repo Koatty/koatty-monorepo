@@ -1,5 +1,15 @@
 # koatty_testing
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty@4.3.0
+  - koatty_core@2.3.0
+  - koatty_container@3.0.0
+  - koatty_lib@1.6.0
+
 ## 1.1.0
 
 ### Minor Changes

@@ -1,14 +1,179 @@
 # TC39 Decorator Migration Plan
 
-**Document Version:** 1.0  
-**Date:** 2026-04-02  
-**Status:** Draft  
-**Author:** Coder Agent (TASK-4-3)
+**Document Version:** 3.0（正文基于 2.2，经 v3.0 评审就地修订）  
+**Date:** 2026-04-02（v3.0 修订：2026-09-27）  
+**Status:** 评审修订稿  
+**Author:** Coder Agent (TASK-4-3)；v3.0 评审修订
 
-> ⚠️ **本方案已被整合到** [`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md)（2026-05-11）  
-> 整合方案在阶段路线图、ADR、风险登记上**优先于本文档**。  
-> 本文档保留作为装饰器双模式实现、DTO 替代方案、`@Payload`/`@Inject` 重构、`reflect-metadata` 审计的详细参考。  
-> 实施前请先阅读整合方案 §1-§4 章节。
+> ⚠️ **本方案已被整合到** [`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md) **v2.0**。  
+> 整合方案在路线图、ADR、风险登记上**优先于本文档**。本文档保留为装饰器双模式实现、DTO 替代方案、`reflect-metadata` 审计的详细参考。  
+> **阅读规则**：下面的"v3.0 评审勘误与补充"优先于正文。正文中已就地修正的代码均标注 `v3.0`；未修正的旧段落如果与勘误冲突，以勘误为准。
+
+---
+
+## v3.0 评审勘误与补充（优先于正文）
+
+> 结论依据是整合方案 v2.0 §0.2 的实测证据 E-01～E-15（TypeScript 7.0.2 / 6.0.3 / 5.9，Node 22.23.1，Bun 1.3.14）。
+
+### A. 正文错误与修正
+
+| # | 正文位置 | 问题 | 修正 |
+|---|---------|------|------|
+| 1 | §2.2、§4.3–4.5 以及其他所有 `context.metadata.set(...)` | `context.metadata` 是**普通对象**（`DecoratorMetadataObject`），不是 `Map`，调用 `.set` 会抛 `TypeError` | 用 Symbol 键直接赋值，写集合类值前先复制（见 C.2） |
+| 2 | §2.2 字段装饰器、§4.3 `@Autowired` | 在 initializer 中调用 `IOC.resolve`（API 不存在）立即解析依赖：每次实例化都会解析，启动期拿不到元数据，还会破坏循环依赖的惰性代理 | 字段装饰器**在装饰时**写入元数据；仍由容器在实例化后注入（见 C.3） |
+| 3 | §2.1 表格 "Metadata: Built-in via context.metadata" | Node 22 与 Bun 1.3 **都没有** `Symbol.metadata`；不加 polyfill 时 TS 生成的代码会把 `context.metadata` 置为 `undefined`（E-02） | 必须加 polyfill（见 C.1） |
+| 4 | §2.1 "Stage 2 (legacy)" | legacy 是 TS 私有实现，不属于任何 TC39 阶段 | 改为 "TS experimental（非标准）" |
+| 5 | §5.1 "6.0+ ⚠️ Deprecated" | TS 6.0 与 7.0.2 都**仍然支持** `experimentalDecorators` / `emitDecoratorMetadata`（E-01） | 按 §5.1（v3.0）修订 |
+| 6 | §5.2 "Node 18 需 `--experimental-decorators`，20+ 原生支持" | Node 没有这个参数，V8 也尚未实现装饰器；装饰器一律由编译器降级转换。Node 原生类型剥离遇到任何装饰器都会报 `SyntaxError`（E-14） | 按 §5.2（v3.0）修订 |
+| 7 | §11.3.2 路径 2 | 在字段装饰器的 `context.addInitializer` 中写 `DTO_SOURCE_KEY`：字段的 initializer 要到每次实例化才执行，启动期的 `injectParamMetaData` 读不到 | 在装饰器函数体内写 `context.metadata` |
+| 8 | §11.4.4、§11.4.5、§11.6.2、§11.10.3、§11.2.2 JSDoc、§11.8 Phase 2 | `@Inject(A, B)` 写在 constructor 上：TC39 与 legacy 都不允许装饰构造函数（TS1206，E-04） | 使用 `@Service({ inject: [() => A, () => B] })` 或字段注入（见 C.4） |
+| 9 | §11.10.4、§11.3.4 中的 `isLegacyMode = tsconfig...` | 运行时读 tsconfig 不可靠：dist 中没有 tsconfig、存在 `extends` 链、一个进程可能混有多个编译单元、Bun/SWC 可能使用其他配置 | **逐次调用判定**：由 `isTC39Context(第二个实参)` 决定；同一个类混用两种模式时报错（整合方案 ADR-012） |
+| 10 | §11.10.3 `@Autowired(Type)` | 立即求值在循环 import 时会遇到 TDZ（`ReferenceError`）或拿到 `undefined` | 推荐 `@Autowired(() => Type)` |
+| 11 | §2.2 / §4.5 方法装饰器返回类型 `Function` | TS1270（E-05） | 返回 `void`，或返回签名与原方法一致的函数 |
+| 12 | §3.1 Phase 4、§5.3、§8 "移除 legacy 与 reflect-metadata" | 与整合方案"v4 不移除、v5 视情况决定"冲突 | 以整合方案 §6.3 为准 |
+| 13 | §4.1 `lib: ["ESNext.Decorators"]` | 只提供类型，不提供运行时 `Symbol.metadata` | 保留该 lib 以获得类型，运行时仍需 polyfill |
+
+### B. 正文遗漏的硬约束
+
+1. **TC39 被装饰的字段一定是自有属性（E-11）。** 规范语义下，被装饰字段在构造时会被定义为实例自有属性，初始值为 `undefined`，与 `useDefineForClassFields` 无关，因此会遮住 Koatty 注入到原型上的依赖（`autowired_processor.ts:189-216`、`values_processor.ts:59`）。当前能正确注入，是因为 `overridePrototypeValue` 在实例化后把原型值复制给了值为 `undefined` 的自有属性（`lifecycle_manager.ts:27`、`container.ts:475`），延迟注入时还会补写单例（`autowired_processor.ts:321-329`）。由此得出三条约束：
+   - 只有 IOC 创建的实例才会被注入；直接 `new` 出来的对象在 TC39 下拿不到依赖；
+   - 被注入的字段**不得**带初始值（`@Autowired() repo = null` 会让兜底失效），装饰器必须检测到后报错；
+   - `overridePrototypeValue` 必须作为不变量加测试（整合方案 ADR-019）。
+2. **元数据继承污染（E-03）。** 子类 `context.metadata` 的原型指向父类的 metadata。对继承来的数组或对象直接改写会污染父类。
+3. **Bun 转译器忽略 `useDefineForClassFields: false`（E-10）。** 未装饰的 `x!: T` 字段在 Bun 源码运行时会成为自有属性。这影响 C3/C4 下依赖原型值的未装饰字段。
+4. **polyfill 求值顺序。** TS 生成的代码在**类定义求值时**读取 `Symbol.metadata`。polyfill 必须位于依赖图中先求值的模块里；在 `App.ts` 顶部写一行赋值语句是无效的，因为它晚于所有 import。
+5. **开发期工具链。** esbuild/tsx 不支持 `emitDecoratorMetadata`，legacy 模式不能用 tsx 开发；Node 原生类型剥离两种模式都无法运行。
+
+### C. 修正后的参考实现
+
+#### C.1 polyfill 与写入工具（`koatty-container`）
+
+```typescript
+// koatty-container/src/decorator/metadata.ts —— 包入口第一条 import
+(Symbol as { metadata?: symbol }).metadata ??= Symbol.for("Symbol.metadata");
+
+export class PolyfillMissingError extends Error {
+  constructor() {
+    super('context.metadata is undefined: import "koatty_container" before any decorated class');
+  }
+}
+
+/** 写前复制：避免子类污染父类元数据 */
+export function appendOwn<T>(meta: DecoratorMetadataObject, key: symbol, item: T): void {
+  const own = Object.hasOwn(meta, key) ? (meta[key] as T[]) : [...((meta[key] as T[] | undefined) ?? [])];
+  own.push(item);
+  meta[key] = own;
+}
+
+export function readMeta<T>(cls: Function, key: symbol): T | undefined {
+  return (cls as { [Symbol.metadata]?: DecoratorMetadataObject })[Symbol.metadata]?.[key] as T | undefined;
+}
+```
+
+#### C.2 类装饰器与方法装饰器
+
+```typescript
+const CONTROLLER = Symbol("koatty:controller");
+const ROUTES = Symbol("koatty:routes");
+
+export function Controller(path = "", options?: IControllerOptions) {
+  return createDualClassDecorator({
+    legacy: (target) => registerController(target, path, options),
+    tc39: (target, ctx) => {
+      if (ctx.metadata === undefined) throw new PolyfillMissingError();
+      ctx.metadata[CONTROLLER] = { path, ...options };  // 普通对象属性
+      registerController(target, path, options);       // 类装饰器可以拿到类本身
+    },
+  });
+}
+
+export const RequestMapping = (path = "/", reqMethod = RequestMethod.GET) =>
+  createDualMethodDecorator({
+    legacy: (proto, key) => IOC.attachPropertyData(MAPPING_KEY, { path, method: key, requestMethod: reqMethod }, proto, key),
+    tc39: (_method, ctx) => {
+      appendOwn(ctx.metadata, ROUTES, { path, method: String(ctx.name), requestMethod: reqMethod });
+      // 返回 void，保留原方法（避免 TS1270）
+    },
+  });
+```
+
+#### C.3 `@Autowired`（TC39 分支）
+
+```typescript
+const AUTOWIRED = Symbol("koatty:autowired");
+
+export function Autowired<T>(id?: string | (() => Constructor<T>) | Constructor<T>) {
+  return createDualFieldDecorator({
+    legacy: (proto, key) => { /* 保持现状：没有 id 时从 design:type 推断 */ },
+    tc39: (ctx) => {
+      if (id === undefined) throw new Error(`@Autowired on ${String(ctx.name)} requires a type in TC39 mode`);
+      appendOwn(ctx.metadata, AUTOWIRED, { key: ctx.name, id });   // 装饰时写入
+      return (initial: unknown) => {                               // 只做校验，不解析依赖
+        if (initial !== undefined) throw new Error(`@Autowired field ${String(ctx.name)} must not have an initializer`);
+        return initial;
+      };
+    },
+  });
+}
+```
+
+在 TC39 下，类装饰器（`@Service` / `@Controller` 等）负责把 `Class[Symbol.metadata][AUTOWIRED]` 转换成容器现有的 `TAGGED_PROP` 数据。之后注入流程与 legacy 相同：注入到原型，再由 `overridePrototypeValue` 兜底。
+
+#### C.4 构造注入
+
+```typescript
+// ❌ v2.2 正文写法：TS1206，任何模式都无法编译
+// @Inject(UserRepository, LogService)
+// constructor(...) {}
+
+// ✅ 类级声明，两种模式通用
+@Service({ inject: [() => UserRepository, () => LogService] })
+class UserService {
+  constructor(private readonly repo: UserRepository, private readonly log: LogService) {}
+}
+
+// ✅ 或者使用字段注入（推荐，支持循环依赖）
+@Service()
+class UserService {
+  @Autowired(() => UserRepository) private repo!: UserRepository;
+}
+```
+
+构造注入无法用惰性代理打破环，检测到环时报错并提示改为字段注入。legacy 下 `constructor(@Inject() dep: T)` 保留并标记 `@deprecated`。
+
+#### C.5 DTO 数据源装饰器（三形态分派）
+
+```typescript
+const DTO_SOURCE = Symbol("koatty:dto-source");
+
+export function Get(opt: string | { name: string; type?: Function }) {
+  const o = typeof opt === "string" ? { name: opt } : opt;
+  return function (a: any, b: any, c?: any): any {
+    if (typeof c === "number") return legacyParam(a, b, c, "query", o);          // legacy 参数装饰器
+    if (isTC39Context(b)) {                                                      // TC39 字段装饰器
+      if (!o.type) throw new Error(`@Get("${o.name}") requires { type } in TC39 mode`);
+      appendOwn(b.metadata, DTO_SOURCE, { field: b.name, source: "query", ...o }); // 装饰时写入
+      return;
+    }
+    legacyField(a, b, "query", o);                                               // legacy 字段装饰器
+  };
+}
+```
+
+### D. TypeScript 7.0 专项
+
+| 项 | 要求 |
+|----|------|
+| 框架构建与类型检查 | TS 7.0.x（`typescript-7` 别名）；ts-jest、typescript-eslint、ts-node 使用 TS 6.0.x（整合方案 ADR-017） |
+| `strict` | TS7 默认开启，`tsconfig.base.json` 显式设为 `false`，再按包逐步开启 |
+| 被移除的选项 | `target: ES5`、`moduleResolution: node10`（TS5108）；当前仓库没有使用 |
+| 装饰器 | legacy 与 TC39 都支持；本方案所有 TC39 用例必须**用 TS7 编译**后在 Node 与 Bun 上运行 |
+| `tslib` | ≥ 2.5（提供 `__esDecorate` / `__runInitializers`） |
+| 用户侧 | 用 TS 5.9 / 6.0 / 7.0 编译的用户项目都要有 fixture 测试 |
+
+### E. 与正文 §11.8 / §7 工作量的关系
+
+工作量与排期以整合方案 v2.0 §5 为准（Phase 0/1/3/4 合计约 17.5 人周，其中大部分是 TC39 工作）。本文 §7 与 §11.8 中的周数只作参考。
 
 ---
 
@@ -57,11 +222,13 @@ Based on the audit conducted on 2026-04-02, the project uses decorators in **271
 | Aspect | Legacy (TypeScript Experimental) | TC39 Standard |
 |--------|----------------------------------|---------------|
 | **Class Decorator Signature** | `(target: Function) => Function \| void` | `(target: Class, context: ClassDecoratorContext) => Class \| void` |
-| **Method Decorator Signature** | `(target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor \| void` | `(method: Function, context: ClassMethodDecoratorContext) => Function \| void` |
-| **Property Decorator Signature** | `(target: any, key: string \| symbol) => void` | `(value: undefined, context: ClassFieldDecoratorContext) => (initialValue: any) => any` |
+| **Method Decorator Signature** | `(target: any, key: string, descriptor: PropertyDescriptor) => PropertyDescriptor \| void` | `(method: M, context: ClassMethodDecoratorContext) => M \| void`（v3.0：不能把返回类型写成 `Function`，否则 TS1270） |
+| **Property Decorator Signature** | `(target: any, key: string \| symbol) => void` | `(value: undefined, context: ClassFieldDecoratorContext) => void \| ((initialValue: V) => V)` |
 | **Parameter Decorator** | Supported | **NOT SUPPORTED** (use alternatives) |
-| **Metadata** | `reflect-metadata` required | Built-in via `context.metadata` |
-| **Stage** | Stage 2 (legacy) | Stage 3 (standardized) |
+| **Constructor Decorator** | Not supported | **NOT SUPPORTED**（TS1206） |
+| **Metadata** | `reflect-metadata` required；`emitDecoratorMetadata` 生成 `design:*` | `context.metadata`（**普通对象**，经 `Class[Symbol.metadata]` 读取）。Node 22 与 Bun 1.3 都**没有**原生 `Symbol.metadata`，需要 polyfill；没有 `design:*` 类型信息 |
+| **Field semantics** | 无初始值的装饰字段不生成代码（配合 `useDefineForClassFields: false`） | 被装饰字段总是实例自有属性，会遮住原型值（见勘误 B.1） |
+| **Stage** | TS experimental（非标准） | Stage 3 |
 
 ### 2.2 TC39 Decorator Syntax Examples
 
@@ -82,12 +249,13 @@ function Controller(path: string): ClassDecorator {
 class UserController {}
 ```
 
-**TC39 Standard:**
+**TC39 Standard（v3.0 修正：metadata 是普通对象）:**
 ```typescript
+const CONTROLLER_PATH = Symbol("controller:path");
+
 function Controller(path: string) {
-  return <T extends Class>(target: T, context: ClassDecoratorContext): T => {
-    context.metadata.set("controller:path", path);
-    return target;
+  return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): void => {
+    context.metadata[CONTROLLER_PATH] = path;   // 读取：UserController[Symbol.metadata][CONTROLLER_PATH]
   };
 }
 
@@ -112,12 +280,16 @@ class UserController {
 }
 ```
 
-**TC39 Standard:**
+**TC39 Standard（v3.0 修正：普通对象 + 写前复制 + 返回 void）:**
 ```typescript
+const ROUTES = Symbol("routes");
+
 function GetMapping(path: string) {
-  return (method: Function, context: ClassMethodDecoratorContext): Function => {
-    context.metadata.set("route:path", path);
-    return method;
+  return (_method: unknown, context: ClassMethodDecoratorContext): void => {
+    const m = context.metadata as Record<symbol, unknown[]>;
+    const own = Object.hasOwn(m, ROUTES) ? m[ROUTES] : [...(m[ROUTES] ?? [])]; // 不污染父类
+    own.push({ path, method: String(context.name) });
+    m[ROUTES] = own;
   };
 }
 
@@ -146,22 +318,23 @@ class UserService {
 }
 ```
 
-**TC39 Standard:**
+**TC39 Standard（v3.0 修正）:**
 ```typescript
-function Autowired() {
-  return (value: undefined, context: ClassFieldDecoratorContext) => {
-    return (initialValue: any) => {
-      // Use context.metadata for metadata storage
-      context.metadata.set("injection:field", context.name);
-      // Return the actual value (from DI container)
-      return IOCContainer.resolve(context.name.toString());
-    };
+const AUTOWIRED = Symbol("autowired");
+
+// 类型必须显式给出（没有 design:type）；元数据在装饰时写入；不在 initializer 里解析依赖
+function Autowired(type: () => Function) {
+  return (_value: undefined, context: ClassFieldDecoratorContext): void => {
+    const m = context.metadata as Record<symbol, unknown[]>;
+    const own = Object.hasOwn(m, AUTOWIRED) ? m[AUTOWIRED] : [...(m[AUTOWIRED] ?? [])];
+    own.push({ key: context.name, type });
+    m[AUTOWIRED] = own;
   };
 }
 
 class UserService {
-  @Autowired()
-  private repository?: UserRepository;
+  @Autowired(() => UserRepository)
+  private repository!: UserRepository;   // 注意：TC39 下这是实例自有属性，由容器在实例化后填充
 }
 ```
 
@@ -183,17 +356,18 @@ class UserService {
 
 **TC39 Standard (Alternative):**
 ```typescript
-// TC39 does NOT support parameter decorators
-// Use constructor-based DI or field injection instead
+// TC39 does NOT support parameter decorators, nor constructor decorators (TS1206)
+// v3.0：用字段注入，或类级依赖声明
 
+@Service()
 class UserService {
-  @Autowired()
-  private repository?: UserRepository;
-  
-  // Or use explicit constructor injection
-  constructor(repository: UserRepository) {
-    this.repository = repository;
-  }
+  @Autowired(() => UserRepository)
+  private repository!: UserRepository;
+}
+
+@Service({ inject: [() => UserRepository] })
+class UserService2 {
+  constructor(private readonly repository: UserRepository) {}
 }
 ```
 
@@ -203,10 +377,12 @@ class UserService {
 
 ### 3.1 Phased Migration Approach
 
+> **v3.0**：本节阶段划分已被整合方案 v2.0 §5 取代，下面的内容只作历史参考。
+
 #### Phase 1: Preparation (2-3 weeks)
-- [ ] Set up TC39 decorator polyfill/shim layer
+- [ ] Set up `Symbol.metadata` polyfill（v3.0：Node 22 与 Bun 1.3 都必需，见勘误 C.1）
 - [ ] Create decorator compatibility layer
-- [ ] Update TypeScript to version 5.0+ (full TC39 support)
+- [ ] v3.0：框架用 TypeScript 7.0.x 构建与类型检查，测试和 lint 工具链使用 TS 6.0.x（见勘误 D）；用户侧最低 TS 5.9
 - [ ] Create automated migration scripts
 - [ ] Document all custom decorator usage patterns
 
@@ -228,8 +404,8 @@ class UserService {
 - [ ] Update documentation and tutorials
 
 #### Phase 4: Cleanup & Optimization (1-2 weeks)
-- [ ] Remove legacy decorator support
-- [ ] Remove `reflect-metadata` dependency
+- [ ] ~~Remove legacy decorator support~~（v3.0：v4 不移除，v5 视情况决定，见整合方案 §6.3）
+- [ ] ~~Remove `reflect-metadata` dependency~~（v3.0：v4 保留；上层统一通过 `MetadataStore` 读取，为将来移除做准备）
 - [ ] Performance optimization
 - [ ] Final documentation updates
 
@@ -269,6 +445,8 @@ export { Service as ServiceV2 } from './decorators/tc39/service';
 
 #### Option C: TypeScript Version Detection
 
+> **v3.0：已否决。** 装饰器模式无法在运行时通过 tsconfig 可靠识别（见勘误 A.9），采用 Option A（逐次调用按实参形态判定）。Option B 会让 API 数量翻倍，同样不采用。
+
 ```typescript
 // tsconfig.json
 {
@@ -296,10 +474,19 @@ export { Service as ServiceV2 } from './decorators/tc39/service';
     "lib": ["ES2022", "ESNext.Decorators"],
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false,
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "importHelpers": true
   }
 }
 ```
+
+> **v3.0 说明**：
+> - `ESNext.Decorators` 只提供 `DecoratorMetadataObject`、`Symbol.metadata` 的**类型**；运行时的 `Symbol.metadata` 仍需 polyfill。
+> - TS7 默认 `strict: true`，这里显式写 `false` 以保持现有行为（逐步开启另行安排）。
+> - `useDefineForClassFields` 对**被装饰**字段的 TC39 语义没有影响（被装饰字段总是自有属性）。保留 `false` 是为了未装饰字段在 tsc 与 legacy 下的行为不变。注意 Bun 转译器会忽略此项（E-10）。
+> - `importHelpers: true` 需要 `tslib` ≥ 2.5。
 
 ### 4.2 Step 2: Create Compatibility Layer
 
@@ -311,17 +498,14 @@ export { Service as ServiceV2 } from './decorators/tc39/service';
  * Provides utilities for supporting both legacy and TC39 decorators
  */
 
-export interface DecoratorContext {
-  kind: 'class' | 'method' | 'field' | 'getter' | 'setter';
-  name: string | symbol;
-  metadata: Map<string, any>;
-  addInitializer?: (initializer: () => void) => void;
-}
-
-export function isTC39Context(context: any): context is DecoratorContext {
-  return context && typeof context === 'object' && 'kind' in context;
+// v3.0：直接使用 TS 内置的 DecoratorContext 类型（lib: ESNext.Decorators），不要自定义接口
+// 原接口把 metadata 声明为 Map<string, any> 是错误的：实际类型是 DecoratorMetadataObject（普通对象）
+export function isTC39Context(context: unknown): context is DecoratorContext {
+  return typeof context === "object" && context !== null && "kind" in context && "metadata" in context;
 }
 ```
+
+> `kind` 的完整取值为 `'class' | 'method' | 'getter' | 'setter' | 'field' | 'accessor'`。`accessor`（auto-accessor）也要处理，至少明确报"不支持"。
 
 ### 4.3 Step 3: Migrate @Autowired Decorator
 
@@ -336,23 +520,21 @@ export function Autowired<T>(paramName?: ClassOrString<T>): PropertyDecorator {
 }
 ```
 
-**After (TC39):**
+**After (TC39，v3.0 重写):**
+
+> 原稿在 initializer 里调用 `IOC.resolve`（该 API 不存在）：每次实例化都要解析一次，启动期的依赖分析读不到元数据，还会绕过循环依赖的惰性代理。完整的双模式实现见勘误 C.3。
+
 ```typescript
-// packages/koatty-container/src/decorator/autowired.ts
-export function Autowired<T>(paramName?: ClassOrString<T>) {
-  return (value: undefined, context: ClassFieldDecoratorContext) => {
-    return (initialValue: any) => {
-      const fieldName = context.name.toString();
-      const metadata = context.metadata;
-      
-      // Store injection metadata
-      metadata.set(`autowired:${fieldName}`, {
-        paramName,
-        fieldName
-      });
-      
-      // Return resolved instance from IOC container
-      return IOC.resolve(paramName || fieldName);
+// packages/koatty-container/src/decorator/autowired.ts（TC39 分支）
+const AUTOWIRED = Symbol("koatty:autowired");
+
+export function Autowired<T>(id?: string | (() => Constructor<T>) | Constructor<T>) {
+  return (_value: undefined, context: ClassFieldDecoratorContext) => {
+    if (id === undefined) throw new Error("@Autowired requires an explicit type in TC39 mode");
+    appendOwn(context.metadata, AUTOWIRED, { key: context.name, id });  // 装饰时写入，写前复制
+    return (initial: unknown) => {
+      if (initial !== undefined) throw new Error(`@Autowired field ${String(context.name)} must not have an initializer`);
+      return initial;  // 保持 undefined，由容器在实例化后注入（overridePrototypeValue）
     };
   };
 }
@@ -375,18 +557,22 @@ export function Controller(path = "", options?: IControllerOptions): ClassDecora
 **After (TC39):**
 ```typescript
 // packages/koatty-core/src/Component.ts
+// v3.0：metadata 是普通对象；键用 Symbol；类装饰器返回 void（不替换类）
+const CONTROLLER_ROUTER_KEY = Symbol("koatty:controller-router");
+
 export function Controller(path = "", options?: IControllerOptions) {
-  return <T extends Class>(target: T, context: ClassDecoratorContext): T => {
+  return <T extends abstract new (...args: any) => any>(target: T, context: ClassDecoratorContext<T>): void => {
+    if (context.metadata === undefined) throw new PolyfillMissingError();
     const identifier = IOC.getIdentifier(target);
     IOC.saveClass("CONTROLLER", target, identifier);
-    
-    // Use context.metadata instead of Reflect
-    context.metadata.set(`controller:router:${identifier}`, { path, ...options });
-    
-    return target;
+    context.metadata[CONTROLLER_ROUTER_KEY] = { path, ...options };
+    // 字段与方法装饰器先于类装饰器执行，此时 context.metadata 已经包含它们写入的数据，
+    // 可以在这里一次性转换成容器的 TAGGED_PROP / MAPPING 数据
   };
 }
 ```
+
+实际实现要通过 `createDualClassDecorator` 同时支持 legacy（勘误 C.2）。
 
 ### 4.5 Step 5: Migrate HTTP Mapping Decorators
 
@@ -411,20 +597,18 @@ export const RequestMapping = (
   path = "/",
   reqMethod: RequestMethod = RequestMethod.GET
 ) => {
-  return (method: Function, context: ClassMethodDecoratorContext): Function => {
-    const methodName = context.name.toString();
-    
-    // Store in context metadata
-    context.metadata.set(`route:${methodName}`, {
+  // v3.0：返回 void（写成 Function 会报 TS1270）；普通对象 + 写前复制
+  return (_method: unknown, context: ClassMethodDecoratorContext): void => {
+    appendOwn(context.metadata, MAPPING_SYMBOL, {
       path,
-      method: methodName,
-      requestMethod: reqMethod
+      method: String(context.name),
+      requestMethod: reqMethod,
     });
-    
-    return method;
   };
 };
 ```
+
+> 父类控制器上的路由会通过 metadata 原型链自然被子类继承；子类新增路由时使用 `appendOwn`，不会改到父类。
 
 ### 4.6 Step 6: Remove Parameter Decorators
 
@@ -437,26 +621,21 @@ class UserService {
 }
 ```
 
-**After (TC39 - Field Injection):**
+**After (TC39 - Field Injection，v3.0：类型必须显式给出):**
 ```typescript
+@Service()
 class UserService {
-  @Autowired()
-  private repository?: UserRepository;
+  @Autowired(() => UserRepository)
+  private repository!: UserRepository;
 }
 ```
 
-**After (TC39 - Constructor Injection):**
+**After (TC39 - Constructor Injection，v3.0：用类级声明替代不存在的 `IOC.register(Class, deps)`):**
 ```typescript
+@Service({ inject: [() => UserRepository] })
 class UserService {
-  private repository: UserRepository;
-  
-  constructor(repository: UserRepository) {
-    this.repository = repository;
-  }
+  constructor(private readonly repository: UserRepository) {}
 }
-
-// In DI container configuration
-IOC.register(UserService, [UserRepository]);
 ```
 
 ---
@@ -465,26 +644,33 @@ IOC.register(UserService, [UserRepository]);
 
 ### 5.1 TypeScript Version Support
 
-| TypeScript Version | Experimental Decorators | TC39 Decorators | Recommended |
+| TypeScript Version | Experimental Decorators | TC39 Decorators | Koatty 用途（v3.0） |
 |-------------------|------------------------|-----------------|-------------|
-| 4.x | ✅ Full Support | ❌ Not Supported | Legacy |
-| 5.0+ | ✅ Full Support | ✅ Full Support | Transition |
-| 6.0+ (future) | ⚠️ Deprecated | ✅ Full Support | TC39 Only |
+| 4.x | ✅ | ❌ | 不再支持 |
+| 5.0–5.8 | ✅ | ✅（5.2 起支持 `context.metadata`） | 不推荐 |
+| 5.9 | ✅ | ✅ | 用户侧最低版本 |
+| 6.0 | ✅ | ✅ | 框架测试与 lint 工具链（ts-jest peer `<7`，typescript-estree peer `<6.1.0`） |
+| **7.0（Go 原生）** | ✅（实测 7.0.2，E-01） | ✅ | **框架构建与类型检查**；默认 `strict: true`；移除 ES5 / node10（TS5108）；没有经典 JS 编译 API |
 
-### 5.2 Node.js Version Support
+> 原表中 "6.0+ Deprecated" 不属实：截至 TS 7.0.2，`experimentalDecorators` 与 `emitDecoratorMetadata` 均未被弃用。
 
-| Node.js Version | TC39 Decorators | Notes |
-|----------------|-----------------|-------|
-| 18.x | ✅ (with flags) | Requires `--experimental-decorators` |
-| 20.x+ | ✅ Full Support | Native support |
+### 5.2 Runtime Support（v3.0 重写）
 
-### 5.3 Framework Compatibility
+装饰器由**编译器**降级转换，运行时不需要原生支持，也没有 `--experimental-decorators` 这样的运行时参数。
+
+| 运行时 | legacy | TC39 | `Symbol.metadata` | 备注 |
+|-------|--------|------|------------------|------|
+| Node 18 | ✅ | ✅ | ❌ | 已 EOL，不再支持 |
+| Node 20 / 22 / 24 | ✅ | ✅ | ❌（22.23 实测为 undefined） | 需要 polyfill；原生类型剥离无法运行装饰器（E-14） |
+| Bun 1.3 | ✅（E-09） | ✅ | ❌ | 需要 polyfill；Bun 转译器忽略 `useDefineForClassFields: false`（E-10） |
+
+### 5.3 Framework Compatibility（v3.0，与整合方案 §6.3 一致）
 
 | Koatty Version | Legacy Decorators | TC39 Decorators | Status |
 |----------------|-------------------|-----------------|--------|
 | 3.x | ✅ Primary | ❌ Not Supported | Current |
-| 4.x (planned) | ✅ Deprecated | ✅ Primary | Migration |
-| 5.x (future) | ❌ Removed | ✅ Only | Final |
+| 4.x | ✅ 默认 | ✅ 推荐 | Node 与 Bun 均支持两种模式 |
+| 5.x | ⚠️ 维护（是否移除届时再定） | ✅ 默认 | — |
 
 ---
 
@@ -496,9 +682,15 @@ IOC.register(UserService, [UserRepository]);
 |------|--------|------------|------------|
 | **Breaking changes for users** | High | High | Dual decorator support, gradual migration guide |
 | **Parameter decorator removal** | High | Certain | Provide clear migration path to field injection |
-| **reflect-metadata dependency** | Medium | High | Use built-in `context.metadata` |
+| **reflect-metadata dependency** | Medium | High | v3.0：v4 保留；上层统一经由 `MetadataStore` 读取 |
 | **Third-party library compatibility** | Medium | Medium | Maintain compatibility layer |
 | **Performance regression** | Low | Low | Benchmark before/after migration |
+| **v3.0 `Symbol.metadata` 缺失或 polyfill 顺序错误** | High | High | 在 `koatty-container` 入口执行 polyfill；缺失时抛 `PolyfillMissingError`；`koatty doctor` 检查 |
+| **v3.0 元数据继承污染（E-03）** | High | High（写法稍不注意就会触发） | 统一使用 `appendOwn` 写前复制；继承用例 |
+| **v3.0 TC39 自有字段遮住原型注入（E-11）** | High | Certain | `overridePrototypeValue` 作为不变量加测试；禁止被注入字段带初始值；文档说明直接 `new` 出来的对象不会被注入 |
+| **v3.0 构造函数不能被装饰（E-04）** | High | Certain | `@Service({ inject })` / 字段注入 |
+| **v3.0 TS7 工具链分裂** | Medium | High | 整合方案 ADR-017 双编译器；CI 用两套编译器分别做类型检查 |
+| **v3.0 同一个类混用两种模式** | Medium | Low | 按类检测并报 `MixedDecoratorModeError` |
 
 ### 6.2 Mitigation Strategies
 
@@ -558,12 +750,14 @@ IOC.register(UserService, [UserRepository]);
 
 ### 8.1 Technical Criteria
 
-- [ ] All core framework decorators migrated to TC39 standard
-- [ ] 100% test coverage maintained
+- [ ] All core framework decorators support **both** legacy and TC39（v3.0：双模式，不是替换）
+- [ ] 覆盖率不低于迁移前（v3.0：原文 "100%" 不现实，改为不下降）
 - [ ] No performance regression (>5% slower)
-- [ ] TypeScript strict mode compliance
-- [ ] `reflect-metadata` dependency removed
+- [ ] ~~TypeScript strict mode compliance~~（v3.0：TS7 默认开启 strict；v4 期间显式 `strict: false`，按包逐步开启，不作为本迁移的门槛）
+- [ ] ~~`reflect-metadata` dependency removed~~（v3.0：v4 保留）
 - [ ] All examples updated and working
+- [ ] v3.0：TS 7.0 与 TS 6.0 类型检查均 0 error；TC39 用例用 TS7 编译后在 Node 22/24 与 Bun 1.3 上运行
+- [ ] v3.0：polyfill 缺失报错、元数据继承隔离、ADR-019 注入不变量、混用冲突这四类用例通过
 
 ### 8.2 User Experience Criteria
 
@@ -591,9 +785,8 @@ IOC.register(UserService, [UserRepository]);
 - Extensive documentation
 
 #### Version 5.0 (Future)
-- TC39 decorators only
-- Legacy decorator support removed
-- Clean codebase
+- TC39 decorators by default
+- v3.0：是否移除 legacy，要到 v5 规划时根据 TC39 参数装饰器提案进展与用户使用数据决定，不预设（整合方案 §6.3）
 
 ### 9.2 Communication Plan
 
@@ -827,15 +1020,14 @@ TC39 参数装饰器提案（[proposal-class-method-parameter-decorators](https:
  * TC39 标准装饰器规范不支持参数装饰器，当项目迁移到 TC39 后，
  * 本装饰器的 ParameterDecorator 形态将无法通过编译。
  *
- * 迁移方案：
- * - 属性注入：改用 @Autowired(Type)
- * - 构造注入：改用 @Inject(Type1, Type2, ...) 作为 MethodDecorator 放在 constructor 上
+ * 迁移方案（v3.0 修正：构造函数不能被装饰，TS1206）：
+ * - 属性注入（推荐）：改用 @Autowired(() => Type)
+ * - 构造注入：在类装饰器上声明 @Service({ inject: [() => Type1, () => Type2] })
  *
  * ```typescript
  * // TC39 构造注入
- * @Service()
+ * @Service({ inject: [() => UserRepository, () => LogService] })
  * class UserService {
- *   @Inject(UserRepository, LogService)
  *   constructor(
  *     private readonly repo: UserRepository,
  *     private readonly log: LogService
@@ -893,7 +1085,7 @@ TC39 参数装饰器提案（[proposal-class-method-parameter-decorators](https:
 |----|--------|---------|------------|
 | koatty-router | `Header`, `PathVariable`, `Get`, `Post`, `File` | `src/params/params.ts` | ParameterDecorator 用法弃用，改用 PropertyDecorator 模式（DTO 属性上） |
 | koatty-router | `RequestBody`, `RequestParam` (`Body`, `Param`) | `src/params/params.ts` | 同上 |
-| koatty-container | `Inject` | `src/decorator/autowired.ts` | ParameterDecorator 用法弃用，改用 `@Autowired(Type)` 或 `@Inject(Type...)` MethodDecorator |
+| koatty-container | `Inject` | `src/decorator/autowired.ts` | ParameterDecorator 用法弃用，改用 `@Autowired(() => Type)` 或 `@Service({ inject: [...] })`（v3.0：原稿中写在 constructor 上的 MethodDecorator 形态无法编译） |
 | koatty-validation | `Valid` | `src/decorators.ts` | 完全弃用，改用 DTO 属性验证装饰器（`@IsNotEmpty` 等） |
 
 ---
@@ -943,7 +1135,8 @@ Get(options?: { name?: string, type?: Function, defaultValue?: any }): PropertyD
 ```typescript
 // packages/koatty-router/src/params/params.ts
 
-const DTO_SOURCE_KEY = 'DTO_SOURCE';
+const DTO_SOURCE_KEY = 'DTO_SOURCE';           // legacy：reflect-metadata 键
+const DTO_SOURCE = Symbol("koatty:dto-source"); // v3.0 TC39：context.metadata 键
 
 export function Get(nameOrOptions?: string | { name?: string, type?: Function, defaultValue?: any },
   defaultValue?: any): ParameterDecorator & PropertyDecorator {
@@ -973,22 +1166,27 @@ export function Get(nameOrOptions?: string | { name?: string, type?: Function, d
     }
 
     // —— 路径 2: PropertyDecorator（TC39 字段装饰器）——
-    if (propertyKeyOrContext && typeof propertyKeyOrContext === 'object' && 'kind' in propertyKeyOrContext) {
+    // v3.0 修正：原稿把写入放在 context.addInitializer 中。字段的 initializer 要到每次实例化才执行，
+    // 启动期 injectParamMetaData 读不到 DTO_SOURCE；而且每 new 一次就重复写一次。
+    // 必须在装饰时写入 context.metadata（写前复制，避免子类 DTO 污染父类 DTO）。
+    if (isTC39Context(propertyKeyOrContext)) {
       const context = propertyKeyOrContext as ClassFieldDecoratorContext;
+      if (context.metadata === undefined) throw new PolyfillMissingError();
+      if (!opts.type) throw new Error(`@Get on ${String(context.name)} requires { type } in TC39 mode`);
       const fieldName = String(context.name);
-      context.addInitializer(function() {
-        const ctor = this.constructor;
-        const sources = Reflect.getOwnMetadata(DTO_SOURCE_KEY, ctor) || {};
-        sources[fieldName] = {
-          sourceType: ParamSourceType.QUERY,
-          paramName: opts.name || fieldName,
-          type: opts.type,               // TC39 模式下必填
-          defaultValue: opts.defaultValue,
-        };
-        Reflect.defineMetadata(DTO_SOURCE_KEY, sources, ctor);
-      });
+      const meta = context.metadata as Record<symbol, Record<string, unknown>>;
+      const own = Object.hasOwn(meta, DTO_SOURCE) ? meta[DTO_SOURCE] : { ...(meta[DTO_SOURCE] ?? {}) };
+      own[fieldName] = {
+        sourceType: ParamSourceType.QUERY,
+        paramName: opts.name || fieldName,
+        type: opts.type,
+        defaultValue: opts.defaultValue,
+      };
+      meta[DTO_SOURCE] = own;
       return;
     }
+    // 读取端：MetadataStore 先读 DtoClass[Symbol.metadata][DTO_SOURCE]（TC39），
+    // 再读 Reflect.getOwnMetadata(DTO_SOURCE_KEY, DtoClass)（legacy）；两者都有值时报混用错误
 
     // —— 路径 3: PropertyDecorator（Legacy 属性装饰器）——
     const target = targetOrValue;
@@ -1200,7 +1398,7 @@ export class CreateUserDto {
 
 ##### 解决方案：分 Legacy/TC39 两条路径
 
-> **模式判断**：框架通过项目 `tsconfig.json` 中的 `emitDecoratorMetadata` 值判断编译模式（详见 §11.10.4）。
+> **模式判断（v3.0 修正）**：~~框架通过项目 `tsconfig.json` 中的 `emitDecoratorMetadata` 值判断编译模式~~。改为**按类判断**：该类的装饰器调用走的是哪条分支，由 compat 层在装饰时记录到 `MetadataStore`。在 `injectParamMetaData` 中，只要 `Class[Symbol.metadata]` 里有 Koatty 私有键，就按 TC39 路径处理，否则按 legacy 路径处理（详见 §11.10.4 v3.0）。
 
 **Legacy 模式（`emitDecoratorMetadata: true`）：**
 
@@ -1244,13 +1442,15 @@ getUser(username: GetUserDto) {
 const PAYLOAD_TYPE_KEY = 'PAYLOAD_TYPE';
 
 function Payload(...dtoClasses: Function[]) {
-  return (method: Function, context: ClassMethodDecoratorContext) => {
-    // 将 DTO 类型存入 context.metadata，替代 design:paramtypes
+  // v3.0：返回 void（避免 TS1270）。键按方法名区分，对象本身不需要写前复制，
+  // 因为同名方法在子类中重新声明时本来就应该覆盖父类
+  return (_method: unknown, context: ClassMethodDecoratorContext): void => {
     context.metadata[`${PAYLOAD_TYPE_KEY}:${String(context.name)}`] = dtoClasses;
-    return method;
   };
 }
 ```
+
+> v3.0：实际实现通过 `createDualMethodDecorator` 同时支持 legacy（写 `IOC.savePropertyData`），这样 legacy 用户也能用 `@Payload` 显式声明，不依赖 `design:paramtypes`。
 
 > Legacy 模式下 `@Payload` 是可选的（`design:paramtypes` 可自动识别 DTO）。
 > TC39 模式下，`@Payload(DtoClass)` 或 `@Validated(DtoClass)` 至少需要一个来声明 DTO 类型。
@@ -1268,12 +1468,14 @@ injectParamMetaData(app, target, options) {
         } else {
             // 路径 B：DTO 自动检测路径（新增）
             
-            // 获取方法参数类型（通过 emitDecoratorMetadata 判断模式）
-            if (isLegacyMode) {  // tsconfig.emitDecoratorMetadata === true
-                paramTypes = Reflect.getMetadata("design:paramtypes", target, method) ?? [];
+            // 获取方法参数类型（v3.0：按类判定模式，不读 tsconfig）
+            payload = MetadataStore.getPayload(targetClass, method);   // @Payload/@Validated(Dto) 显式声明，两种模式通用
+            if (payload) {
+                paramTypes = payload;
+            } else if (MetadataStore.modeOf(targetClass) === "legacy") {
+                paramTypes = Reflect.getMetadata("design:paramtypes", targetClass.prototype, method) ?? [];
             } else {
-                // TC39 模式：从 @Payload/@Validated 写入的 PAYLOAD_TYPE_KEY 获取
-                paramTypes = target.constructor[Symbol.metadata]?.[`PAYLOAD_TYPE:${method}`] ?? [];
+                paramTypes = [];   // TC39 且没有 @Payload：不做 DTO 推断（方法有形参时启动期给出 warn）
             }
             
             for each paramType in paramTypes:
@@ -1476,16 +1678,20 @@ class UserService {
 }
 ```
 
-#### 11.4.4 TC39 模式下的构造注入
+> **v3.0 对 §11.4.3 的补充意见**：
+> 1. **解析失败返回 `undefined` 属于 fail-open**，与加固方案的"失败即拒绝"原则冲突。构造参数是一个已注册组件却解析失败时，应当报错，而不是静默传入 `undefined`。
+> 2. **行为变更风险**：在 legacy 下，所有带类装饰器的类都会生成 `design:paramtypes`。开启自动构造注入后，原来接收"已注册组件类型"参数、但由用户手动传参的类，行为会改变。v4 中应通过 `@Service({ autoInject: true })` 或全局配置**显式开启**，v5 再考虑默认开启。
+> 3. 构造参数的解析要早于 `overridePrototypeValue`，并且必须纳入 `DependencyAnalyzer` 的环检测（§11.4.6）。
 
-TC39 装饰器关闭了 `emitDecoratorMetadata`，`design:paramtypes` 不可用。
-解决方案：**将 `@Inject` 从参数装饰器改为方法装饰器，放在 `constructor` 上，显式传入依赖类型。**
+#### 11.4.4 TC39 模式下的构造注入（v3.0 重写）
+
+> **原稿方案无法编译**：原稿把 `@Inject(A, B)` 作为方法装饰器写在 `constructor` 上。TC39 与 legacy 都**不允许装饰构造函数**，TS 5.9 / 6.0 / 7.0 均报 `TS1206: Decorators are not valid here.`（E-04）。原稿中"无需在 `@Service` / `@Component` 上增加 `deps` 选项"的结论因此不成立。
+
+**解决方案：在类装饰器上声明构造依赖。**
 
 ```typescript
-// TC39 模式：@Inject 改为方法装饰器，作用于 constructor
-@Service()
+@Service({ inject: [() => UserRepository, () => LogService] })
 class UserService {
-  @Inject(UserRepository, LogService)   // 方法装饰器，声明构造函数依赖
   constructor(
     private readonly repository: UserRepository,
     private readonly logger: LogService
@@ -1493,39 +1699,45 @@ class UserService {
 }
 ```
 
-**`@Inject` 作为方法装饰器的实现：**
+**实现要点**：
 
 ```typescript
-// TC39 MethodDecorator：作用于 constructor
-function Inject(...deps: Function[]) {
-  return (method: Function, context: ClassMethodDecoratorContext) => {
-    // 将依赖类型存入 context.metadata，供 IOC 容器在实例化时读取
-    context.metadata['constructor:paramtypes'] = deps;
-    return method;
-  };
+const CTOR_INJECT = Symbol("koatty:ctor-inject");
+
+export function Service(opts?: { inject?: Array<() => Constructor> } & ServiceOptions) {
+  return createDualClassDecorator({
+    legacy: (target) => { saveCtorInject(target, opts?.inject); registerService(target, opts); },
+    tc39: (target, ctx) => {
+      ctx.metadata[CTOR_INJECT] = opts?.inject;   // 构造依赖属于本类，直接赋值，不继承父类
+      registerService(target, opts);
+    },
+  });
 }
+// LifecycleManager.setInstance：优先读取 inject（thunk 延迟求值，避免 TDZ），
+// legacy 且没有 inject 时再回退到 design:paramtypes（仅在开启 autoInject 时）
 ```
 
-> **关键：** `@Autowired(Type)` 负责属性注入，`@Inject(Type1, Type2, ...)` 负责构造注入。
-> 两者组合已覆盖所有 DI 场景，无需在 `@Service` / `@Component` 上增加 `deps` 选项。
+- 使用 thunk（`() => T`），这样装饰器求值时不会触及可能还处于 TDZ 的类。
+- `inject.length !== target.length` 时启动期告警（有默认参数时 `length` 不准，所以不报错）。
+- 子类没有声明 `inject` 时**不继承**父类的构造依赖，因为子类构造函数签名可能不同，需要显式声明。
 
-**完整 DI 场景覆盖：**
+**完整 DI 场景覆盖**：
 
-| 注入方式 | 装饰器 | TC39 兼容 | 适用场景 |
-|---------|--------|----------|---------|
-| 属性注入 | `@Autowired(Type)` | FieldDecorator | 可选依赖、延迟注入、打破循环依赖 |
-| 构造注入 | `@Inject(Type1, Type2, ...)` | MethodDecorator (constructor) | 核心依赖、不可变性、测试友好 |
+| 注入方式 | 写法 | 两种模式 | 适用场景 |
+|---------|------|---------|---------|
+| 属性注入 | `@Autowired(() => Type)` / `@Autowired("id")` | ✅ | 默认推荐；可选依赖、延迟注入、打破循环依赖 |
+| 构造注入 | `@Service({ inject: [() => A, () => B] })` | ✅ | 不可变的核心依赖、便于测试 |
+| legacy 构造注入 | `constructor(@Inject() dep: T)` | 仅 legacy | 存量代码，标记 `@deprecated` |
 
-#### 11.4.5 `@Inject` 演进策略
+#### 11.4.5 `@Inject` 演进策略（v3.0 重写）
 
-| 阶段 | `@Inject` 形态 | 说明 |
-|------|---------------|------|
-| **Legacy（当前）** | `ParameterDecorator`：`constructor(@Inject() dep: Dep)` | 现有实现，保留不删 |
-| **TC39（迁移目标）** | `MethodDecorator`：`@Inject(Dep1, Dep2) constructor(...)` | 新增实现，显式声明构造依赖 |
+| 阶段 | 形态 | 说明 |
+|------|------|------|
+| **Legacy（当前）** | `ParameterDecorator`：`constructor(@Inject() dep: Dep)` | 保留，标记 `@deprecated` |
+| **TC39 / 通用** | 类装饰器选项 `inject: [...]` | 新增，两种模式都可使用 |
 
-- Legacy 参数装饰器实现**保留不删**（TC39 参数装饰器提案仍在 Stage 1）
-- TC39 模式下新增方法装饰器形态，参数**必填**
-- 添加注释说明标准兼容性情况
+- `@Inject` 这个名字**不再**承载新形态，避免一个名字对应两种互不兼容的用法。
+- codemod：`constructor(@Inject() a: A, @Inject() b: B)` 转换为 `@Service({ inject: [() => A, () => B] })` 并删除参数装饰器。
 
 #### 11.4.6 循环依赖处理
 
@@ -1771,16 +1983,24 @@ class UserService {
   ) {}
 }
 
-// ✅ TC39 模式（@Inject 改为方法装饰器，显式声明依赖）
-@Service()
+// ✅ TC39 模式（v3.0 修正：构造函数不能被装饰，改为在类装饰器上声明依赖）
+@Service({ inject: [() => UserRepository, () => LogService] })
 class UserService {
-  @Inject(UserRepository, LogService)             // 方法装饰器，参数必填
   constructor(
     private readonly repository: UserRepository,
     private readonly logger: LogService
   ) {}
 }
+
+// ✅ 两种模式通用（推荐）：字段注入
+@Service()
+class UserService {
+  @Autowired(() => UserRepository) private readonly repository!: UserRepository;
+  @Autowired(() => LogService) private readonly logger!: LogService;
+}
 ```
+
+> v3.0：上面"Legacy 模式自动解析"的写法依赖 §11.4.3 的自动构造注入。按 §11.4.3 的补充意见，v4 中需要显式开启 `autoInject`。
 
 ---
 
@@ -1823,7 +2043,8 @@ class UserService {
 | 改造 `LifecycleManager.setInstance()` | `koatty-container` | Legacy 模式自动解析构造参数类型并注入 |
 | 改造 `container.get()` | `koatty-container` | Prototype 作用域同样支持自动构造注入 |
 | 构造注入循环依赖检测 | `koatty-container` | `DependencyAnalyzer` 增加构造参数级别循环检测 |
-| `@Inject` 改为 MethodDecorator | `koatty-container` | TC39 模式下 `@Inject(Type1, Type2)` 放在 constructor 上，显式声明依赖 |
+| ~~`@Inject` 改为 MethodDecorator~~ → `@Service({ inject })` 类级构造依赖 | `koatty-container` | v3.0：构造函数不能被装饰（TS1206），改为在类装饰器上声明 thunk 数组 |
+| v3.0：注入不变量 | `koatty-container` | TC39 自有字段遮住原型时，由 `overridePrototypeValue` 兜底；被注入字段带初始值时报错（整合方案 ADR-019） |
 
 #### Phase 3：集成验证 + 注释更新（预计 1-2 周）
 
@@ -1841,7 +2062,8 @@ class UserService {
 | 任务 | 包 | 描述 |
 |------|---|------|
 | 双模式装饰器测试 | `koatty-router` | 同一装饰器在参数位置和属性位置的行为正确 |
-| 构造函数自动注入测试 | `koatty-container` | 自动注入、循环依赖检测、TC39 `@Inject` MethodDecorator |
+| 构造函数自动注入测试 | `koatty-container` | 自动注入、循环依赖检测、`@Service({ inject })`（v3.0） |
+| v3.0：TC39 专项测试 | 全部 | polyfill 缺失报错；元数据继承隔离；注入不变量（单例 / Prototype / 延迟 / seal / 继承）；混用冲突；用 TS7 编译并在 Node 与 Bun 上运行 |
 | 新旧方式共存测试 | `koatty-router` | 参数装饰器和 DTO 方式在同一项目中共存 |
 | 性能基准测试 | 全部 | DTO 方式 + 构造注入的启动和运行时性能 |
 | 边界场景测试 | 全部 | 空 DTO、嵌套 DTO、多源 DTO、无装饰器 DTO 等 |
@@ -1855,7 +2077,7 @@ class UserService {
 | 双模式装饰器的调用上下文误判 | 高 | 低 | 通过 `typeof arguments[2] === 'number'` 精确区分 ParameterDecorator 和 PropertyDecorator |
 | 构造函数自动注入引入循环依赖问题 | 高 | 中 | `DependencyAnalyzer` 增加构造参数级别检测，错误信息建议改用 `@Autowired` 属性注入 |
 | DTO 自动检测误判普通类为 DTO | 中 | 低 | 严格的 `isDtoClass` 检测逻辑，要求至少有 `@Component()` 注册或 `DTO_SOURCE_KEY` 元数据 |
-| `design:*` 在 TC39 模式下不可用 | 高 | 高 | 所有受影响装饰器参数变为必填（§11.10.3）；通过 `emitDecoratorMetadata` 配置判断模式 |
+| `design:*` 在 TC39 模式下不可用 | 高 | 高 | 所有受影响装饰器参数变为必填（§11.10.3）；~~通过 `emitDecoratorMetadata` 配置判断模式~~ 逐次调用按实参形态判定（v3.0） |
 | TC39 标准后续支持参数装饰器 | — | 未知 | 保留所有现有实现；双模式装饰器中的 ParameterDecorator 路径不受影响 |
 
 ---
@@ -1897,9 +2119,9 @@ TC39 提供的替代机制是 [Decorator Metadata](https://github.com/tc39/propo
 
 | 装饰器 | Legacy 用法（参数可选） | TC39 用法（参数必填） | 变更说明 |
 |--------|----------------------|---------------------|---------|
-| `@Autowired()` | `@Autowired()` — 自动从 `design:type` 推断 | `@Autowired(UserService)` — 必须显式传入类型 | `design:type` 不可用，FieldDecorator 不变 |
+| `@Autowired()` | `@Autowired()` — 自动从 `design:type` 推断 | `@Autowired(() => UserService)`（推荐 thunk）或 `@Autowired("id")` | `design:type` 不可用。v3.0：`@Autowired(UserService)` 立即求值，在循环 import 时会遇到 TDZ |
 | `@Payload()` / `@Validated()` | 不需要 / `@Validated()` — 自动从 `design:paramtypes` 识别 DTO | `@Payload(DtoClass)` 必填（参数绑定）；`@Validated(DtoClass)` = 绑定+验证简写 | `design:paramtypes` 不可用。新增 `@Payload` MethodDecorator |
-| `@Inject()` | `@Inject()` — ParameterDecorator，自动推断 | `@Inject(Repo, Log)` — **改为 MethodDecorator 放在 constructor 上**，参数必填 | `design:paramtypes` 不可用 + TC39 不支持参数装饰器 |
+| `@Inject()` | `@Inject()` — ParameterDecorator，自动推断 | `@Service({ inject: [() => Repo, () => Log] })`（v3.0：原稿"放在 constructor 上的 MethodDecorator"会报 TS1206） | `design:paramtypes` 不可用 + TC39 不支持参数装饰器与构造函数装饰器 |
 | `@Get()` / `@Post()` / `@Header()` 等 | `@Get('name')` — 属性类型从 `design:type` 推断 | `@Get({ name: 'name', type: String })` — 必须显式传入 `type` | `design:type` 不可用，PropertyDecorator 签名扩展为选项对象 |
 | `@ApiProperty()` | `@ApiProperty()` — 自动从 `design:type` 推断 | `@ApiProperty({ type: String })` — 必须显式传入类型 | `design:type` 不可用 |
 
@@ -1931,17 +2153,16 @@ class UserController {
 
 @Service()
 class UserService {
-  @Autowired(UserRepository)            // 必须显式传入类型（属性注入）
-  private repository: UserRepository;
+  @Autowired(() => UserRepository)      // 必须显式传入类型（v3.0：推荐 thunk）
+  private repository!: UserRepository;  // 不得带初始值
 
-  @Autowired(LogService)                // 必须显式传入类型（属性注入）
-  private logger: LogService;
+  @Autowired(() => LogService)
+  private logger!: LogService;
 }
 
-// 或使用构造注入：
-@Service()
+// 或使用构造注入（v3.0 修正）：
+@Service({ inject: [() => UserRepository, () => LogService] })
 class UserService {
-  @Inject(UserRepository, LogService)   // 方法装饰器放在 constructor 上（构造注入）
   constructor(
     private readonly repository: UserRepository,
     private readonly logger: LogService
@@ -1962,7 +2183,19 @@ class UserController {
 
 #### 11.10.4 Legacy/TC39 模式判断机制
 
-**框架通过项目 `tsconfig.json` 中的 `emitDecoratorMetadata` 配置值判断当前编译模式：**
+> **v3.0：本节原方案作废，以下为替代方案。**
+>
+> **作废理由**：① 发布到 npm 的 dist 里没有 tsconfig；② tsconfig 可能经过 `extends` 链或项目引用；③ 用 Bun、SWC、esbuild 编译时，生效的配置可能根本不在 tsconfig 里；④ 一个进程中可能同时存在用户的 TC39 代码和按 legacy 预编译的第三方插件，不存在唯一的"全局模式"；⑤ 原稿用 `emitDecoratorMetadata` 作为判据：`experimentalDecorators: true` 但没有开启 metadata 的项目，会被误判为 TC39。
+>
+> **替代方案（整合方案 ADR-012）**：
+> 1. **逐次调用判定**：装饰器被调用时，第二个实参是带 `kind` 与 `metadata` 的对象 → TC39；第三个实参是 `number` → legacy 参数装饰器；其余 → legacy 类、方法或字段装饰器。
+> 2. **legacy 分支内**：`design:type` 存在就使用；不存在（legacy 但没有开启 `emitDecoratorMetadata`）且没有显式类型时报错。报错信息同时给出两种修复方式：开启 `emitDecoratorMetadata`，或显式传入类型。
+> 3. **按类记录模式**：compat 层在 `MetadataStore` 中记录每个类的模式。同一个类出现两种模式时抛 `MixedDecoratorModeError`。
+> 4. **诊断**：启动日志输出各模式的类数量；`koatty doctor` 可以静态读取 tsconfig，因为在开发机上读 tsconfig 是可行的。
+>
+> 下面保留原稿内容，仅供对照：
+
+~~**框架通过项目 `tsconfig.json` 中的 `emitDecoratorMetadata` 配置值判断当前编译模式：**~~
 
 ```typescript
 // 框架启动时读取 tsconfig 配置
@@ -2007,8 +2240,7 @@ if (!identifier) {
 
 **第二步：切换到 TC39 后参数变为必填**
 
-用户将 `tsconfig.json` 中 `emitDecoratorMetadata` 移除或设为 `false` 后，
-框架自动切换到 TC39 模式，所有未显式传参的装饰器将抛出明确错误提示。
+用户把 `tsconfig.json` 中的 `experimentalDecorators` 设为 `false`（同时必须移除 `emitDecoratorMetadata`，否则报 TS5052）并重新编译后，编译器生成的就是 TC39 形态的装饰器调用，框架据此逐次走 TC39 分支（v3.0：不是读取配置"自动切换"）。所有未显式传入类型的装饰器会在**类定义求值时**抛出明确错误。
 
 **第三步：长期探索编译时自动生成类型元数据**
 
@@ -2068,6 +2300,11 @@ if (!identifier) {
 > **建议将此项作为独立的后续任务**，不阻塞参数装饰器迁移。
 > 参数装饰器迁移完成后，`design:*` 角色消除，`reflect-metadata` 降级为纯粹的元数据存储 polyfill。
 > 后续可逐步替换为 `Symbol.metadata`（TC39 Stage 3）+ `WeakMap`，最终移除依赖。
+>
+> **v3.0 补充**：
+> - `context.metadata` **只在 TC39 分支存在**。只要 legacy 模式还受支持，通用存储就只能用 `WeakMap`（`MetadataStore`），不能改用 `Symbol.metadata`。所以上表第 1～5 步应统一为"改用 `MetadataStore`"。TC39 分支写入 `context.metadata` 后，由类装饰器同步到 `MetadataStore`。
+> - 只要 legacy 模式还受支持（v4 全周期），`design:*` 就仍然需要 `reflect-metadata` 提供的 `Reflect.getMetadata`。第 6 步"移除全部 import"最早只能在决定放弃 legacy 的版本中进行。
+> - 移除之前，`reflect-metadata` 的 import 必须**早于**任何 legacy 装饰器类的求值（TS 生成的 `__metadata` 辅助函数会检测 `Reflect.metadata` 是否存在，不存在就静默跳过，不会报错）。
 
 ---
 
@@ -2079,6 +2316,7 @@ if (!identifier) {
 | 2.0 | 2026-04-23 | Analysis Agent | 新增 §11 参数装饰器迁移方案（完整版）。§11.1-11.10 覆盖：现状分析、`@deprecated` 声明、DTO 替代方案、`@Inject` MethodDecorator 迁移、`@Valid` 替代、迁移对照表、路线图、风险评估、`design:*` 审计与装饰器参数必填清单 |
 | 2.1 | 2026-04-23 | Analysis Agent | 新增 §11.11 `reflect-metadata` 依赖分析 |
 | 2.2 | 2026-04-24 | Analysis Agent | 新增 `@Payload` 装饰器，拆分参数绑定与验证职责：`@Payload(Dto)` 纯绑定，`@Validated(Dto)` = 绑定+验证超集简写；补充容错规则（去重/冲突检测/双装饰器组合） |
+| **3.0** | **2026-09-27** | **评审修订** | 新增文首"v3.0 评审勘误与补充"（13 项正文错误、5 项遗漏的硬约束、修正后的参考实现、TypeScript 7.0 专项）。就地修正：`context.metadata` 改为普通对象并写前复制；`@Autowired` 不在 initializer 中解析依赖，并支持 thunk；构造注入从无法编译的"constructor 上的 `@Inject`"改为 `@Service({ inject })`；DTO 字段元数据改为在装饰时写入；模式判定从读 tsconfig 改为逐次调用判定；TS / 运行时兼容矩阵（加入 TS 7.0.2，删除不存在的 Node `--experimental-decorators`）；成功标准与版本策略对齐整合方案 v2.0；补充 §11.4.3 fail-open 与行为变更风险、§11.11 移除 reflect-metadata 的前提 |
 
 ---
 

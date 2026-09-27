@@ -35,6 +35,25 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[allowCidrs?](./koatty_serve.healthcheckconfig.allowcidrs.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string\[\]
+
+
+</td><td>
+
+_(Optional)_ extra trusted CIDRs (RFC1918 + loopback are always trusted)
+
+
+</td></tr>
+<tr><td>
+
 [detailed?](./koatty_serve.healthcheckconfig.detailed.md)
 
 
@@ -73,6 +92,25 @@ _(Optional)_
 </td></tr>
 <tr><td>
 
+[exposeMetrics?](./koatty_serve.healthcheckconfig.exposemetrics.md)
+
+
+</td><td>
+
+
+</td><td>
+
+'off' \| 'internal' \| 'public'
+
+
+</td><td>
+
+_(Optional)_ metrics exposure policy; defaults from the security profile (internal)
+
+
+</td></tr>
+<tr><td>
+
 [memoryThresholdMB?](./koatty_serve.healthcheckconfig.memorythresholdmb.md)
 
 
@@ -87,6 +125,63 @@ number
 </td><td>
 
 _(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+[metricsPath?](./koatty_serve.healthcheckconfig.metricspath.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ metrics endpoint path (SEC-06 / B-6); defaults to '/metrics'
+
+
+</td></tr>
+<tr><td>
+
+[metricsProvider?](./koatty_serve.healthcheckconfig.metricsprovider.md)
+
+
+</td><td>
+
+
+</td><td>
+
+() =&gt; string
+
+
+</td><td>
+
+_(Optional)_ prometheus-format metrics provider used by the /metrics endpoint
+
+
+</td></tr>
+<tr><td>
+
+[opsToken?](./koatty_serve.healthcheckconfig.opstoken.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ bearer token required for /metrics outside allowCidrs and for details
 
 
 </td></tr>

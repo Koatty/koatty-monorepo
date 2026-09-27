@@ -1,1809 +1,929 @@
-# Koatty Bun + TC39 整合实施方案
+# Koatty Bun + TC39 + TypeScript 7 整合实施方案
 
-> 版本：v1.1  
-> 日期：2026-05-11  
-> 作者：Architect Agent  
-> 关联文档：[`koatty-bun-plan.md`](./koatty-bun-plan.md) v2 · [`tc39-decorator-migration-plan.md`](./tc39-decorator-migration-plan.md) v2.2  
-> 状态：草案（基于代码库实测 + 两份既有方案综合优化）
-
----
-
-## 文档定位
-
-本文档是 **Koatty Bun runtime 适配** 与 **TC39 标准装饰器迁移** 两条工作线的整合实施方案。
-它**不替代**两份原方案，而是：
-
-1. **识别交叉点**：两条工作线在 `tsconfig`、`Bootstrap`、`reflect-metadata`、模板、CI 等位置存在强耦合，必须协同设计；
-2. **修订路线图**：将原本"先后串行"的两条线重排为"分阶段交错并行"，缩短整体周期；
-3. **新增基础设施**：引入 `RuntimeAdapter` 抽象与统一模式判定逻辑，消除两份方案在 `Bootstrap` 上的潜在重复；
-4. **统一发布矩阵**：明确 `(Decorator-Mode × Runtime)` 三元组的支持承诺与版本号约定；
-5. **补齐缺口**：为方案 A 补充 TC39 兼容性测试，为方案 B 补充 Bun 维度的验证条款。
-
-阅读顺序建议：先读两份原方案，再读本文档第 §2、§4、§5 章节。
+> 版本：v2.0  
+> 日期：2026-09-27  
+> 关联文档：[`koatty-bun-plan.md`](./koatty-bun-plan.md) v3 · [`tc39-decorator-migration-plan.md`](./tc39-decorator-migration-plan.md) v3.0 · [`koatty-hardening-and-ai-evolution-plan.md`](./koatty-hardening-and-ai-evolution-plan.md)  
+> 状态：评审修订稿（v1.1 的核心前提经实测证伪，本版重写）  
+> 优先级：**本文档 > 两份专题方案**。专题方案中与本文冲突的内容，以本文为准。
 
 ---
 
-## ★ 核心定位（v1.1 强化）
-
-> **Bun runtime 分支 = TC39 标准纯净分支**
->
-> 1. **Bun 路径仅支持 TC39 标准装饰器**，不支持 Legacy（`experimentalDecorators: true`）。
->    - `BunRuntimeAdapter` 在初始化时强制 `decoratorMode = 'tc39'`，**不读** 项目 tsconfig
->    - 用户在 Bun 下 `experimentalDecorators: true` 不会生效，启动时给出明确错误
->    - 现有 Node-Legacy 项目切到 Bun 必须**先**完成 TC39 迁移（顺序：C1 → C2 → C3）
->
-> 2. **参数装饰器（`ParameterDecorator`）在 Bun 分支暂不支持**：
->    - 原因：[TC39 Stage 3 装饰器规范](https://github.com/tc39/proposal-decorators) 不包含 parameter decorator
->    - 当前替代：DTO 类 + 双模式装饰器的 `PropertyDecorator` 路径 + `@Payload` / `@Inject(...)` MethodDecorator（详见 §6.6）
->    - 未来恢复：[TC39 Stage 1 提案](https://github.com/tc39/proposal-class-method-parameter-decorators) 进入 Stage 3 后评估恢复支持（详见 ADR-016）
->
-> 3. **三元组取代四元组**（v1.0 的 4 元组中 C3 Bun-Legacy 被废除）：
->
->    | 编号 | 装饰器模式 | 运行时 | 注入风格 | 状态 |
->    |------|----------|--------|---------|------|
->    | **C1** | legacy | Node | 参数装饰器 | 现有，向后兼容 |
->    | **C2** | tc39 | Node | DTO + 构造注入 | 迁移目标 |
->    | **C3** | **tc39** | **Bun** | DTO + 构造注入 | **本次新增 + 终态推荐** |
->
-> 4. **Bun 模板**（`koatty-ai-template-project-bun`）从 Day1 强制 TC39，无 fallback。
-
----
-
-## 目录
-
-1. [背景与动机](#1-背景与动机)
-2. [整合后的整体架构](#2-整合后的整体架构)
-3. [关键设计决策（ADR 增量）](#3-关键设计决策adr-增量)
-4. [整合后的实施路线图](#4-整合后的实施路线图)
-5. [包结构与文件清单](#5-包结构与文件清单)
-6. [关键技术方案细节](#6-关键技术方案细节)
-7. [兼容性矩阵](#7-兼容性矩阵)
-8. [整合后的风险登记](#8-整合后的风险登记)
-9. [性能基准与决策门](#9-性能基准与决策门)
-10. [整合验收标准](#10-整合验收标准)
-11. [与现有文档的关系](#11-与现有文档的关系)
-12. [附录](#12-附录)
-
----
-
-## 1. 背景与动机
-
-### 1.1 两份原方案的现状
-
-| 维度 | `koatty-bun-plan.md` v2 | `tc39-decorator-migration-plan.md` v2.2 |
-|------|-------------------------|-------------------------------------------|
-| 目标 | Bun runtime 适配 | TC39 Stage 3 装饰器迁移 |
-| 起草日期 | 2026-05-10 | 2026-04-02（v2 于 2026-04-23） |
-| 关键产物 | `packages/koatty-bun`、各组件 `bun` 分支 | `compat.ts` 双模式层、DTO 替代方案、`@Payload`/`@Inject` 重构 |
-| 假设 tsconfig | `experimentalDecorators: true` + `emitDecoratorMetadata: true` | 目标态：`experimentalDecorators: false`（`emitDecoratorMetadata` 不可设置） |
-| 当前进度 | 0%（无任何 Bun 源码） | 容器层装饰器已部分双模式（`Autowired`/AOP/`Value`）；核心装饰器仍 legacy |
-
-### 1.2 必须整合的根本原因
-
-代码现状梳理（详见 [§12.A 现状审计](#12a-代码现状审计要点)）显示，两份方案在以下位置存在**强耦合**：
-
-| 耦合点 | 不整合的后果 |
-|--------|------------|
-| `tsconfig` 决定 `design:*` 元数据可用性 | Bun 模板若沿用 `experimentalDecorators: true`，TC39 完成后需重做模板，用户面临二次迁移 |
-| `Bootstrap.ts` 与 `BunBootstrap.ts` 的逻辑重复 | TC39 改造 `LifecycleManager.setInstance()` 后，两处必须同步修改，长期维护双倍工作量 |
-| `reflect-metadata` 在 Bun 下的实际行为 | 方案 A 假设 Bun 完整支持 polyfill；若实际不完整，TC39 迁移会被阻塞 |
-| 协议层装饰器（`@Controller`/`@Middleware`）当前仍 legacy | Bun 下应用代码若用 TC39 写法，会被 Loader 扫描时漏注册 |
-| 代码生成模板（`koatty-ai`） | Bun 模板与 DTO 模板若分别实现，用户面临 4 套模板组合（Node/Bun × Legacy/TC39） |
-
-### 1.3 整合后的收益
-
-1. **消除二次迁移**：用户切换到 `koatty-bun` 时，可直接采用 TC39 + DTO 的最终形态，避免后续重写；
-2. **缩短整体周期**：原方案 A 估算 7 周、方案 B 估算 12 周（共 19 人周），整合后通过并行可压缩到 **12-14 周**；
-3. **减少维护负担**：通过 `RuntimeAdapter` 抽象消除 `Bootstrap`/`BunBootstrap` 重复；
-4. **统一测试矩阵**：CI 一次性建立 `(Node|Bun) × (Legacy|TC39)` 四元组，避免日后扩展；
-5. **更清晰的发布策略**：使用 `koatty@4.0.0-bun.x` 等单一版本号承载双特性，避免分支版本号语义混乱。
-
----
-
-## 2. 整合后的整体架构
-
-### 2.1 三个相关维度（带强约束）
-
-整合后的系统由 **三个相关** 的维度构成。其中 D1 与 D2 之间存在 **单向强约束**：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  D1: Decorator Mode    legacy        │  tc39            │
-├──────────────────────┼───────────────┼──────────────────┤
-│  D2: Runtime           node          │  bun             │
-├──────────────────────┼───────────────┼──────────────────┤
-│  D3: Injection Style   ParamDecorator│  DTO + Constructor│
-└─────────────────────────────────────────────────────────┘
-
-强约束：D2=bun  ⟹  D1=tc39 ∧ D3=DTO
-        D2=node ⟹  D1∈{legacy,tc39}, D3 跟随 D1
-```
-
-- **D1（Decorator Mode）**：
-  - Node 路径下：由项目 `tsconfig.compilerOptions.emitDecoratorMetadata` 配置自动判定（方案 B §11.10.4）
-  - **Bun 路径下：强制 `tc39`**（`BunRuntimeAdapter` 不读 tsconfig，详见 ADR-012）
-- **D2（Runtime）**：由 `typeof Bun !== 'undefined'` 全局检测自动判定
-- **D3（Injection Style）**：
-  - Node-Legacy 路径下：参数装饰器 + 字段注入（既有方式）
-  - Node-TC39 / Bun 路径下：DTO + 构造注入（参数装饰器在 TC39 标准中不可用）
-
-### 2.2 维度组合矩阵（三元组）
-
-| 编号 | D1 装饰器 | D2 运行时 | D3 注入风格 | 推荐场景 | 支持期 |
-|------|----------|----------|-----------|---------|--------|
-| **C1** | legacy | Node | 参数装饰器 + 字段注入 | 现有项目、稳定生产 | v3.x（当前）+ v4.x |
-| **C2** | tc39 | Node | DTO + 构造注入 | 新项目、Node 长期演进 | v4.x（迁移）+ v5.x（默认） |
-| **C3** | **tc39** | **Bun** | **DTO + 构造注入** | **Bun 用户唯一选择** + 终态推荐 | v4.x（新增）+ v5.x（继续支持） |
-
-> **设计原则**：
-> - **C3 是 Bun 路径下的唯一支持组合**——用户在 Bun 下只能用 TC39
-> - **C1 → C2 → C3** 是单向迁移路径，不能跨越
-> - 现有 Node-Legacy 项目要切 Bun，必须**先**完成 C2 迁移
-
-### 2.3 显式废除：Bun-Legacy 不被支持
-
-旧版本（v1.0）中存在的 "C3 Bun-Legacy" 组合**已被废除**，理由：
-
-1. **TC39 标准化压力**：Bun 作为新生 runtime 应直接对齐最新标准，不应承载 Legacy 装饰器的历史包袱
-2. **维护成本**：双模式 × 双 runtime 的笛卡尔积会让协议层、模板、CI、文档复杂度爆炸
-3. **用户预期**：选择 Bun 的用户多数已是 TC39-aware，对"必须先迁 TC39"的要求接受度高
-4. **性能一致性**：DTO + 构造注入是 Bun 性能最优路径，强制使用可保证性能基准的可预测性
-
-**强制策略**：
-- `BunRuntimeAdapter` 构造时硬编码 `decoratorMode = 'tc39'`
-- `koatty-bun` 包入口处加启动检测：若发现项目 tsconfig `experimentalDecorators: true` 则启动失败并给出明确错误（详见 ADR-015）
-- `koatty-ai-template-project-bun` 模板的 tsconfig 必须 `experimentalDecorators: false`
-
-### 2.4 整合后的包结构（关键变化）
-
-```
-koatty-monorepo/
-├── packages/
-│   ├── koatty/                    # ★ 主入口包（保持向后兼容，新增 RuntimeAdapter 抽象）
-│   ├── koatty-bun/                # ★ 新增：Bun runtime 入口包
-│   ├── koatty-core/               # ☆ 改造：Component 装饰器双模式 + RuntimeAdapter
-│   ├── koatty-container/          # ☆ 改造：LifecycleManager 自动构造注入 + @Inject MethodDecorator
-│   ├── koatty-router/             # ☆ 改造：所有参数装饰器升级双模式 (Param + Property) + @Payload
-│   ├── koatty-validation/         # ☆ 改造：@Validated(Dto) 简写 + setExpose() TC39 适配
-│   ├── koatty-serve/              # ☆ 改造：BunXxxServer 系列 + RuntimeAdapter 注入
-│   ├── koatty-trace/              # ☆ 改造：手动 Instrumentation Bun 分支
-│   ├── koatty-loader/             # ☆ 改造：Bun.file() 加速 + ESM 兼容
-│   ├── koatty-config/             # ☆ 改造：Bun.file() 加速
-│   ├── koatty-swagger/            # ☆ 改造：design:type 适配（@ApiProperty 显式 type 必填）
-│   └── ... (其他包不变)
-│
-├── docs/
-│   ├── koatty-bun-plan.md                        # 原 Bun 方案（保留，加链接指向本文档）
-│   ├── tc39-decorator-migration-plan.md          # 原 TC39 方案（保留，加链接指向本文档）
-│   └── koatty-bun-tc39-integrated-plan.md        # ★ 本文档：整合实施方案
-```
-
-### 2.5 整合后的运行时分发架构
-
-```
-[应用入口]
-     │
-     │  import { ExecBootStrap } from 'koatty' (Node) | 'koatty-bun' (Bun)
-     ▼
-[Bootstrap 统一入口]
-     │
-     │  RuntimeAdapter.detect()
-     │    ├─ typeof Bun !== 'undefined' → BunRuntimeAdapter (硬编码 tc39)
-     │    └─ 否则 → NodeRuntimeAdapter (读 emitDecoratorMetadata)
-     ▼
-┌────────────────────────────────────────────────────────────────┐
-│ RuntimeAdapter (新增基础设施)                                    │
-│  ├─ NodeRuntimeAdapter   decoratorMode: 'legacy' | 'tc39'      │
-│  └─ BunRuntimeAdapter    decoratorMode: 'tc39' (强制)          │
-│                                                                 │
-│  统一接口：                                                      │
-│   - readFile / readFileSync                                     │
-│   - createServerInstance(protocol, opts, app)                   │
-│   - resolveModule(spec)                                         │
-│   - loadTlsMaterial(path)                                       │
-│   - assertCompatibility() ← Bun 启动期严格检测（ADR-015）       │
-└──────────────┬──────────────────────────────────────────────────┘
-               │
-               ▼
-[Loader.LoadAllComponents]
-     │
-     │  ★ 组件扫描分支：
-     │     - Node-Legacy: 读 design:paramtypes
-     │     - Node-TC39 / Bun: 读 context.metadata + @Payload/@Inject 显式声明
-     ▼
-[IOC.setInstance]
-     │
-     │  ★ 构造注入分支：
-     │     - Node-Legacy: design:paramtypes 自动解析
-     │     - Node-TC39 / Bun: @Inject(Type1,Type2,...) MethodDecorator 显式
-     ▼
-[BaseServer.start]
-     │
-     │  ★ 协议工厂分发：
-     │     ├─ Node: HttpServer / WsServer / GrpcServer / Http3Server / ...
-     │     └─ Bun:  BunHttpServer / BunWsServer / GrpcServer(compat) / BunHttp3Server(降级)
-     ▼
-[请求处理]
-     │
-     │  ★ 参数提取分支：
-     │     ├─ Node-Legacy: TAGGED_PARAM 元数据（参数装饰器路径）
-     │     ├─ Node-TC39:   DTO_SOURCE_KEY（双模式装饰器 PropertyDecorator 路径）
-     │     └─ Bun:         DTO_SOURCE_KEY（仅此一种路径——参数装饰器在 Bun 下被禁用）
-     ▼
-[Controller method]
-```
-
-> **核心理念**：
-> - 装饰器模式与运行时**有限解耦**——Node 路径下两者独立，**Bun 路径下绑定**（runtime=bun ⟹ mode=tc39）
-> - 通过 `RuntimeAdapter` 统一抽象 IO/服务器创建，通过 `compat.ts` 统一抽象装饰器双模式
-> - Bun 路径在所有分支处自动走 TC39 + DTO 路径，无 Legacy 代码分支
-
----
-
-## 3. 关键设计决策（ADR 增量）
-
-> 编号延续两份原方案的 ADR-001 ~ ADR-008，新增 ADR-009 起。
-
-### ADR-009：以 TC39 兼容层为统一基础
-
-**决策**：所有需要在 Legacy/TC39 之间双模式运行的装饰器，**必须**通过 `koatty-container/src/decorator/compat.ts` 提供的 `createDualClassDecorator` / `createDualMethodDecorator` / `createDualFieldDecorator` 实现，禁止各包独立实现"运行时签名嗅探"逻辑。
-
-**理由**：
-- `compat.ts` 已实现 `isTC39Context(context)` 等核心判定逻辑（`packages/koatty-container/src/decorator/compat.ts:10-15`）；
-- 容器层 `Container.createDecorator(handler, type)` 已是中心调度器（`container.ts:923-937`）；
-- 多处独立实现会导致判定逻辑不一致，TC39 上下文检测的微小差异会引发难以调试的 Bug。
-
-**实施约束**：
-- `koatty-core/Component.ts` 中 8 个装饰器迁移时，必须改为：
-  ```typescript
-  export const Controller = (path = "", options?) => IOC.createDecorator({
-    legacy: (target) => { /* 原逻辑 */ },
-    tc39: (target, context) => { /* TC39 逻辑 */ },
-  }, 'class');
-  ```
-- `koatty-router/params/mapping.ts` 的 `RequestMapping` 同理；
-- 参数装饰器的"双模式（Param + Property）"是另一种双模式，由 `koatty-router/params/params.ts` 内部实现（详见方案 B §11.3.2），与 `compat.ts` 的"Legacy + TC39"是不同维度。
-
-### ADR-010：BunBootstrap 与 Bootstrap 通过 RuntimeAdapter 统一
-
-**决策**：**不创建** `BunBootstrap.ts` 作为独立的引导入口（这是对方案 A §3.3 的修订）。改为在现有 `packages/koatty/src/core/Bootstrap.ts` 中注入 `RuntimeAdapter`，由 Adapter 决定 Node.js 还是 Bun 行为。
-
-**理由**：
-- 方案 A 中 `BunBootstrap.ts` 与 `Bootstrap.ts` 的核心逻辑 95% 重复（`Loader.initialize` / `IOC.setApp` / `Loader.LoadAllComponents` 等）；
-- TC39 迁移会改造 `IOC.setInstance()` 行为（方案 B §11.4.3），若两个 Bootstrap 共存，需要双倍同步成本；
-- `Bootstrap.createApplication()`（`packages/koatty/src/core/Bootstrap.ts:165`）已是"构造应用 → 不监听"的解耦点，天然适合 Bun-style `Bun.serve({fetch: app.getRequestHandler()})`。
-
-**实施约束**：
-- `packages/koatty-bun/src/index.ts` **不再** override `ExecBootStrap` / `createApplication`，而是 re-export 自 `koatty`；
-- `packages/koatty-bun` 仅做：① 类型扩展（`BunServer`）② 在 import 时通过 side-effect 注册 `BunRuntimeAdapter`；
-- 现有 `packages/koatty/src/core/Bootstrap.ts` 的 `bootstrapApplication()` 增加一行：
-  ```typescript
-  const adapter = RuntimeAdapter.detect();
-  app.runtime = adapter;  // 后续 Loader / Server 通过 app.runtime 访问能力
-  ```
-
-**收益**：单一 Bootstrap 路径，Bun 适配 = "替换 RuntimeAdapter 实现 + 替换协议服务器实现"，业务代码无感知。
-
-### ADR-011：Bun 分支强制 TC39（无 Legacy fallback）
-
-**决策**：`koatty-ai-template-project-bun` 模板从 Day1 **强制** 生成 TC39 + DTO + 构造注入 风格代码（即 §2.2 矩阵中的 C3）。**取消** v1.0 ADR-011 中允许 `--decorator-mode legacy` fallback 的设计。
-
-**理由**：
-- Bun 路径只支持 TC39（核心定位约束），fallback 到 Legacy 会与 BunRuntimeAdapter 强制 tc39 模式冲突；
-- 模板 fallback 选项会让用户产生"Bun 也能跑 Legacy"的误解，与现实矛盾；
-- 简化模板维护——只需维护两套主模板（C1 Node-Legacy + C3 Bun-TC39），通过 CLI 参数 `--style=dto` 在 Node 模板内提供 C2 选项；
-- TC39 + DTO 模式在 Bun 下能利用预编译参数提取器，跳过反射开销，性能更优（§6.4）。
-
-**实施约束**：
-- 模板的 `tsconfig.json.hbs` **必须**包含：
-  ```json
-  {
-    "compilerOptions": {
-      "experimentalDecorators": false,
-      "useDefineForClassFields": false,
-      "target": "ES2022",
-      "module": "ESNext",
-      "moduleResolution": "bundler"
-    }
-  }
-  ```
-  其中 `experimentalDecorators: false` 不允许通过模板变量修改。
-- 模板生成的控制器示例使用 DTO + `@Payload` 形式；DI 使用 `@Autowired(Type)` 字段注入 + `@Inject(Type1,Type2)` 构造注入（皆为 TC39 标准签名）；
-- 模板生成的 README 顶部包含明确说明："本模板采用 TC39 标准装饰器，参数装饰器（@Get/@Post 等用作方法参数注解）暂不支持。详见 §6.6 替代方案。"
-- 保留 `koatty-ai-template-project`（Node 模板）支持 C1（默认 Legacy）和 C2（`--style=dto` 切换 TC39+DTO）；
-- `koatty new --runtime bun` 命令**不接受** `--decorator-mode` 参数，强制 TC39。若用户传入则报错并退出。
-
-### ADR-012：装饰器模式判定（仅 Node 路径读 tsconfig，Bun 路径硬编码）
-
-**决策**：装饰器模式判定逻辑根据运行时分两条路径：
-
-- **Node 路径**：读取项目 `tsconfig.json` 的 `compilerOptions.emitDecoratorMetadata`（方案 B §11.10.4），检测到 `true` → Legacy，否则 TC39
-- **Bun 路径**：**不读 tsconfig，直接硬编码 `decoratorMode = 'tc39'`**
-
-**不引入** 单独的 `KOATTY_DECORATOR_MODE` 环境变量或运行时配置项。
-
-**理由**：
-- TypeScript 编译器约束 `emitDecoratorMetadata` 必须与 `experimentalDecorators` 同时启用（TS5052）——Node 路径下两者天然一致
-- Bun 路径**不允许** Legacy（核心定位约束），不需要从 tsconfig 推断模式
-- Bun 路径硬编码可避免一类用户错误：项目 tsconfig 误设 `experimentalDecorators: true` 但希望在 Bun 下运行
-- 启动检测一次性执行，运行时缓存结果，性能开销可忽略
-
-**实施约束**：
-
-```typescript
-// packages/koatty-container/src/decorator/compat.ts
-export function detectDecoratorMode(runtime: 'node' | 'bun'): 'legacy' | 'tc39' {
-  // Bun 路径硬编码
-  if (runtime === 'bun') return 'tc39';
-
-  // Node 路径读 tsconfig
-  const tsconfig = tryReadTsconfig();
-  if (tsconfig?.compilerOptions?.emitDecoratorMetadata === true) return 'legacy';
-
-  // 探测兜底
-  return probeDesignTypeAvailable() ? 'legacy' : 'tc39';
-}
-```
-
-```typescript
-// packages/koatty-bun/src/runtime/bun-adapter.ts
-export class BunRuntimeAdapter implements RuntimeAdapter {
-  readonly name = 'bun' as const;
-  readonly version = Bun.version;
-  readonly decoratorMode = 'tc39' as const;  // ★ 硬编码，不可修改
-
-  // ...
-}
-```
-
-- 检测结果通过 `IOC.runtime.decoratorMode` 暴露给所有需要分支处理的代码
-- 启动日志明确打印当前模式：`[koatty] Runtime: bun 1.3.0 / Decorator mode: tc39 (forced)`
-- Bun 路径下若检测到 tsconfig `experimentalDecorators: true`，由 ADR-015 的 `assertCompatibility()` 处理（启动失败 + 错误信息）
-
-### ADR-013：reflect-metadata 在 Bun 下的兼容性优先级提升
-
-**决策**：将 "Bun 下 reflect-metadata 兼容性验证" **提升为 Phase 0 阻断式前置任务**（原方案 A 仅在 CI 中作为 verify step，未列为前置）。
-
-**理由**：
-- Bun 1.1.x 历史上对 `Reflect.defineMetadata` 的支持存在边缘 case（如继承链元数据查找）；
-- 若兼容性不完整，整个 Phase 1 的 koatty-bun MVP 都无法跑通；
-- TC39 模式下虽不依赖 `design:*`，但仍依赖 `Symbol.metadata`（TC39 Stage 3，Bun 支持情况未知）。
-
-**实施约束**：
-- Phase 0 必须输出 [Bun reflect-metadata 兼容性测试报告](#12c-bun-元数据兼容性测试矩阵)；
-- 测试覆盖：① `Reflect.defineMetadata/getMetadata` 全量 API；② `design:type/paramtypes/returntype` 在 `experimentalDecorators: true` 下能否正常注入；③ `Symbol.metadata` 在 TC39 模式下能否正常工作；
-- 若发现阻断问题，应：① 在 koatty-bun 顶层 import 处插入兼容 polyfill；② 或将该问题升级为 Bun 上游 issue 跟踪。
-
-### ADR-014：发布版本号承载双特性
-
-**决策**：使用 `koatty@4.0.0-bun.x` / `koatty_serve@3.3.0-bun.x` 等版本号语义同时表达 **TC39 dual + Bun 适配** 两个特性。**不再** 为 Bun 适配单独维护 `bun` 长期分支。
-
-**理由**：
-- 方案 A 提出的 `bun` dist-tag + 长期分支（§4.2）会与方案 B 的 v4.x（dual）/ v5.x（TC39 only）发布策略产生冲突；
-- 装饰器双模式已让 v4.x 的代码同时支持 Legacy 与 TC39，再叠加 Bun 适配也可在同一代码库内完成；
-- `RuntimeAdapter` 让运行时分发可在主线代码中实现，无需独立分支。
-
-**实施约束**：
-- 主分支（`master`）发布 v4.x 系列，包含 dual + Bun 双能力；
-- 移除方案 A §4.2 的 `bun` dist-tag 策略；
-- npm 上发布的 `koatty@4.x.x` 默认即支持 Bun（用户安装后 `import from 'koatty-bun'` 即可使用 Bun 路径）；
-- `bun` 分支仅作为短期实验（≤4 周），实验通过后合并主线删除。
-
-### ADR-015：Bun 分支拒绝 Legacy 装饰器与参数装饰器（启动期严格检测）
-
-**决策**：在 `packages/koatty-bun/src/runtime/bun-adapter.ts` 的 `assertCompatibility()` 方法中实施 **三重启动期检测**，发现违规时**立即终止启动**并打印明确错误信息：
-
-1. **检测 tsconfig**：项目 `tsconfig.json` 的 `experimentalDecorators` 不能为 `true`
-2. **检测 design:* 注入**：探测 probe class 的 `design:type` 元数据是否被注入（应该不被注入）
-3. **检测参数装饰器使用**：扫描已注册组件的 `TAGGED_PARAM` 元数据，若发现非空则拒绝启动
-
-**理由**：
-- 静默失败（fallback 到默认行为）会让用户在生产环境遇到难以调试的 bug；
-- TC39 标准本身在编译期已禁止参数装饰器，但若用户使用 Bun 内置 transpiler 或自定义 SWC 配置可能绕过；
-- 启动期检测虽有微小性能开销（约 50ms），但能**100% 拦截配置错误**，价值远高于成本。
-
-**错误信息规范**（必须包含 ① 违规项、② 为何不允许、③ 如何修复、④ 文档链接）：
-
-```typescript
-// 检测 1：experimentalDecorators 错误
-if (tsconfig?.compilerOptions?.experimentalDecorators === true) {
-  throw new Error(`
-[koatty-bun] Bun runtime requires TC39 standard decorators.
-
-  ✗ Detected:    tsconfig.json has "experimentalDecorators": true
-  ✗ Reason:      Bun branch only supports TC39 Stage 3 decorators.
-                 Legacy (TypeScript experimental) decorators are not allowed.
-  ✓ Fix:         Set "experimentalDecorators": false (or remove this field)
-                 and "useDefineForClassFields": false in tsconfig.json
-  ✓ Docs:        See koatty-bun-tc39-integrated-plan.md §6.6 for migration guide.
-`);
-}
-
-// 检测 2：参数装饰器使用
-const offenders = scanParameterDecoratorUsage();
-if (offenders.length > 0) {
-  throw new Error(`
-[koatty-bun] Parameter decorators are NOT supported on Bun runtime.
-
-  ✗ Detected:    ${offenders.length} parameter decorator(s) in:
-                 ${offenders.map(o => `  - ${o.file}:${o.line} @${o.name}`).join('\n')}
-  ✗ Reason:      TC39 Stage 3 decorator specification does not include
-                 parameter decorators. The Stage 1 proposal is still under
-                 discussion: https://github.com/tc39/proposal-class-method-parameter-decorators
-  ✓ Fix:         Migrate to DTO pattern + @Payload / @Inject MethodDecorator.
-                 See koatty-bun-tc39-integrated-plan.md §6.6 for examples.
-  ✓ Codemod:     Run \`koatty migrate --target=tc39\` to auto-migrate.
-`);
-}
-```
-
-**实施约束**：
-- `assertCompatibility()` 在 `BunRuntimeAdapter` 构造时立即调用
-- 检测结果不缓存（每次启动重新检测）
-- 错误信息**强制英文**，因为 npm 包面向国际用户，但保留独立 i18n 出口（`KOATTY_LANG=zh` 时切换）
-- 检测器对 `node_modules` 内的代码豁免（防止第三方 deprecated 装饰器误伤），仅扫描应用源码
-
-### ADR-016：参数装饰器替代方案的契约与未来恢复路线
-
-**决策**：在 Bun 分支（以及任何 TC39 模式下），**所有原参数装饰器使用场景**必须通过以下三种替代方案之一覆盖。框架明确承诺：当 [TC39 Stage 1 参数装饰器提案](https://github.com/tc39/proposal-class-method-parameter-decorators) 进入 Stage 3 时，会评估恢复支持，且**保证替代方案不会被废弃**（向前兼容）。
-
-**当前替代方案（v4.x 起永久支持）**：
-
-| 原参数装饰器 | 替代方案 | 装饰器形态 | 章节 |
-|------------|---------|---------|------|
-| `@Get(name)` 用作 `@Get(name) param: T` | DTO 类属性：`@Get({ name, type }) field: T` | PropertyDecorator | §6.6.1 |
-| `@Post(name)` `@Header(name)` `@PathVariable(name)` `@File(name)` `@RequestBody()` `@RequestParam()`（同上） | 同 `@Get`，DTO 属性的 PropertyDecorator | PropertyDecorator | §6.6.1 |
-| 多源 DTO（路径变量 + body） | DTO 属性混用多种数据源装饰器 | PropertyDecorator | §6.6.2 |
-| 纯 body DTO | DTO 类无任何数据源装饰器，框架自动推断 body | （隐式） | §6.6.3 |
-| `@Inject() dep: T` 在 constructor 上 | `@Inject(Type1, Type2, ...)` 放在 constructor 上 | MethodDecorator | §6.6.4 |
-| `@Valid("IsNotEmpty")` 在方法参数上 | DTO 属性 `@IsNotEmpty()` 装饰器 | PropertyDecorator | §6.6.5 |
-
-**未来恢复路线**：
-
-```
-TC39 Stage 1 提案进入 Stage 3
-        │
-        ▼
-[评估窗口]：6 个月观察期
-  ├─ 提案最终签名是否与现有参数装饰器兼容
-  ├─ 主流 transpiler（TypeScript/SWC/Babel）支持情况
-  └─ 社区 RFC 收集反馈
-        │
-        ▼
-[评估通过] → koatty v6.x 恢复参数装饰器支持
-        │   - 替代方案保留为推荐用法
-        │   - 参数装饰器作为"等价但更便捷"的语法糖
-        │   - 不破坏 v4.x/v5.x 的代码
-        │
-        ▼
-[评估未通过] → 维持当前替代方案
-        │   - 参数装饰器在 Bun/TC39 路径永久不支持
-        │   - 保留 Legacy 模式（仅 Node）作为参数装饰器的退路
-```
-
-**永久承诺**：
-- DTO + PropertyDecorator 路径在 v4.x 起被框架核心支持，**不会**因为 TC39 参数装饰器恢复而废弃
-- 现有 Node-Legacy 项目（C1）可继续使用参数装饰器，框架在 v4.x/v5.x 期间不强制迁移
-- `@Payload` / `@Inject(MethodDecorator)` 是核心 API，不会因任何 TC39 提案变化而 breaking change
-
-**用户视角的迁移指南**：
-
-| 现状 | 建议路径 | 时间窗口 |
-|------|---------|---------|
-| Node-Legacy + 大量参数装饰器 | 继续 C1（v4.x 兼容期）→ v5 前评估 C2 | 1-2 年 |
-| Node-Legacy + 少量参数装饰器 | C1 → C2（codemod 辅助） | 1-3 月 |
-| 新项目 + Bun | 直接 C3（无迁移成本） | 即刻 |
-| 新项目 + Node | 直接 C2（避免 v5 时再迁） | 即刻 |
-
----
-
-## 4. 整合后的实施路线图
-
-### 4.1 总览
-
-整合后总周期 **13-15 周**，分为 6 个阶段（Phase 0-5）。**v1.1 修订**：由于 Bun 路径强制 TC39，原 v1.0 的"Phase 1 双轨独立验收"模型不再成立——TC39 必需子集是 Bun MVP 的**强前置依赖**。但 Node 端的 TC39 完整迁移（包括 Swagger / 完整构造注入 / DTO 完善）仍可与 Bun 协议层并行。
-
-```
-Week 0    1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
-═══════════════════════════════════════════════════════════════════
-Phase 0  ━━
-Phase 1     ━━━━━━━━━━━            ← TC39 必需子集（Bun 前置）
-Phase 2              ━━━━━━━━━━━━━━━━━━━ ← Bun MVP + 协议 + DTO 骨架
-Phase 3                       ━━━━━━━━━━━━━━━━ ← Node TC39 完整 + Bun 可观测
-Phase 4                                       ━━━━━━━━━ ← 模板/CLI
-Phase 5                                                  ━━━━━━━ ← 测试发布
-```
-
-**关键依赖**：
-- Phase 1 → Phase 2：Bun MVP 必须建立在已迁移好的 TC39 装饰器子集之上
-- Phase 2 与 Phase 3 末段重叠：Bun 协议层完成后，Bun 可观测性可与 Node TC39 完整迁移并行
-
-### 4.2 Phase 0：前置准备（1 周，Week 1）
-
-**目标**：建立 RuntimeAdapter 接口、验证 Bun 元数据兼容性、盘点现状。
-
-| 任务 | 包 | 工作量 | 输出 |
-|------|---|--------|------|
-| 设计并实现 `RuntimeAdapter` 接口 | `koatty-core` | 2 人天 | `packages/koatty-core/src/runtime/adapter.ts` + 测试 |
-| 实现 `NodeRuntimeAdapter` | `koatty-core` | 1 人天 | 默认 fallback，等价于现有行为 |
-| Bun 下 reflect-metadata 兼容性测试 | 测试仓库 | 2 人天 | [§12.C 报告模板](#12c-bun-元数据兼容性测试矩阵) |
-| Bun 下 Symbol.metadata 探测 | 测试仓库 | 1 人天 | TC39 模式可行性确认 |
-| TC39 现状最终盘点 | 全部 | 1 人天 | 阻断/非阻断装饰器清单 |
-| 整合方案评审 + 计划锁定 | — | 1 人天 | 本文档定稿 |
-
-**Phase 0 验收门**（必须满足，否则 Phase 1 不启动）：
-- [x] `RuntimeAdapter.detect()` 单元测试通过
-- [x] Bun 下 `reflect-metadata` 至少在 Legacy 模式可用，否则需启用 polyfill 备份方案
-- [x] 7 处 `design:*` 调用清单确认无遗漏
-
-### 4.3 Phase 1：TC39 必需子集（3 周，Week 2-4，串行）
-
-**目标**：完成 Bun MVP 必需的 TC39 装饰器子集迁移，为 Phase 2 提供基础。
-
-> **v1.1 关键变更**：v1.0 的"Track A + Track B 并行"模型在新约束下不可行——Bun 路径强制 TC39，所有核心装饰器必须先完成 TC39 双模式才能被 Bun 应用扫描注册。本阶段聚焦"最小必需集"，避免阻塞 Phase 2。
-
-**最小必需集**（Bun MVP 必需，不可省略）：
-
-| 任务 | 包 | 工作量 | 关联方案 B 章节 |
-|------|---|--------|---------------|
-| 模式自动判定 (`detectDecoratorMode(runtime)`) | `koatty-container` | 1 人天 | §11.10.4 + ADR-012 |
-| `koatty-core/Component.ts` 8 个装饰器双模式 | `koatty-core` | 4 人天 | §3、§4.4 |
-| `koatty-router/mapping.ts` 7 个映射装饰器双模式 | `koatty-router` | 2 人天 | §4.5 |
-| `@Autowired(Type)` 在 TC39 模式下显式参数 | `koatty-container` | 1 人天 | §11.10.3 |
-| `@Inject(Type1, Type2, ...)` 改为 MethodDecorator（构造注入 TC39 路径） | `koatty-container` | 2 人天 | §11.4.4 |
-| `@Get/@Post/@Header/@PathVariable/@File/@RequestBody/@RequestParam` 7 个装饰器升级为双模式（Param + Property） | `koatty-router` | 5 人天 | §11.3.2 |
-| `@Payload(DtoClass)` 装饰器（DTO 类型显式声明） | `koatty-router` | 2 人天 | §11.3.4 |
-| `injectParamMetaData()` DTO 自动检测路径 B1/B2（最小版本，仅启动期编译） | `koatty-router` | 4 人天 | §11.3.4 |
-| 单元测试覆盖（Legacy + TC39 双模式） | 全部 | 3 人天 | §11.4 |
-
-> **不在本阶段范围**（推到 Phase 3）：Swagger 装饰器迁移、`@Validated` 容错规则完善、构造注入循环依赖检测增强、`setExpose()` 完整 TC39 适配。
-
-**Phase 1 验收门**：
-- [x] `@Controller` / `@Service` / `@Component` / `@Middleware` 在 TC39 模式下正确注册到 IoC（Node 上验证）
-- [x] `@GetMapping` / `@PostMapping` 等映射在 TC39 模式下正确注册路由（Node 上验证）
-- [x] `@Get({ name, type })` 等用作 PropertyDecorator 时正确写入 `DTO_SOURCE_KEY`
-- [x] `@Inject(Type1, Type2)` 在 constructor 上的 TC39 形态测试通过
-- [x] DTO 自动检测路径 B1（多源混合）+ B2（纯请求体）端到端测试通过
-- [x] Node-Legacy 路径回归测试 100% 通过（C1 不被破坏）
-- [x] 单测覆盖率 ≥ 现有水平
-
-### 4.4 Phase 2：Bun MVP + 协议层（4 周，Week 5-8）
-
-**目标**：建立 Bun runtime 适配的完整协议层，跑通端到端 hello-world（C3）。
-
-> **v1.1 关键变更**：DTO 骨架已在 Phase 1 完成，本阶段专注 Bun 运行时适配 + ADR-015 启动期严格检测。
-
-#### Track A：Bun 入口包 + RuntimeAdapter
-
-| 任务 | 包 | 工作量 | 关联方案 A/ADR |
-|------|---|--------|---------------|
-| `RuntimeAdapter` 接口与 `NodeRuntimeAdapter` | `koatty-core` | 2 人天 | ADR-010 |
-| `BunRuntimeAdapter` 实现（强制 tc39） | `koatty-bun` | 2 人天 | ADR-012 |
-| `assertCompatibility()` 启动期严格检测 | `koatty-bun` | 3 人天 | ADR-015 |
-| `packages/koatty-bun` 入口包（re-export + side-effect） | `koatty-bun` | 1 人天 | ADR-010 |
-| `koatty-core` `NativeServer` 类型扩展（含 `BunNativeServer`） | `koatty-core` | 0.5 人天 | A §4.3.2 |
-| `Bootstrap.ts` 注入 `app.runtime` | `koatty` | 1 人天 | ADR-010 |
-
-#### Track B：Bun 协议服务器
-
-| 任务 | 包 | 工作量 | 关联方案 A |
-|------|---|--------|----------|
-| `BunHttpServer`（方案 A 路径，`node:http` compat） | `koatty-serve` | 3 人天 | §5.2-5.3 |
-| `BunHttpsServer` + TLS 集成 | `koatty-serve` | 2 人天 | §5.4 |
-| `BunHttp2Server`（ALPN 自动协商） | `koatty-serve` | 1 人天 | §5.5 |
-| `BunHttp3Server`（降级 HTTP/2） | `koatty-serve` | 1 人天 | §5.6 |
-| `BunWsServer` + `BunWsAdapter` | `koatty-serve` | 4 人天 | §5.7 |
-| `serve.ts` 工厂分发改造（含 `require()` 延迟加载） | `koatty-serve` | 1 人天 | §5.9 |
-| gRPC compat 验证（在 Bun 下跑现有 GrpcServer） | `koatty-serve` | 2 人天 | §5.8 |
-| `examples/bun-hello-tc39` 端到端样例（C3 验证） | examples | 1 人天 | A §12.3 |
-
-**Phase 2 验收门**：
-- [x] **`bun run examples/bun-hello-tc39/App.ts` 在 TC39 模式下成功响应 HTTP**（C3 矩阵格已验证）
-- [x] HTTPS/HTTP2/HTTP3（降级）/WS 协议在 Bun 下集成测试通过
-- [x] gRPC Unary 在 Bun 下端到端测试通过
-- [x] **`assertCompatibility()` 在用户误设 `experimentalDecorators: true` 时正确抛出 ADR-015 规范的错误**
-- [x] **`assertCompatibility()` 在检测到参数装饰器使用时正确抛出错误并指向 §6.6 替代方案**
-- [x] Node 路径（C1/C2）回归测试 100% 通过
-
-### 4.5 Phase 3：Node TC39 完整迁移 + Bun 可观测性（4 周，Week 8-11）
-
-**目标**：完成 Node 端 TC39 的剩余迁移工作（构造注入完整、Swagger、Validation 完善）+ Bun 可观测性改造。两 Track 可并行。
-
-#### Track A：构造注入完整 + Validation 完善（方案 B §11.4-11.5）
-
-| 任务 | 包 | 工作量 |
-|------|---|--------|
-| `LifecycleManager.setInstance()` Legacy 路径自动构造注入 | `koatty-container` | 4 人天 |
-| `LifecycleManager` Prototype 作用域改造 | `koatty-container` | 2 人天 |
-| 构造参数级别循环依赖检测 | `koatty-container` | 2 人天 |
-| 集成测试（含 `@Autowired` 与 `@Inject` 共存、循环依赖错误信息） | `koatty-container` | 3 人天 |
-| `@Validated(Dto)` 简写实现（合并 `@Payload` + `@Validated`） | `koatty-validation` | 2 人天 |
-| `@Validated` × `@Payload` 容错规则（去重/冲突检测） | `koatty-validation` | 2 人天 |
-| `setExpose()` TC39 适配（替换 `design:type`） | `koatty-validation` | 2 人天 |
-| `@ApiProperty({ type })` Swagger TC39 适配 | `koatty-swagger` | 3 人天 |
-| Swagger 6 个装饰器双模式迁移 | `koatty-swagger` | 4 人天 |
-
-#### Track B：Bun 可观测性（方案 A Phase 4）
-
-| 任务 | 包 | 工作量 |
-|------|---|--------|
-| `koatty-trace` 手动 Instrumentation 替代 auto | `koatty-trace` | 4 人天 |
-| Bun 下 OTLP exporter 验证 | `koatty-trace` | 2 人天 |
-| Prometheus exporter 在 Bun 下的兼容性验证 | `koatty-trace` | 1 人天 |
-| 降级告警机制 | `koatty-trace` | 1 人天 |
-| `koatty-loader` Bun.file() 加速 | `koatty-loader` | 2 人天 |
-| `koatty-config` Bun.file() 加速 | `koatty-config` | 1 人天 |
-
-**Phase 3 验收门**：
-- [x] 构造注入在 C1/C2/C3 三种组合下均工作（Bun-Legacy 已废除，无 C4 测试）
-- [x] 循环依赖检测错误信息清晰，建议改 `@Autowired` 字段注入
-- [x] Bun 下手动创建的 Span 可正确导出到 OTLP Collector
-- [x] `@Validated(Dto)` 简写 + 冲突检测测试通过
-- [x] Swagger 在 TC39 模式下生成的 OpenAPI schema 与 Legacy 模式一致
-
-### 4.6 Phase 4：模板/CLI/工具链（2 周，Week 11-13）
-
-**目标**：完成 koatty-ai 改造，提供完整的脚手架和迁移工具。
-
-| 任务 | 包 | 工作量 |
-|------|---|--------|
-| `koatty-ai` 增加 `--runtime bun` 参数（**强制 TC39，无 `--decorator-mode` 选项**） | `koatty-ai` | 2 人天 |
-| `koatty-ai` `--style=dto` 选项（仅 Node 模板） | `koatty-ai` | 1 人天 |
-| 新建 `koatty-ai-template-project-bun` 仓库（C3 唯一组合） | 模板仓库 | 3 人天 |
-| 现有 `koatty-ai-template-project` 增加 DTO style 模板 | 模板仓库 | 2 人天 |
-| 代码生成模板更新（DTO + 控制器构造注入） | `koatty-ai/templates` | 3 人天 |
-| 自动迁移工具 `koatty migrate --target=tc39`（codemod，Legacy → TC39） | tools | 4 人天 |
-| `koatty doctor` 增加 RuntimeAdapter / 装饰器模式诊断 + 参数装饰器扫描 | `koatty` | 2 人天 |
-
-**Phase 4 验收门**：
-- [x] `koatty new test-app -r bun` 生成可运行的 C3 项目（必须 TC39）
-- [x] `koatty new test-app --style=dto` 生成可运行的 C2 项目
-- [x] `koatty new test-app -r bun --decorator-mode legacy` 报错并退出（不支持的组合）
-- [x] codemod 在 `koatty-awesome` 示例项目上端到端通过
-- [x] `koatty doctor` 能识别项目当前模式并给出迁移建议
-
-### 4.7 Phase 5：测试矩阵 + 发布（2 周，Week 13-15）
-
-**目标**：CI 矩阵完善、性能基准、文档与发布。
-
-| 任务 | 工作量 |
-|------|--------|
-| CI 3 元组矩阵（C1 / C2 / C3） | 2 人天 |
-| 性能基准对比（3 元组各跑 §9 的 7 个场景） | 3 人天 |
-| 迁移指南文档（覆盖 C1→C2、C1→C3、C2→C3） | 3 人天 |
-| 参数装饰器替代方案专题文档（§6.6 配套） | 2 人天 |
-| 发布说明（v4.0.0-rc + npm publish） | 1 人天 |
-| Alpha → Beta → RC → Stable 灰度 | 2 周 |
-
-**Phase 5 验收门**（同时也是项目最终验收）：
-- [x] CI 3 元组矩阵 100% 通过
-- [x] 性能基准对比报告输出，C3 优于 C1 ≥ 2.5×（HTTP QPS hello-world）
-- [x] npm 上 `koatty@4.0.0-rc.1` / `koatty-bun@1.0.0-rc.1` 可正常安装运行
-- [x] 迁移指南覆盖 3 种典型迁移路径
-- [x] 用户在 Bun 下使用 Legacy 配置或参数装饰器时，启动错误信息符合 ADR-015 规范
-
-### 4.8 资源估算
-
-| 阶段 | 时间 | 人力 | 累计人周 |
-|------|------|------|---------|
-| Phase 0 | 1 周 | 1 人 | 1 |
-| Phase 1 | 3 周 | 2 人（串行依赖，但工作量可并行） | 7 |
-| Phase 2 | 4 周 | 2 人（Track A + Track B 并行） | 15 |
-| Phase 3 | 4 周 | 2 人（Track A + Track B 并行） | 23 |
-| Phase 4 | 2 周 | 1 人 | 25 |
-| Phase 5 | 2 周 | 1 人 + 1 QA | 29 |
-
-**整合后总人周 ≈ 29**（v1.1 与 v1.0 工作量持平，但路线图更清晰：Phase 1 串行避免了双轨独立验收的协调成本）。
-
----
-
-## 5. 包结构与文件清单
-
-### 5.1 新增文件清单
-
-| 路径 | 用途 |
+## 0. v2.0 评审结论（必读）
+
+### 0.1 结论
+
+1. **v1.1 的核心约束"Bun ⟹ 强制 TC39"不成立，予以撤销。** 装饰器模式由**编译器**决定（tsc / Bun 转译器 / SWC 的配置），与**运行时**无关。Bun 1.3.14 直接运行 TS 源码时完整支持 `experimentalDecorators` + `emitDecoratorMetadata` + `reflect-metadata`（证据 E-09）。把两个正交维度绑定，只会人为抬高存量项目迁移到 Bun 的门槛：原来必须先做完 12 周的 TC39 迁移，实际上零改动即可切换。
+2. **Bun 适配的主体工作量远小于 v1.1 估计。** 现有基于 `node:http` / `node:http2` / `ws` 的实现可在 Bun 上直接运行（E-12、E-13）。无需重写 `BunHttpServer` / `BunWsServer` 等 5 个服务器，也不需要 Bun Request ↔ IncomingMessage 的 mock 桥接。
+3. **性能收益被严重高估。** 同机实测：Koa hello-world 在 Bun 上比 Node 22 快约 6%，原生 `Bun.serve` 也只快约 11%（E-15）。v1.1 的 "C3 ≥ 2.5× C1" 验收门没有依据，已删除。"Legacy 每请求反射"的说法也不属实：路由在启动期已完成参数元数据预编译，所以 TC39 并不会带来运行时性能收益。
+4. **TC39 迁移存在 v1.1 未识别的硬约束**：
+   - Node 22 与 Bun 1.3 都没有原生的 `Symbol.metadata`，必须加 polyfill（E-02）；
+   - `context.metadata` 是**普通对象**，并且通过原型链继承父类的元数据，直接改写继承来的数组会污染父类（E-03）；
+   - **构造函数不能被装饰**，`@Inject(A, B)` 写在 constructor 上会报 TS1206（E-04）；
+   - TC39 下被装饰的字段**总会**成为实例上值为 `undefined` 的自有属性，会遮住"注入到原型"的依赖（E-11）。现在全靠 `overridePrototypeValue` 兜底，这必须升级为显式契约。
+5. **TypeScript 7.0 可以支持，但必须采用双编译器工具链。** TS 7.0.2 仍支持 legacy 装饰器，但不再提供经典 JS 编译 API。`ts-jest`（peer `<7`）、`typescript-eslint`（peer `<6.1.0`）、`api-extractor`（内置 5.9.3）、`ts-node` 都无法直接使用 TS7。另外 TS7 默认开启 `strict`，并移除了 `target: ES5` 和 `moduleResolution: node10`（E-05～E-08）。
+
+### 0.2 实测证据
+
+环境：macOS arm64；Node v22.23.1；Bun 1.3.14；typescript@7.0.2 / 6.0.3 / 5.9；实验目录 `/tmp/kr`（复现脚本见附录 A）。
+
+| ID | 结论 | 关键输出 |
+|----|------|---------|
+| E-01 | TS 7.0.2 编译 legacy 装饰器 + `emitDecoratorMetadata` 无错误，`design:*` 正常生成 | `tsc --experimentalDecorators --emitDecoratorMetadata` 0 error |
+| E-02 | Node 22 与 Bun 1.3 均无 `Symbol.metadata`。不加 polyfill 时，TS 生成的代码会把 `context.metadata` 置为 `undefined` | `typeof Symbol.metadata` → `undefined`（两端）；`class-decorate metadata=undefined` |
+| E-03 | 加 `Symbol.metadata ??= Symbol.for("Symbol.metadata")` 后两端都可用。子类 metadata 的原型指向父类 metadata；对继承来的数组直接 `push` 会污染父类 | `parent.tags ['P','C']`（被污染）；先复制再写后 `parent.own ['p']` / `child.own ['p','c']` |
+| E-04 | 构造函数装饰器不合法 | `TS1206: Decorators are not valid here.` |
+| E-05 | 方法装饰器返回类型声明为 `Function` 报错 | `TS1270: ... 'Function' is not assignable to type 'void \| (() => void)'` |
+| E-06 | TS7 移除 ES5 target 与 node10 解析 | `TS5108: Option 'target=ES5' has been removed`；`moduleResolution=node10` 同 |
+| E-07 | TS7 的 npm 包只导出 `.` 与 `./unstable/*`，没有经典 `ts.createProgram` 等 API；依赖旧 API 的工具不兼容 | ts-jest 29.4.14 peer `>=4.3 <7`；@typescript-eslint/typescript-estree 8.70.1 peer `>=4.8.4 <6.1.0`；api-extractor 7.59.2 内置 `typescript 5.9.3`；typescript@6.0.3 已发布 |
+| E-08 | 仓库用 TS7 类型检查时的新增错误来自默认 `strict`（`@sinclair/typebox` 的 TS2321，以及 koatty-router 的 `RouterConstructor`、GraphQL `formatError` 两处真实类型问题） | 已在上一轮评审中复现 |
+| E-09 | Bun 1.3.14 直接运行 TS 源码时，legacy 装饰器、`design:type`、`design:paramtypes`、`reflect-metadata` 均正常 | `bun-legacy/` 实验 |
+| E-10 | Bun 转译器**忽略** `useDefineForClassFields: false`：**不带装饰器**的 `x!: T` 字段会成为实例上值为 `undefined` 的自有属性（tsc 不会生成该字段）。带 legacy 装饰器的字段与 tsc 行为一致 | tsc→Node：`injected-on-prototype`；Bun 源码：`undefined`；带装饰器字段 Bun：`repo ok` |
+| E-11 | TC39 模式下被装饰的字段一定成为自有属性（规范语义，与 `useDefineForClassFields` 无关，Node 与 Bun 一致），会遮住原型上的注入值 | `own field exists; value=undefined`（tsc×2 + Bun） |
+| E-12 | `Bun.serve` 开 TLS 只协商 HTTP/1.1；Bun 上的 `node:http2` 能协商出 h2 | `curl --http2`：`1.1` vs `2` |
+| E-13 | `ws` 库的 `noServer` + `handleUpgrade` 在 Bun 上可用，服务端能收到 `Origin`；但 Bun 自带的 `ws` 客户端垫片会忽略 `origin` 选项 | Node 客户端 `origin=http://a.test`；Bun 客户端 `origin=undefined`；curl 发 Origin 时 Bun 服务端 `http://evil.test`；Bun 客户端改用 `headers: { Origin }` 时服务端能收到 |
+| E-14 | Bun 有 `process.execArgv`；Node 原生类型剥离无法运行任何装饰器源码 | `node strip.ts` → `SyntaxError at @D` |
+| E-15 | 同机 hello-world（autocannon `-c100 -d8 -w4`）：Node22+Koa 42.5k req/s（p99 4ms）；Bun+Koa 45.0k（p99 4ms，约 +6%）；原生 `Bun.serve` 47.4k（p99 2ms，约 +11%） | 客户端与服务端同机，结果受客户端上限影响，只能说明量级 |
+
+### 0.3 v1.1 → v2.0 变更摘要
+
+| 类别 | 条目 |
 |------|------|
-| `packages/koatty-bun/src/index.ts` | Bun 入口包 re-export + side-effect 注册 |
-| `packages/koatty-bun/src/types.ts` | `BunServer` 类型扩展 |
-| `packages/koatty-bun/src/runtime/bun-adapter.ts` | `BunRuntimeAdapter` 实现（强制 tc39，含 `assertCompatibility()`） |
-| `packages/koatty-bun/src/runtime/compat-checker.ts` | ADR-015 三重检测实现（tsconfig / design:* probe / 参数装饰器扫描） |
-| `packages/koatty-bun/src/runtime/error-formatter.ts` | ADR-015 错误信息格式化（`formatLegacyDecoratorError` / `formatParameterDecoratorError`） |
-| `packages/koatty-bun/package.json` | engines + workspace deps（包含 prepare 脚本检测项目 tsconfig） |
-| `packages/koatty-bun/tsconfig.json` | 继承 `tsconfig.base.json` |
-| `packages/koatty-bun/README.md` | 包说明 |
-| `packages/koatty-core/src/runtime/adapter.ts` | `RuntimeAdapter` 接口与默认实现 |
-| `packages/koatty-core/src/runtime/node-adapter.ts` | `NodeRuntimeAdapter` |
-| `packages/koatty-serve/src/server/bun-http.ts` | `BunHttpServer` |
-| `packages/koatty-serve/src/server/bun-https.ts` | `BunHttpsServer` |
-| `packages/koatty-serve/src/server/bun-http2.ts` | `BunHttp2Server` |
-| `packages/koatty-serve/src/server/bun-http3.ts` | `BunHttp3Server`（降级） |
-| `packages/koatty-serve/src/server/bun-ws.ts` | `BunWsServer` |
-| `packages/koatty-serve/src/adapter/bun-koa-bridge.ts` | Bun Request ↔ Node IncomingMessage 桥接（方案 B） |
-| `packages/koatty-serve/src/adapter/bun-ws-adapter.ts` | `BunWsAdapter`（继承 EventEmitter） |
-| `packages/koatty-trace/src/BunTraceSetup.ts` | 手动 OpenTelemetry 初始化 |
-| `packages/koatty-router/src/params/payload.ts` | `@Payload` 装饰器 |
-| `packages/koatty-router/src/utils/dto-detection.ts` | `isDtoClass` + DTO 自动检测 |
-| `examples/bun-hello/` | C3 验证样例 |
-| `examples/bun-hello-tc39/` | C4 验证样例 |
-| `tools/codemod/` | Legacy → TC39 自动迁移工具 |
-
-### 5.2 修改文件清单（关键变更）
-
-| 路径 | 变更摘要 |
-|------|---------|
-| `packages/koatty/src/core/Bootstrap.ts` | 增加 `RuntimeAdapter.detect()` 调用，注入 `app.runtime` |
-| `packages/koatty-core/src/Application.ts` | 增加 `runtime: RuntimeAdapter` 属性 |
-| `packages/koatty-core/src/IApplication.ts` | `NativeServer` 类型联合 `BunNativeServer` |
-| `packages/koatty-core/src/Component.ts` | 8 个装饰器迁移到 `IOC.createDecorator(...)` 双模式 |
-| `packages/koatty-core/src/Utils.ts` | `checkRuntime()` 增加 Bun 分支 |
-| `packages/koatty-container/src/container/lifecycle_manager.ts` | `setInstance()` 自动构造注入；新增 `resolveConstructorParams()` |
-| `packages/koatty-container/src/decorator/autowired.ts` | `@Inject` 改为 `MethodDecorator`（TC39 路径），保留 `ParameterDecorator`（Legacy 路径，加 `@deprecated`） |
-| `packages/koatty-container/src/decorator/compat.ts` | 新增 `detectLegacyMode()` |
-| `packages/koatty-router/src/params/params.ts` | 7 个装饰器升级为双模式（Param + Property） |
-| `packages/koatty-router/src/params/mapping.ts` | `RequestMapping` 双模式（Legacy + TC39） |
-| `packages/koatty-router/src/utils/inject.ts` | `injectParamMetaData()` 扩展 DTO 自动检测路径 B1/B2 |
-| `packages/koatty-validation/src/decorators.ts` | `@Validated(Dto)` 简写；与 `@Payload` 容错规则 |
-| `packages/koatty-validation/src/util.ts` | `setExpose()` TC39 路径（不依赖 `design:type`） |
-| `packages/koatty-serve/src/server/serve.ts` | 工厂分发增加 Bun 分支（`require()` 延迟加载） |
-| `packages/koatty-loader/src/index.ts` | 通过 `RuntimeAdapter.readFile()` 抽象文件 IO |
-| `packages/koatty-config/src/config.ts` | 同上 |
-| `packages/koatty-trace/src/index.ts` | Bun 环境下分支到 `BunTraceSetup` |
-| `packages/koatty-swagger/src/decorators/property.ts` | `@ApiProperty({ type })` 在 TC39 模式下必填 |
-| `packages/koatty-ai/src/cli/commands/new.ts` | 增加 `--runtime` 和 `--decorator-mode` 参数 |
-| `packages/koatty-ai/src/services/TemplateManager.ts` | 注册 `project-bun` 模板源 |
-| `tsconfig.base.json` | 不变（保持 Legacy 默认，由项目自行选择） |
-| `.github/workflows/ci.yml` | 增加 4 元组矩阵 jobs |
-| `turbo.json` | 不变（已支持） |
-
-### 5.3 受影响但仅小修改的文件
-
-| 路径 | 变更摘要 |
-|------|---------|
-| `packages/koatty-loader/src/index.ts:95` | `require(p)` 改为 `await runtime.resolveModule(p)` |
-| `packages/koatty-config/src/config.ts:72` | `require("run-con")` 同理 |
-| `packages/koatty-container/src/container/dependency_analyzer.ts:36-39` | 增加 TC39 模式下读取 `context.metadata.constructor:paramtypes` |
-| 14 处 `import "reflect-metadata"` | 短期保留（v4.x），v5.x 计划移除 |
+| **撤销** | 核心定位"Bun 分支 = TC39 纯净分支"；ADR-011（Bun 强制 TC39）；ADR-015（启动期拒绝 legacy 与参数装饰器）；§2.3"废除 Bun-Legacy"；`BunRuntimeAdapter` 硬编码 `tc39`；`koatty-bun` 作为 Bun 下的必需入口；Plan B mock 桥接；`BunHttp2Server` 通过 "ALPN 自动协商"；5 个 `BunXxxServer` 重写；Loader/Config 的 `Bun.file()` 加速；性能门 "C3 ≥ 2.5× C1" |
+| **修订** | ADR-010（RuntimeAdapter 缩小职责，`detect()` 永不抛错）；ADR-012（逐次调用判定模式，禁止运行时读 tsconfig）；ADR-013（关闭：reflect-metadata 是纯 JS，已实测通过）；ADR-016（构造注入替代方案改为可编译的形态）；兼容矩阵恢复为四组合 C1–C4；路线图与工作量 |
+| **新增** | ADR-017 TypeScript 7 双工具链；ADR-018 `Symbol.metadata` polyfill 与元数据写入规范；ADR-019 TC39 字段注入语义契约；ADR-020 Bun 协议层"复用优先、原生按实测启用"；ADR-021 性能声明必须实测；与加固方案（ADR-107）的排期协调；附录 A 复现实验；附录 F v1.1 勘误表 |
 
 ---
 
-## 6. 关键技术方案细节
+## 1. 目标与非目标
 
-### 6.1 RuntimeAdapter 接口定义
+### 1.1 目标
 
-新增 `packages/koatty-core/src/runtime/adapter.ts`：
+1. **TS 7.0 支持**：框架自身用 TS 7.0.x 构建与类型检查；用户项目用 TS 5.9 / 6.0 / 7.0 编译均可工作。
+2. **Bun 支持**：Koatty 应用可在 Bun ≥ 1.3 上运行，legacy 与 TC39 两种装饰器模式均可。
+3. **TC39 装饰器双模式**：所有框架装饰器同时支持 legacy 与 TC39 调用约定，并提供参数装饰器的替代写法。
+4. **零破坏**：v3.x 的 C1 项目升级后不改代码行为一致；把运行时切到 Bun 也不需要改代码（E-10 的一种边界情况除外，见 §4.3）。
+
+### 1.2 非目标
+
+- 不重写 Koa，也不做 Koa → Fetch API 的 mock 桥接。
+- 不在 v4 周期内移除 `reflect-metadata` 或 legacy 模式。
+- 不承诺 Bun 下的 HTTP/3（Bun 没有 QUIC）。
+- 不为 Bun 单独维护分支或 dist-tag（沿用 ADR-014 的否定结论）。
+
+---
+
+## 2. 整体架构：三个正交维度
+
+### 2.1 维度定义
+
+```
+D0 编译器     tsc 7.0 / tsc 5.9–6.0 / Bun 内置转译器 / SWC
+D1 装饰器模式 legacy (experimentalDecorators + emitDecoratorMetadata) | tc39
+D2 运行时     Node ≥ 20 | Bun ≥ 1.3
+D3 注入风格   由 D1 决定：legacy 可用参数装饰器；tc39 使用 DTO + 字段注入 + 类级依赖声明
+```
+
+- **D1 由 D0 的配置决定，与 D2 无关**，框架无法也不应在运行时"强制"D1。
+- **D1 在同一个编译单元内是确定的**，但一个进程中可能同时存在两种模式：用户应用是 TC39，第三方插件是按 legacy 预编译的。所以框架必须**逐次调用**判定模式（ADR-012），不能全局只判定一次。
+- **D0 的差异需要单独关注**：Bun 转译器与 tsc 在字段语义上不一致（E-10），Node 原生类型剥离不能运行装饰器（E-14），esbuild/tsx 不支持 `emitDecoratorMetadata`。因此 C1/C4 的开发期运行方式有限制（§6.3）。
+
+### 2.2 支持组合
+
+| 编号 | D1 | D2 | 注入风格 | 定位 | 支持期 |
+|------|----|----|---------|------|-------|
+| **C1** | legacy | Node | 参数装饰器 + 字段注入 | 现有项目、稳定生产 | v3.x + v4.x（默认） |
+| **C2** | tc39 | Node | DTO + 字段注入 + 类级依赖声明 | Node 新项目 | v4.x（推荐）+ v5.x（默认） |
+| **C3** | tc39 | Bun | 同 C2 | Bun 新项目 | v4.x（推荐）+ v5.x（默认） |
+| **C4** | legacy | Bun | 同 C1 | 存量项目零改动切到 Bun | v4.x（支持，beta 起） |
+
+迁移路径**不设先后顺序**：C1→C4 只换运行时；C1→C2 只迁装饰器；C2→C3 与 C4→C3 都只需一步。
+
+> **为什么恢复 C4**：v1.1 的四条废除理由都不成立。① "对齐标准"不是技术约束。② "维护成本爆炸"：装饰器双模式代码与运行时无关，C4 与 C1 走完全相同的代码路径，唯一新增的是一个 CI job。③ "用户多数已了解 TC39"没有数据支撑。④ "DTO 是 Bun 性能最优路径"与 E-15 以及路由启动期预编译的事实不符。
+
+### 2.3 包结构
+
+```
+packages/
+├── koatty/            # 入口不变；Bootstrap 调用 RuntimeAdapter.detect()
+├── koatty-core/       # RuntimeAdapter 接口 + Node/Bun 两个实现；Component 装饰器双模式
+├── koatty-container/  # Symbol.metadata polyfill；元数据写入工具；字段注入契约；类级依赖声明
+├── koatty-router/     # 映射与参数装饰器双模式；@Payload；DTO 提取器预编译
+├── koatty-validation/ # @Validated(Dto)；setExpose TC39 路径
+├── koatty-serve/      # 不新增 BunXxxServer；只在 HTTP/3 上加 Bun 降级分支，WS 做兼容修补
+├── koatty-trace/      # Bun 下关闭 auto-instrumentation，只保留框架自有 Span
+└── koatty-swagger/    # @ApiProperty({ type }) 在 TC39 下必填
+```
+
+**不再新增 `koatty-bun` 包作为必需入口。** 理由有二：`BunRuntimeAdapter` 只有几十行，应放在 `koatty-core`；强制用户改 import 会让预编译的 dist 在 Bun 下直接失败（v1.1 的 `detect()` 会抛错）。如果将来要做 `Bun.serve` 原生服务器（ADR-020 第 3 步），再以可选包 `koatty-bun-native` 的形式提供。
+
+### 2.4 运行时分发
+
+```
+[应用入口]  import { ExecBootStrap } from "koatty"      ← Node 与 Bun 相同
+     │
+     ▼
+[koatty-container 顶部 side-effect]  Symbol.metadata polyfill（ADR-018）
+     │   任何装饰过的类被求值之前执行
+     ▼
+[Bootstrap]  app.runtime = RuntimeAdapter.detect()  ← 只识别运行时，不涉及装饰器模式
+     │
+     ▼
+[装饰器求值]  compat.ts 按"本次调用的实参形态"分派 legacy / tc39（ADR-012）
+     │           两条分支都写入同一个 MetadataStore（统一抽象）
+     ▼
+[Loader / IOC]  只读 MetadataStore，不关心模式；混用冲突在此处报错
+     ▼
+[koatty-serve]  Node / Bun 使用相同实现：node:http(s) / node:http2 / ws / grpc-js
+                只有 HTTP/3 在 Bun 下降级（ADR-020）
+```
+
+---
+
+## 3. 关键设计决策（ADR）
+
+> 编号延续 ADR-001～016；加固方案使用 ADR-101 起，不冲突。
+
+### ADR-009：以 compat 层为统一基础（保留）
+
+所有双模式装饰器**必须**通过 `koatty-container/src/decorator/compat.ts` 的 `createDualClassDecorator` / `createDualMethodDecorator` / `createDualFieldDecorator`（或 `Container.createDecorator`，`container.ts:923`）实现，禁止各包自行嗅探实参。
+
+**v2.0 补充**：
+- 两条分支都必须写入同一个 `MetadataStore` 抽象。上层（Loader、Router、Validation）只读 `MetadataStore`，**不直接**读 `Reflect.getMetadata` 或 `context.metadata`。这样上层代码与 D1 解耦，未来移除 reflect-metadata 时只需改一处。
+- 方法装饰器的 TC39 分支返回类型必须是 `void | ((this: This, ...args: Args) => Return)`，不得声明为 `Function`（E-05）。
+
+### ADR-010：Bootstrap 与 RuntimeAdapter（修订）
+
+**决策**：不建 `BunBootstrap`；在 `Bootstrap` 中注入 `app.runtime`。
+
+**v2.0 修订**：
+1. `RuntimeAdapter` **不再持有 `decoratorMode`**，因为模式不是运行时属性。
+2. `RuntimeAdapter.detect()` **永不抛错**。在 Bun 下直接返回 `BunRuntimeAdapter`（位于 `koatty-core`），不依赖任何 side-effect 注册。
+3. 接口只保留**确有差异**的能力，去掉 `readFile` / `resolveModule` / `loadTlsMaterial`：Bun 完全兼容 `node:fs` 与 `require`，抽象这几项没有收益。
 
 ```typescript
+// packages/koatty-core/src/runtime/adapter.ts
 export interface RuntimeAdapter {
-  /** 运行时名称，用于日志和元数据 */
-  readonly name: 'node' | 'bun';
-
-  /** 运行时版本 */
+  readonly name: "node" | "bun";
   readonly version: string;
-
-  /** 装饰器模式（Node 路径根据 tsconfig 判定；Bun 路径硬编码 tc39） */
-  readonly decoratorMode: 'legacy' | 'tc39';
-
-  /** 文件读取（统一接口） */
-  readFile(path: string): Promise<string>;
-  readFileSync(path: string): string;
-
-  /** 模块加载 */
-  resolveModule(specifier: string): Promise<unknown>;
-
-  /** 创建协议服务器实例 */
-  createServerInstance(
-    protocol: 'http' | 'https' | 'http2' | 'http3' | 'ws' | 'wss' | 'grpc' | 'graphql',
-    options: any,
-    app: KoattyApplication,
-  ): KoattyServer;
-
-  /** 进程检测 */
-  isDebugMode(): boolean;
-
-  /** TLS 证书加载（Bun 推荐使用 Bun.file，Node 使用 fs） */
-  loadTlsMaterial(path: string): unknown;
-
-  /**
-   * 启动期严格检测（仅 Bun 实现非空，Node 默认 noop）
-   * 详见 ADR-015
-   */
-  assertCompatibility(): void;
-}
-
-export abstract class BaseRuntimeAdapter implements RuntimeAdapter {
-  static detect(): RuntimeAdapter {
-    if (typeof globalThis.Bun !== 'undefined') {
-      // BunRuntimeAdapter 在 koatty-bun 包内定义，通过 side-effect 注册到全局
-      const Bun = (globalThis as any).__koatty_bun_adapter__;
-      if (!Bun) {
-        throw new Error(
-          '[koatty] Bun runtime detected but koatty-bun is not imported. ' +
-          'Use `import "koatty-bun"` instead of `import "koatty"` in Bun environment.'
-        );
-      }
-      return new Bun();
-    }
-    return new NodeRuntimeAdapter();
-  }
-}
-```
-
-#### NodeRuntimeAdapter（默认实现）
-
-```typescript
-// packages/koatty-core/src/runtime/node-adapter.ts
-export class NodeRuntimeAdapter extends BaseRuntimeAdapter {
-  readonly name = 'node' as const;
-  readonly version = process.version;
-  readonly decoratorMode = detectDecoratorMode('node');  // 读 tsconfig
-
-  assertCompatibility(): void {
-    // Node 路径无强制约束，noop
-  }
-
-  // ... 其他方法实现
-}
-```
-
-#### BunRuntimeAdapter（强制 tc39）
-
-```typescript
-// packages/koatty-bun/src/runtime/bun-adapter.ts
-export class BunRuntimeAdapter extends BaseRuntimeAdapter {
-  readonly name = 'bun' as const;
-  readonly version = (globalThis as any).Bun.version;
-  readonly decoratorMode = 'tc39' as const;  // ★ 硬编码，不可修改
-
-  constructor() {
-    super();
-    // 构造时立即执行严格检测
-    this.assertCompatibility();
-  }
-
-  /**
-   * ADR-015 实施：启动期三重检测
-   */
-  assertCompatibility(): void {
-    // 检测 1：tsconfig.experimentalDecorators
-    const tsconfig = tryReadTsconfig();
-    if (tsconfig?.compilerOptions?.experimentalDecorators === true) {
-      throw new Error(formatLegacyDecoratorError(tsconfig));
-    }
-
-    // 检测 2：design:type 元数据是否被注入（应为 false）
-    if (probeDesignTypeAvailable()) {
-      throw new Error(formatDesignMetadataError());
-    }
-
-    // 检测 3：参数装饰器使用扫描（在 Loader 完成扫描后调用）
-    // 此处仅设置 hook，实际检测在 Loader.CheckAllComponents 中执行
-    Loader.registerPostScanHook(() => {
-      const offenders = scanParameterDecoratorUsage();
-      if (offenders.length > 0) {
-        throw new Error(formatParameterDecoratorError(offenders));
-      }
-    });
-  }
-
-  // ... 其他方法实现
-}
-
-// side-effect 注册（packages/koatty-bun/src/index.ts 顶部 import 时触发）
-(globalThis as any).__koatty_bun_adapter__ = BunRuntimeAdapter;
-```
-
-`Application` 在初始化时存储 adapter：
-
-```typescript
-// packages/koatty-core/src/Application.ts
-export class Koatty extends Koa {
-  runtime: RuntimeAdapter;
-
-  constructor(opts?: KoattyOptions) {
-    super();
-    this.runtime = BaseRuntimeAdapter.detect();  // 自动选 Node 或 Bun
-  }
-}
-```
-
-### 6.2 简化版 Bootstrap（消除重复）
-
-`packages/koatty/src/core/Bootstrap.ts` 现有代码 199 行，本次仅新增 1 个分支检测：
-
-```typescript
-async function bootstrapApplication(target, bootFunc, isInitiative) {
-  const app = Reflect.construct(target, []) as KoattyApplication;
-
-  // 现有 checkRuntime() 改造为同时识别 Node 和 Bun
-  checkRuntime();
-
-  // ★ 新增：根据 runtime 输出诊断
-  if (app.runtime.name === 'bun') {
-    Logger.Info(`[koatty] Running on Bun ${app.runtime.version}`);
-    Logger.Info(`[koatty] Decorator mode: ${app.runtime.decoratorMode}`);
-  }
-
-  Loader.initialize(app);
-  if (bootFunc) await bootFunc(app);
-  IOC.setApp(app);
-  Loader.CheckAllComponents(app, target);
-  await Loader.LoadAllComponents(app, target);
-  app.markReady();
-
-  return app;
-}
-```
-
-`packages/koatty-bun/src/index.ts` 简化为：
-
-```typescript
-// 注册 BunRuntimeAdapter 到 RuntimeAdapter 检测系统
-import './runtime/bun-adapter';  // side-effect 注册
-
-// 全部 re-export
-export * from 'koatty';
-export type { BunServer } from './types';
-```
-
-> **对比方案 A**：原方案 BunBootstrap.ts 复制了 60+ 行 Bootstrap 逻辑；本方案 0 复制，维护成本降低 90%。
-
-### 6.3 装饰器双模式 + 运行时分发的协同
-
-#### 装饰器调用链路（统一抽象）
-
-```
-[用户代码]
-    @Controller('/api')
-    class UserController {}
-         │
-         ▼
-[koatty-core/Component.ts]
-    Controller(path) = IOC.createDecorator({ legacy, tc39 }, 'class')
-         │
-         ▼
-[koatty-container/container.ts:923]
-    Container.createDecorator(handler, 'class')
-         │
-         ▼
-[koatty-container/decorator/compat.ts]
-    createDualClassDecorator({legacy, tc39})
-         │
-         │ 返回的装饰器函数在被调用时检测 context
-         │   - context 是 ClassDecoratorContext → 走 TC39 分支
-         │   - 否则 → 走 Legacy 分支
-         ▼
-[实际装饰器逻辑]
-    legacy: (target) => { IOC.saveClass("CONTROLLER", target, id); ... }
-    tc39:   (target, context) => { context.metadata.set(...); IOC.saveClass(...) }
-```
-
-> **关键收益**：`@Controller`/`@Service` 等注册到 IoC 的逻辑在 Legacy 与 TC39 路径都调用同一个 `IOC.saveClass()`，运行时无需感知装饰器模式。Bun 路径与 Node 路径同样无感知。
-
-### 6.4 DTO 模式在 Bun 下的零反射优化路径
-
-#### 性能优化原理
-
-Legacy 路径每个请求都要：
-1. `Reflect.getMetadata("design:paramtypes", ...)` 获取参数类型
-2. 反射创建 `new DtoClass()` 实例
-3. 逐字段 `Reflect.defineMetadata` 写入校验状态
-
-DTO + TC39 模式下，可以在**启动阶段**完成：
-1. `injectParamMetaData()` 编译每个 DTO 的提取策略列表（每个属性预编译为 `(ctx) => ctx.query['name']`）
-2. 类型转换器预编译（`Number(value)` / `Boolean(value)` 等）
-3. 校验器预编译（`IsNotEmpty.compile() → fn(value)`）
-
-请求处理时直接执行预编译闭包，无任何反射开销。Bun 的 V8/JIT 对小闭包函数的优化在这种模式下能发挥最大效果。
-
-#### 预期性能增益
-
-| 场景 | C1 (Node + Legacy) | C4 (Bun + TC39 + DTO) | 增益 |
-|------|----|----|------|
-| HTTP QPS hello-world | baseline 1× | ~3× | +200% |
-| HTTP QPS Koa 5 层中间件 | baseline 1× | ~2× | +100% |
-| HTTP P99 延迟（带参数提取） | baseline 1× | ~0.4× | -60% |
-| 启动时间（200 个 Controller） | baseline 1× | ~0.5× | -50% |
-
-> 数据来源：基于 Bun 1.3 官方 benchmark + DTO 模式预编译估算，**实际值需 Phase 5 实测验证**。
-
-### 6.5 reflect-metadata vs Symbol.metadata 在 Bun 下的兼容矩阵
-
-| 元数据 API | Node 18+ | Node 22 | Bun 1.1 | Bun 1.3 | TC39 模式可用 | 替代方案 |
-|----------|----------|---------|---------|---------|------------|---------|
-| `Reflect.defineMetadata` | ✅ | ✅ | ⚠️（部分边缘 case） | ✅ | 不依赖 | — |
-| `Reflect.getMetadata`（含继承链） | ✅ | ✅ | ⚠️（Bun 1.1 有 issue） | ✅ | 不依赖 | — |
-| `design:type` | ✅ | ✅ | ✅（需 `experimentalDecorators: true`） | ✅ | ❌ | 显式参数 |
-| `design:paramtypes` | ✅ | ✅ | ✅ | ✅ | ❌ | `@Payload(Dto)` / `@Inject(...)` |
-| `Symbol.metadata` | ⚠️ Stage 3 | ✅ | ⚠️（需验证） | ⚠️（需验证） | ✅ | 即原生方案 |
-| `context.metadata` (TC39) | ✅ | ✅ | ⚠️ Phase 0 验证 | ⚠️ Phase 0 验证 | ✅ | 即原生方案 |
-
-> **Phase 0 必须输出此矩阵的实测确认报告**（详见 [§12.C](#12c-bun-元数据兼容性测试矩阵)）。
-
-### 6.6 Bun 下参数装饰器替代方案详述
-
-> **背景**：[TC39 Stage 3 装饰器规范](https://github.com/tc39/proposal-decorators) 不支持参数装饰器；[Stage 1 提案](https://github.com/tc39/proposal-class-method-parameter-decorators) 仍在讨论。在 Bun 分支（强制 TC39）中所有参数装饰器使用场景都需要替代方案。本节详述每种替代方案的具体写法、运行时行为和迁移路径。
-
-#### 6.6.1 HTTP 参数：DTO 类 + PropertyDecorator
-
-`@Get` / `@Post` / `@Header` / `@PathVariable` / `@File` / `@RequestBody` / `@RequestParam` 在 Bun 路径下**仅作为 `PropertyDecorator`** 使用（双模式装饰器的 Property 路径，详见方案 B §11.3.2）。
-
-**替代写法**：
-
-```typescript
-// ❌ Node-Legacy（C1 仍可用，Bun 下 ADR-015 拒绝启动）
-@GetMapping('/users')
-async getUsers(
-  @Get('page') page: number,
-  @Get('limit') limit: number,
-  @Get('keyword') keyword?: string
-) { ... }
-
-// ✅ Bun (C3) / Node-TC39 (C2)：DTO 类
-@Component()
-class GetUsersDto {
-  @Get({ name: 'page', type: Number })
-  @IsDefined()
-  page: number = 1;
-
-  @Get({ name: 'limit', type: Number })
-  @IsDefined()
-  limit: number = 10;
-
-  @Get({ name: 'keyword', type: String })
-  keyword?: string;
-}
-
-@GetMapping('/users')
-@Payload(GetUsersDto)        // 显式声明参数 DTO 类型（TC39 必须）
-async getUsers(dto: GetUsersDto) {
-  // dto.page, dto.limit, dto.keyword 已在框架启动期预编译
-}
-```
-
-**TC39 模式下与 Legacy 的关键差异**：
-- `@Get('page')` 的字符串参数形式不可用，必须用选项对象 `@Get({ name, type })`
-- `type` 字段**必填**（`design:type` 不可用）
-- 控制器方法必须用 `@Payload(DtoClass)` 声明 DTO 类型（`design:paramtypes` 不可用）
-
-#### 6.6.2 多源混合 DTO（路径变量 + body + header）
-
-```typescript
-@Component()
-class UpdateUserDto {
-  @PathVariable({ name: 'id', type: Number })
-  @IsNotEmpty({ message: 'ID 不能为空' })
-  id: number;
-
-  @Post({ name: 'username', type: String })
-  @IsNotEmpty({ message: '用户名不能为空' })
-  username: string;
-
-  @Post({ name: 'email', type: String })
-  @IsEmail({}, { message: '邮箱格式不正确' })
-  email: string;
-
-  @Header({ name: 'Authorization', type: String })
-  token?: string;
-}
-
-@PutMapping('/users/:id')
-@Validated(UpdateUserDto)    // = @Payload(UpdateUserDto) + @Validated()
-async updateUser(dto: UpdateUserDto) {
-  // 框架在启动期为每个属性编译独立提取器：
-  //   id       ← (ctx) => Number(ctx.params['id'])
-  //   username ← async (ctx) => String((await bodyParser(ctx))['username'])
-  //   email    ← async (ctx) => String((await bodyParser(ctx))['email'])
-  //   token    ← (ctx) => ctx.get('Authorization')
-  // 请求时按属性源逐个提取，验证通过后填充 DTO 实例
-}
-```
-
-#### 6.6.3 纯请求体 DTO（无数据源装饰器）
-
-DTO 类如果**没有任何数据源装饰器**（`@Get`/`@Post`/`@Header` 等），框架按路由协议自动推断：
-
-| 路由协议 | 推断源 |
-|---------|-------|
-| HTTP POST/PUT/PATCH | request body |
-| HTTP GET/DELETE | query string |
-| gRPC（任何） | message body |
-| WebSocket（任何） | 消息体 |
-
-**示例**：
-
-```typescript
-@Component()
-class CreateUserDto {
-  @IsDefined()
-  @IsNotEmpty({ message: '用户名不能为空' })
-  username: string;
-
-  @IsEmail({}, { message: '邮箱格式不正确' })
-  email: string;
-
-  @IsDefined()
-  age?: number;
-}
-
-@PostMapping('/users')
-@Validated(CreateUserDto)
-async createUser(dto: CreateUserDto) {
-  // 框架自动等价于 @RequestBody() + plainToClass(CreateUserDto, body)
-}
-```
-
-#### 6.6.4 构造函数注入：`@Inject` MethodDecorator
-
-```typescript
-// ❌ Node-Legacy（C1 仍可用，Bun 下 ADR-015 拒绝启动）
-@Service()
-class UserService {
-  constructor(
-    @Inject() private readonly repository: UserRepository,
-    @Inject() private readonly logger: LogService
-  ) {}
-}
-
-// ✅ Bun (C3) / Node-TC39 (C2)：@Inject 改为 MethodDecorator 放 constructor 上
-@Service()
-class UserService {
-  @Inject(UserRepository, LogService)         // ★ MethodDecorator
-  constructor(
-    private readonly repository: UserRepository,
-    private readonly logger: LogService
-  ) {}
-}
-
-// 替代方案：字段注入（无构造参数）
-@Service()
-class UserService {
-  @Autowired(UserRepository)
-  private readonly repository!: UserRepository;
-
-  @Autowired(LogService)
-  private readonly logger!: LogService;
-}
-```
-
-**关键差异**：
-- `@Inject()` 不带参数的形式不可用，必须显式传入依赖类型 `@Inject(Type1, Type2, ...)`
-- 装饰器位置从"参数前"移到"constructor 上方"（成为 MethodDecorator）
-- 类型与构造函数参数顺序必须严格一致（框架据此匹配）
-
-#### 6.6.5 参数验证：DTO 属性验证装饰器
-
-```typescript
-// ❌ Node-Legacy
-async getDetail(
-  @Valid("IsNotEmpty", "id 不能为空") @Get("id") id: number,
-  @Valid(["IsNotEmpty", "IsEmail"], "邮箱格式不正确") @Get("email") email: string
-) { ... }
-
-// ✅ Bun / Node-TC39：DTO 属性验证（标准 PropertyDecorator）
-@Component()
-class GetDetailDto {
-  @Get({ name: 'id', type: Number })
-  @IsNotEmpty({ message: 'id 不能为空' })
-  id: number;
-
-  @Get({ name: 'email', type: String })
-  @IsNotEmpty({ message: '邮箱不能为空' })
-  @IsEmail({}, { message: '邮箱格式不正确' })
-  email: string;
-}
-
-@GetMapping('/detail')
-@Validated(GetDetailDto)
-async getDetail(dto: GetDetailDto) { ... }
-```
-
-**优势**：
-- 多规则自然叠加（多个装饰器堆叠），无需数组语法
-- 类型安全（装饰器有强类型签名，IDE 智能提示）
-- 与 `class-validator` 标准生态对齐
-
-#### 6.6.6 替代方案运行时性能
-
-DTO 模式在 Bun 下能利用预编译参数提取器，跳过反射开销：
-
-| 阶段 | Node-Legacy（参数装饰器） | Bun-TC39（DTO） |
-|------|------------------------|-----------------|
-| 启动期 | 注册 `TAGGED_PARAM` 元数据 | 注册 `DTO_SOURCE_KEY` + 预编译每属性提取器 |
-| 请求期 | 每请求 `Reflect.getMetadata` | 直接调用预编译闭包（无反射） |
-| 实例化 | 每请求 `new DtoClass()` | 同（不可避免） |
-| 验证 | 每请求 `Reflect.getMetadata` 取规则 | 启动期编译验证器闭包，请求时直接执行 |
-
-**Bun + V8 JIT 对小闭包的优化在 DTO 模式下能发挥最大效果**，预期性能优于 Node-Legacy 参数装饰器路径 30-50%（实测见 §9）。
-
-#### 6.6.7 未来恢复路线（参见 ADR-016）
-
-**承诺时间线**：
-
-```
-2024-2026         TC39 Stage 1 提案讨论中
-                       │
-                       ▼
-2026-2028 (估)    Stage 2-3 推进
-                       │
-                       ▼
-2028+ (估)        Stage 3 进入标准
-                       │
-                       ▼
-                  评估窗口（6 个月）
-                       │
-            ┌──────────┴──────────┐
-            ▼                     ▼
-        评估通过                评估未通过
-            │                     │
-            ▼                     ▼
-     koatty v6.x 恢复       维持现有替代方案
-     参数装饰器支持          （永久不变）
-            │
-            ▼
-     现有替代方案保留
-     （永远兼容）
-```
-
-**核心承诺**：
-1. ✅ 即使 v6.x 恢复参数装饰器支持，DTO + PropertyDecorator 路径**永不废弃**
-2. ✅ `@Payload` / `@Inject` MethodDecorator 是核心 API，**永远兼容**
-3. ✅ 现有 Node-Legacy 项目（C1）在 v4.x/v5.x 期间不强制迁移
-4. ✅ 任何 TC39 提案变化都不会导致用户代码 breaking change
-
-#### 6.6.8 参数装饰器全量迁移对照表
-
-| 原参数装饰器 | 替代方案 | 迁移工作量 |
-|------------|---------|----------|
-| `@Header(name)` | DTO 属性 `@Header({ name, type })` | 自动 codemod |
-| `@PathVariable(name)` | DTO 属性 `@PathVariable({ name, type })` | 自动 codemod |
-| `@Get(name)` | DTO 属性 `@Get({ name, type })` | 自动 codemod |
-| `@Post(name)` | DTO 属性 `@Post({ name, type })` | 自动 codemod |
-| `@File(name)` | DTO 属性 `@File({ name, type })` | 自动 codemod |
-| `@RequestBody()` | DTO 类无数据源装饰器（自动推断 body） | 自动 codemod |
-| `@RequestParam()` / `@Body()` / `@Param()` | 同上（隐式推断） | 自动 codemod |
-| `@Inject() dep: T` | `@Inject(T)` 放 constructor 上 + 字段注入 fallback | 半自动 codemod |
-| `@Valid("IsNotEmpty", msg)` | DTO 属性 `@IsNotEmpty({ message: msg })` | 自动 codemod |
-
-`koatty migrate --target=tc39` codemod 工具覆盖所有"自动"项；半自动项给出修改建议但需用户确认。
-
----
-
-## 7. 兼容性矩阵
-
-### 7.1 装饰器模式 × 运行时支持矩阵
-
-| 维度 | C1 Node-Legacy | C2 Node-TC39 | C3 Bun-TC39 |
-|------|---|---|---|
-| TypeScript | 4.x+ | 5.0+ | 5.0+ |
-| Node.js | 18+ | 18+（推荐 20+） | — |
-| Bun | — | — | 1.1+（推荐 1.3+） |
-| 装饰器实验性 | `experimentalDecorators: true` | `false` | `false`（启动期检测，详见 ADR-015） |
-| `emitDecoratorMetadata` | `true` | 不可设 | 不可设 |
-| `reflect-metadata` 运行时依赖 | ✅ | ⚠️ 短期保留 | ⚠️ 短期保留 |
-| `Symbol.metadata` polyfill | 不需要 | TS 提供 | TS 提供（Bun 兼容性 Phase 0 验证） |
-| ParameterDecorator | ✅ 全部 | ❌ 不支持 | **❌ 启动期拒绝**（详见 §6.6） |
-| 替代方案：DTO + `@Payload` | （可选） | ✅ 推荐 | ✅ **唯一方式** |
-| HTTP/WS/GraphQL 协议 | ✅ | ✅ | ✅ |
-| HTTP/3 (QUIC) | ✅ Native | ✅ Native | ⚠️ 降级 HTTP/2 |
-| gRPC（Unary + ServerStreaming） | ✅ | ✅ | ⚠️ Compat |
-| gRPC（Bidirectional Streaming） | ✅ | ✅ | ⚠️ 实验性 |
-| OpenTelemetry auto-instrumentation | ✅ | ✅ | ❌ |
-| OpenTelemetry 手动 Span | ✅ | ✅ | ✅ |
-| 生产环境推荐 | ✅ | ✅（v5.x 默认） | ✅ Bun 用户首选 |
-
-> **Bun-Legacy（v1.0 中的 C3）已废除**，详见 §2.3。
-
-### 7.2 Koatty 版本 × 矩阵支持承诺
-
-| Koatty 版本 | C1 | C2 | C3 | 说明 |
-|------------|----|----|----|------|
-| **v3.x（当前）** | ✅ Primary | ❌ | ❌ | 仅 Legacy + Node |
-| **v4.x（本方案目标）** | ✅ Default | ✅ Recommended | ✅ **Bun 用户首选** | 双模式 + Bun 适配（仅 TC39 路径） |
-| **v5.x（未来）** | ❌ Removed | ✅ Default | ✅ Default | 仅 TC39，Node 与 Bun 双运行时 |
-| **v6.x（远期，TC39 参数装饰器进入 Stage 3 后）** | ❌ Removed | ✅ + 参数装饰器恢复 | ✅ + 参数装饰器恢复 | 详见 ADR-016 |
-
-### 7.3 关键依赖版本
-
-| 依赖 | C1 | C2 | C3 | 备注 |
-|------|----|----|----|------|
-| TypeScript | ≥4.9 | ≥5.0 | ≥5.0 | TC39 需 5.0+ |
-| Koa | ≥3.0 | ≥3.0 | ≥3.0 | 共用，Bun 通过 compat 层运行 |
-| reflect-metadata | ≥0.2.0 | ≥0.2.0（v4.x 保留） | ≥0.2.0（v4.x 保留） | v5.x 移除 |
-| `@grpc/grpc-js` | ≥1.14.3 | ≥1.14.3 | ≥1.14.3 | Bun 经 Node compat 层 |
-| `@matrixai/quic` | ≥2.0.9 | ≥2.0.9 | — | HTTP/3 仅 Node |
-| `@opentelemetry/sdk-node` | ≥0.211 | ≥0.211 | ≥0.211（手动） | Bun 不支持 auto |
-| `class-validator` | ≥0.14 | ≥0.14 | ≥0.14 | DTO 属性验证 |
-| `class-transformer` | ≥0.5 | ≥0.5 | ≥0.5 | `plainToClass` 转换 |
-
----
-
-## 8. 整合后的风险登记
-
-### 8.1 风险登记总表
-
-合并方案 A 的 R1-R8 与方案 B 的 6 项风险，并新增整合后浮现的 R9-R18。
-
-| ID | 风险 | 级别 | 来源 | 整合后状态 |
-|----|------|-----|------|----------|
-| R1 | OpenTelemetry auto-instrumentation 不兼容 | **关键** | A | 方案不变（手动 Instrumentation） |
-| R2 | gRPC 双向流不稳定 | **高** | A | 方案不变（Compat 层 + CI 兼容测试） |
-| R3 | HTTP/3 (QUIC) 不可用 | **高** | A | 方案不变（降级 HTTP/2） |
-| R4 | Decorator Metadata 行为变化 | **中** | A+B | **整合升级**：Phase 0 阻断式验证（ADR-013） |
-| R5 | `ws` 库与 Bun 原生 WS 接口差异 | **中** | A | 方案不变（`BunWsAdapter`） |
-| R6 | BunKoaBridge 方案 B 的 mock 完整性 | **中** | A | 方案不变（先用 node:http compat） |
-| R7 | `winston-daily-rotate-file` 兼容性 | **低** | A | 方案不变 |
-| R8 | `process.execArgv` Bun 兼容 | **低** | A | 方案不变 |
-| R9 | 双模式装饰器调用上下文误判 | **中** | B | 方案不变（`typeof arguments[2] === 'number'`） |
-| R10 | 构造函数自动注入引入循环依赖 | **中** | B | 方案不变（DependencyAnalyzer 增强） |
-| R11 | `design:*` 在 TC39 不可用 | **高** | B | **整合方案**：装饰器参数必填 + Phase 0 审计 |
-| R12 | TC39 后续支持参数装饰器 | — | B | 方案不变（保留 Legacy 实现 + ADR-016 永久承诺） |
-| **R13** | **Phase 1 串行依赖延期阻塞 Phase 2** | **中** | 整合 v1.1 | Bun MVP 必须等待 TC39 子集完成；最小必需集设计为可独立验收，其余推到 Phase 3 |
-| **R14** | **2 套版本号管理策略冲突** | **中** | 整合 | ADR-014 统一为 `koatty@4.0.0-bun.x` |
-| **R15** | **代码生成模板组合爆炸** | **低** | 整合 v1.1 | 仅维护 C1 + C3 两套主模板，C2 通过 `--style=dto` CLI 选项 |
-| **R16** | **现有 koatty-awesome 示例升级成本** | **中** | 整合 | 提供自动 codemod，Phase 4 完成 |
-| **R17** | **用户在 Bun 下无意识使用 Legacy 配置** | **中** | 整合 v1.1 | ADR-015 启动期严格检测 + 三类错误信息（tsconfig / design:* / 参数装饰器使用） |
-| **R18** | **TC39 参数装饰器提案进入 Stage 3 后用户混淆** | **低** | 整合 v1.1 | ADR-016 明确替代方案永久承诺；评估窗口 6 个月；DTO 路径不会被废弃 |
-
-### 8.2 关键风险缓解措施详述
-
-#### R4 强化：Phase 0 元数据兼容性审计
-
-参见 [§12.C 测试矩阵](#12c-bun-元数据兼容性测试矩阵)。
-
-#### R11 强化：装饰器参数必填规范
-
-完整清单见方案 B §11.10.3。本文档补充：
-
-| 装饰器 | Legacy 写法 | TC39 写法 | 实施位置 |
-|--------|------------|-----------|----------|
-| `@Autowired()` | 类型可省 | `@Autowired(Type)` 必填 | `koatty-container/decorator/autowired.ts` |
-| `@Inject()` (Param) | `constructor(@Inject() dep)` | 改为 MethodDecorator: `@Inject(Type1, Type2)` 放 constructor 上 | `koatty-container/decorator/autowired.ts` |
-| `@Get()` (Property) | `@Get('name')` | `@Get({ name, type: String })` | `koatty-router/params/params.ts` |
-| `@Validated()` | 自动识别参数类型 | `@Validated(Dto)` 或 `@Payload(Dto)` 必填 | `koatty-validation/decorators.ts` |
-| `@ApiProperty()` | 类型可省 | `@ApiProperty({ type })` 必填 | `koatty-swagger/decorators/property.ts` |
-
-#### R13 缓解（v1.1）：Phase 1 最小必需集 + Phase 2 双 Track 并行
-
-由于 Bun 路径强制 TC39，Phase 1 不再支持双轨独立验收。缓解策略改为：
-- **Phase 1 设计为"最小必需集"**：仅迁移 Bun MVP 必需的装饰器（Component / mapping / 7 个参数装饰器双模式 / `@Payload` / `@Inject`），完整的 Swagger / Validation 适配推到 Phase 3
-- **Phase 1 内部任务可水平拆分并行**：1 名工程师做 Component 双模式，另一名做 mapping + params + `@Payload`，时间从串行 5 周压缩到并行 3 周
-- **风险信号触发降级**：若 Phase 1 中段（第 2 周末）评估认为按时完成有 ≥ 30% 风险，立即触发降级方案——只完成 Component + 关键 4 个映射装饰器，其余推迟到 Phase 2 末段并行做
-
-#### R17 缓解：ADR-015 启动期严格检测的多重防护
-
-为最大化拦截错误：
-
-1. **运行时检测（核心）**：`BunRuntimeAdapter.assertCompatibility()` 三重检测（tsconfig / design:* probe / 参数装饰器扫描）
-2. **构建期警告**：在 `koatty-bun` 包的 `package.json` 中添加 `prepare` 脚本，安装时检测项目 tsconfig 并打印 warning
-3. **CLI 检测**：`koatty doctor` 命令一键诊断当前项目是否符合 Bun 路径要求
-4. **IDE 提示**：参数装饰器 + ParameterDecorator 形态在源码中加 `@deprecated` JSDoc，IDE 显示删除线
-5. **codemod 工具**：`koatty migrate --target=tc39` 主动为用户做迁移，不让用户面对原始错误
-
-### 8.3 整合后的回退策略
-
-| 回退场景 | 触发条件 | 操作 |
-|---------|--------|------|
-| **Phase 0 失败** | Bun 元数据兼容性不达标 | 推迟 Phase 1，先在 Bun 上游提 issue 或自实现 polyfill |
-| **TC39 路径阻塞（关键装饰器迁移困难）** | Phase 1 中段评估失败 | v4.x 推迟 Bun 支持到 v4.5；先发 v4.0 的 TC39 dual（Node 上） |
-| **Bun 路径阻塞** | gRPC/WS 在 Bun 下不稳定 | v4.x 标注 Bun 为 beta，文档明确生产风险 |
-| **TC39 参数装饰器提案放弃推进** | TC39 提案被关闭 | 维持现有替代方案永久；ADR-016 评估部分自动转为"永不恢复"决策 |
-| **用户级回退** | 单个项目遇到不兼容 | Bun 用户暂时切回 `import from 'koatty'`（C1）+ Node 运行时；待问题修复后切回 Bun |
-
----
-
-## 9. 性能基准与决策门
-
-### 9.1 整合后的对比基准矩阵
-
-在方案 A §10 的基础上调整为 3 元组对比：
-
-| 场景 | C1 (Node-Legacy) baseline | C2 (Node-TC39) 增益预期 | C3 (Bun-TC39) 增益预期 |
-|------|---|---|---|
-| HTTP QPS hello-world | 1× | 1.0×（持平）| **3.0×**（Bun + 零反射） |
-| HTTP QPS Koa 5 中间件 | 1× | 1.05× | **2.0×** |
-| HTTP P99 延迟 | 1× | 0.95× | **0.4×** |
-| WebSocket 消息吞吐 | 1× | 1.0× | **1.7×** |
-| WebSocket 连接数 | 1× | 1.0× | 1.0× |
-| 启动时间（含装饰器扫描） | 1× | 0.9× | **0.4×** |
-| 内存占用 idle | 1× | 0.95× | **0.65×** |
-| JSON 序列化 1KB/10KB/100KB | 1×/1×/1× | 1×/1×/1× | 1.5×/1.3×/1.1× |
-| DTO 参数提取（含验证） | 1×（参数装饰器路径） | 1.3×（DTO 路径，预编译） | **2.5×**（Bun + 预编译） |
-
-### 9.2 决策门（覆盖方案 A §10.4）
-
-| 对比 | 性能差距 | 决策 |
-|------|--------|------|
-| C1 vs C2 | < 5% | TC39 默认推荐（v5 转为 default） |
-| C1 vs C2 | > 10% 退化 | 阻塞 v5.x 切换，调查根因 |
-| C3 vs C1 | < 2× | Bun 适配性能不达预期，调查路径选择（方案 A vs B） |
-| C3 vs C1 | ≥ 2.5× | 达成基础目标，可正式发布 |
-| C3 vs C1 | ≥ 3× | 达成最佳目标，向社区推广 |
-| C3 vs C2 | < 1.5× | Bun 在 TC39 路径下未发挥应有性能，调查 Bun 与 V8 JIT 差异 |
-
-### 9.3 性能测试工具链
-
-- **HTTP**: `bombardier`（推荐）+ `wrk`
-- **WebSocket**: `websocat` + 自建并发脚本
-- **启动时间**: `hyperfine` + 内置 `console.time` 测量点
-- **内存**: `process.memoryUsage()` + Bun `process.memoryUsage()` + RSS 趋势记录
-- **CPU 火焰图**: Node 用 `0x` / Bun 用 `--profile` + Chrome DevTools
-
----
-
-## 10. 整合验收标准
-
-合并方案 A §11.3 与方案 B §8 的验收条款：
-
-### 10.1 装饰器迁移验收（来自方案 B §8）
-
-- [x] `koatty-core/Component.ts` 8 个核心装饰器迁移到 `IOC.createDecorator(...)` 双模式
-- [x] `koatty-router/params/mapping.ts` 7 个映射装饰器双模式
-- [x] `koatty-router/params/params.ts` 7 个参数装饰器升级为双模式（Param + Property）
-- [x] `@Inject` 实现 MethodDecorator 形态（TC39 路径）
-- [x] `@Payload` 装饰器实现，与 `@Validated` 容错规则覆盖完整
-- [x] DTO 自动检测路径 B1/B2 测试通过
-- [x] 7 处 `design:*` 在 TC39 模式下迁移完毕（参数必填或显式 metadata）
-- [x] 单元测试覆盖率 ≥ 90%
-
-### 10.2 Bun 适配验收（来自方案 A §11.3）
-
-- [x] 5 个 Bun 服务器（HTTP/HTTPS/HTTP2/HTTP3/WS）单元测试通过
-- [x] HTTP E2E 覆盖率 > 80%
-- [x] WebSocket E2E 覆盖率 > 70%
-- [x] gRPC Unary + ServerStreaming 在 Bun 下测试通过
-- [x] 优雅关闭测试通过（正常 + 超时 + 强制）
-- [x] reflect-metadata 装饰器测试通过
-
-### 10.3 整合端到端验收（新增）
-
-- [x] **C1 → C2 → C3 链式迁移**：基于 `koatty-awesome` 示例项目，使用 codemod 先迁 C1→C2，再切 C2→C3，所有测试通过
-- [x] **C3 端到端**：`koatty new test-app -r bun` 生成项目可在 Bun 下成功运行 + 通过单元测试
-- [x] **ADR-015 检测有效性**：模拟用户错误（`experimentalDecorators: true` / 使用参数装饰器）启动时正确抛错并指引到 §6.6
-- [x] **CI 3 元组矩阵**：3 个 jobs（C1 / C2 / C3）100% 通过
-- [x] **性能门**：C3 vs C1 在 HTTP QPS hello-world 上达成 ≥ 2.5×（保守目标，3× 为预期）
-- [x] **回归无损**：v3.x 项目不修改任何代码，安装 v4.x 后行为一致（C1 路径）
-- [x] **文档完整性**：迁移指南覆盖 3 种典型路径（C1→C2、C1→C3、C2→C3）
-- [x] **codemod 可用性**：在 koatty 官方 example 上自动迁移成功率 ≥ 95%
-- [x] **参数装饰器替代方案文档**：§6.6 八小节内容齐全，覆盖所有 11 处原参数装饰器
-
-### 10.4 发布验收
-
-- [x] `koatty@4.0.0-rc.1` 在 npm 上发布
-- [x] `koatty-bun@1.0.0-rc.1` 在 npm 上发布
-- [x] `koatty_serve@3.3.0-rc.1` / `koatty_core@2.3.0-rc.1` 等子包同步发布
-- [x] Beta 阶段至少 2 周公开测试，社区反馈无阻塞性 issue
-- [x] 正式版发布说明覆盖：新功能、Breaking Changes（如有）、迁移路径、性能数据
-
----
-
-## 11. 与现有文档的关系
-
-### 11.1 文档定位
-
-```
-docs/
-├── koatty-bun-plan.md                       # 原 Bun 适配方案（专题）
-│   └─ 关注：协议层细节、BunXxxServer 实现细节、可观测性方案
-│   └─ 修订：在文件顶部加链接说明，关键章节保留作为详细参考
-│
-├── tc39-decorator-migration-plan.md         # 原 TC39 迁移方案（专题）
-│   └─ 关注：装饰器双模式、DTO 替代、@Payload/@Inject 重构、reflect-metadata 审计
-│   └─ 修订：在文件顶部加链接说明，关键章节保留作为详细参考
-│
-└── koatty-bun-tc39-integrated-plan.md       # ★ 本文档（整合实施方案）
-    └─ 关注：阶段路线图、整合架构、ADR 增量、风险整合、验收标准
-    └─ 是实施的"主入口"文档，开发者从这里开始阅读
-```
-
-### 11.2 维护策略
-
-| 文档 | 维护者 | 更新频率 |
-|------|--------|---------|
-| 本文档（整合方案） | Architect Agent | 每个 Phase 完成时更新进度 |
-| `koatty-bun-plan.md` | Bun 适配 Track 负责人 | 仅在协议层细节变更时更新 |
-| `tc39-decorator-migration-plan.md` | TC39 迁移 Track 负责人 | 仅在装饰器实现细节变更时更新 |
-
-> **冲突时以本文档为准**：当本文档与原方案在路线图、验收、ADR 等层面存在冲突时，以本文档为最终决策。
-
-### 11.3 推荐阅读顺序
-
-| 角色 | 推荐顺序 |
-|------|---------|
-| 项目经理 / 架构师 | 本文档（全文） |
-| Bun 适配开发者 | 本文档 §1-4 + `koatty-bun-plan.md` §3-7 |
-| TC39 迁移开发者 | 本文档 §1-4 + `tc39-decorator-migration-plan.md` §11 |
-| QA / 测试 | 本文档 §10 + 两份原方案的测试章节 |
-| 用户 / 框架使用者 | 本文档 §2 + §7（兼容性矩阵）+ 迁移指南（Phase 5 输出） |
-
----
-
-## 12. 附录
-
-### 12.A 代码现状审计要点
-
-> 完整审计报告由 explore agent 输出，本附录摘录关键事实供方案决策参考。
-
-**装饰器现状**（2026-05-11 实测）：
-
-- `koatty-container/decorator/{autowired, aop, values}.ts` ✅ 已接入 dual-decorator
-- `koatty-container/decorator/compat.ts` ✅ 基础设施完整（`isTC39Context`/`createDualClassDecorator`/`createDualMethodDecorator`/`createDualFieldDecorator`）
-- `koatty-container/container.ts:923 createDecorator` ✅ 中心调度器
-- `koatty-core/Component.ts` ❌ **8 个装饰器全部 legacy**（`Controller`/`GrpcController`/`WebSocketController`/`GraphQLController`/`Middleware`/`Service`/`Plugin`/`Component` + `OnEvent`）
-- `koatty-router/params/mapping.ts` ❌ legacy（`RequestMapping` + 7 派生）
-- `koatty-router/params/params.ts` ❌ **8 个 ParameterDecorator** + TC39 不支持
-- `koatty-router/utils/inject.ts:677 injectParam` ❌ legacy + 依赖 `design:paramtypes`
-- `koatty-validation/decorators.ts:183 Valid` ❌ legacy
-- `koatty-swagger/*` ❌ 6 个装饰器文件均 legacy
-
-**Bun 适配阻断点**（2026-05-11 实测）：
-
-- `koatty-core/Application.ts:31` `Koatty extends Koa` —— Koa 基于 Node.js req/res
-- `koatty-serve/server/{http,https,http2}.ts` 直接 `import "http"|"https"|"http2"`
-- `koatty-trace` 重度依赖 OpenTelemetry auto-instrumentation
-- `koatty-loader/src/index.ts:95` `require(p)` —— Bun ESM 兼容性需验证
-- 全代码库 0 处 Bun 相关代码（`grep "Bun" packages/*/src/`)
-
-**`design:*` 调用清单**（7 处）：
-
-| 文件 | 行号 | API |
-|------|------|-----|
-| `koatty-container/decorator/autowired.ts` | 62 | `design:type` |
-| `koatty-container/decorator/autowired.ts` | 150-151 | `design:paramtypes` |
-| `koatty-container/decorator/values.ts` | 47 | `design:type` |
-| `koatty-container/container/dependency_analyzer.ts` | 36-39 | `design:paramtypes` |
-| `koatty-container/container/preload_manager.ts` | 74 | `design:paramtypes` |
-| `koatty-router/utils/inject.ts` | 626-630 | `design:type` / `design:paramtypes` / `design:returntype` |
-| `koatty-swagger/decorators/property.ts` | 35 | `design:type` |
-| `koatty-validation/decorators.ts` | 269 | `design:paramtypes` |
-| `koatty-validation/util.ts` | 23 | `design:type` |
-
-**`reflect-metadata` import 位置**：9 处源码 + 21 处 `package.json` 依赖。
-
-### 12.B ParameterDecorator 11 处迁移清单
-
-| # | 文件路径 | 行号 | 装饰器名 | 整合后处理 |
-|---|---------|------|---------|----------|
-| 1 | `koatty-container/decorator/autowired.ts` | 144 | `Inject` | 改为 MethodDecorator（构造函数级，TC39）+ 保留 Param 形态（Legacy，标 deprecated） |
-| 2 | `koatty-router/utils/inject.ts` | 612-618 | `injectParam`（工厂） | 同时支持 Property 路径（双模式装饰器内部） |
-| 3 | `koatty-router/params/params.ts` | 24 | `Header` | 双模式（Param + Property） |
-| 4 | `koatty-router/params/params.ts` | 42 | `PathVariable` | 双模式 |
-| 5 | `koatty-router/params/params.ts` | 63 | `Get` | 双模式 |
-| 6 | `koatty-router/params/params.ts` | 84 | `Post` | 双模式 |
-| 7 | `koatty-router/params/params.ts` | 112 | `File` | 双模式 |
-| 8 | `koatty-router/params/params.ts` | 134 | `RequestBody` | 双模式 |
-| 9 | `koatty-router/params/params.ts` | 156 | `RequestParam` | 双模式 |
-| 10 | `koatty-validation/decorators.ts` | 183 | `Valid` | 完全弃用，迁移到 DTO 属性验证装饰器 |
-| 11 | （别名导出）`Body`、`Param` | — | — | 跟随 `RequestBody`/`RequestParam` 自动获得双模式 |
-
-### 12.C Bun 元数据兼容性测试矩阵
-
-Phase 0 必须输出此报告，覆盖以下测试用例：
-
-```typescript
-// tests/bun-metadata-compat/test.ts
-import "reflect-metadata";
-
-// 1. 基础元数据存取
-class A {}
-Reflect.defineMetadata("k", "v", A);
-test("Bun: Reflect.getMetadata", () => {
-  expect(Reflect.getMetadata("k", A)).toBe("v");
-});
-
-// 2. 继承链元数据查找
-class B extends A {}
-test("Bun: Reflect.getMetadata 继承", () => {
-  expect(Reflect.getMetadata("k", B)).toBe("v");  // 应继承 A 的元数据
-});
-
-// 3. design:type 自动注入（仅 Legacy）
-class C {
-  @PropDecorator()
-  field: string = "";
-}
-function PropDecorator(): PropertyDecorator {
-  return (target, key) => {
-    test("Bun: design:type", () => {
-      expect(Reflect.getMetadata("design:type", target, key)).toBe(String);
-    });
+  /** 协议能力探测，只用于降级决策与诊断输出 */
+  readonly capabilities: {
+    http3: boolean;               // Bun: false
+    otelAutoInstrumentation: boolean; // Bun: false（依赖 require 钩子，默认关闭）
   };
 }
 
-// 4. design:paramtypes 自动注入（仅 Legacy）
-class D {
-  @MethodDecorator()
-  method(arg: number, arg2: string): void {}
-}
-
-// 5. Symbol.metadata 支持（TC39 模式）
-function ClassDeco<T>(target: T, context: ClassDecoratorContext) {
-  context.metadata.set("k", "v");
-}
-@ClassDeco
-class E {}
-test("Bun: Symbol.metadata", () => {
-  expect((E as any)[Symbol.metadata]?.get("k")).toBe("v");
-});
-
-// 6. context.addInitializer
-function FieldDeco(value: undefined, context: ClassFieldDecoratorContext) {
-  context.addInitializer(function () {
-    // 验证 this 指向实例
-  });
-}
-class F {
-  @FieldDeco
-  field: string = "";
+export function detectRuntime(): RuntimeAdapter {
+  const bun = (globalThis as { Bun?: { version: string } }).Bun;
+  if (bun) {
+    return { name: "bun", version: bun.version,
+      capabilities: { http3: false, otelAutoInstrumentation: false } };
+  }
+  return { name: "node", version: process.versions.node,
+    capabilities: { http3: true, otelAutoInstrumentation: true } };
 }
 ```
 
-**报告输出格式**：
+### ADR-011：模板与 CLI 的模式选择（替换 v1.1 "Bun 强制 TC39"）
 
-| 测试用例 | Bun 1.1.0 | Bun 1.3.x | Node 22 | 阻断? |
-|---------|-----------|-----------|---------|------|
-| Reflect 基础 API | ? | ? | ✅ | — |
-| Reflect 继承链 | ? | ? | ✅ | — |
-| design:type | ? | ? | ✅ | 阻断 Phase 1 Track A |
-| design:paramtypes | ? | ? | ✅ | 阻断 Phase 1 Track A |
-| Symbol.metadata | ? | ? | ✅ | 阻断 Phase 1 Track B (TC39) |
-| context.addInitializer | ? | ? | ✅ | 阻断 DTO 路径 |
+**决策**：`koatty new` 使用 `--runtime node|bun`（默认 node）与 `--decorators legacy|tc39`（默认 v4.x 为 legacy，v5.x 为 tc39）两个**独立**参数，四种组合都能生成可运行的项目。
+- 模板只维护**一套**源码，以 Handlebars 条件区分装饰器写法与 `tsconfig`。运行时差异只体现在 `package.json` scripts 与 `engines` 上。
+- Bun 模板的 `tsconfig` 显式写 `"useDefineForClassFields": false`。即使 Bun 转译器忽略它（E-10），tsc 构建与类型检查也依赖它。
+- 生成代码**不得**依赖原型上的非装饰字段值（例如控制器里未装饰的 `app!: App`），因为这类值在 Bun 源码运行时会被自有属性遮住（E-10）。框架提供的基类通过 `overridePrototypeValue` 兜底，但模板不能把这个兜底当作写法依据（见 ADR-019）。
 
-> 测试结果由 Phase 0 实施者填入。任何阻断项都必须在进入 Phase 1 前解决。
+### ADR-012：装饰器模式判定（替换）
 
-### 12.D Bun 下 IO 替换清单
+**决策**：
+1. **逐次调用判定**：由 `compat.ts` 的 `isTC39Context(arg)` 根据**本次调用的实参形态**判定（第二个参数是否为带 `kind` 字段的 context 对象）。这是唯一可靠的依据，因为同一进程可能加载不同模式编译的代码。
+2. **禁止在运行时读取 tsconfig**：dist 包里没有 tsconfig；tsconfig 可能用 `extends` 链或项目引用；Bun 与 SWC 可能用其他配置；一个进程中可能混有多个编译单元。原方案 B §11.10.4 与 v1.1 ADR-012/015 中的 `tryReadTsconfig()` 全部作废。
+3. **类级冲突检测**：同一个类如果同时收到 legacy 与 TC39 两种形态的装饰器调用（例如继承链跨越了两个编译单元），`MetadataStore` 在首次读取该类时抛出 `MixedDecoratorModeError`，并给出类名与两种来源。
+4. **按需诊断**：不设全局 `decoratorMode`。`koatty doctor` 会静态读取项目 tsconfig（此时 tsconfig 确实可读），并结合 `MetadataStore` 的统计输出"本应用 legacy 类 N 个、TC39 类 M 个"。
 
-| 文件 | 现有 IO | RuntimeAdapter 抽象后 |
-|------|---------|----------------------|
-| `koatty-loader/src/index.ts:54` | `globby.sync` | 不变（`globby` 已支持 Bun） |
-| `koatty-loader/src/index.ts:95` | `require(p)` | `runtime.resolveModule(p)` |
-| `koatty-config/src/config.ts:72` | `require("run-con")` | 同上 |
-| `koatty-serve/src/utils/cert-loader.ts:11` | `readFileSync` | `runtime.loadTlsMaterial(path)` |
-| 各 Bun 服务器 TLS 配置 | — | `Bun.file(path)` (BunRuntimeAdapter 内部) |
+### ADR-013：reflect-metadata 在 Bun 下的兼容性（关闭）
 
-### 12.E CI 3 元组矩阵示例
+reflect-metadata 是纯 JS 实现，不依赖运行时特性。E-09 已实测 Bun 1.3.14 的基础存取、继承链以及 `design:*` 均正常。本 ADR 不再作为 Phase 0 的阻断项；Phase 0 只需在 CI 中固化 E-09 的测试（附录 C）。
+
+### ADR-014：版本号（保留）
+
+不为 Bun 设 dist-tag 或分支版本。v4.0.0 同时支持 C1–C4。`engines` 增加 `"bun": ">=1.3.0"`（npm 会忽略未知的 engine 字段，但 Bun 与文档工具可读取）。
+
+### ADR-015：Bun 启动期拒绝 legacy（撤销）
+
+**撤销理由**：前提不成立（E-09）。其中三项检测也都有技术问题：读 tsconfig 不可靠（见 ADR-012）；探测 `design:*` 会误伤 legacy 预编译的依赖；扫描参数装饰器毫无必要，因为 TC39 编译单元里写参数装饰器根本通不过编译。
+
+**替代**：启动时输出一行诊断，例如 `[koatty] runtime=bun 1.3.14 decorators: legacy=42 tc39=0`，并按 ADR-012 第 3 条检测混用冲突。
+
+### ADR-016：参数装饰器替代契约（修订）
+
+保留"DTO + 属性装饰器 + `@Payload` 永久支持"的承诺，并修正其中无法编译的部分：
+
+| 原用法 | v2.0 替代 | 形态 |
+|-------|----------|------|
+| `@Get('page') page: number`（方法参数） | DTO 字段 `@Get({ name: 'page', type: Number }) page: number` | 字段装饰器 |
+| `@RequestBody() body: T` | DTO 类不写数据源装饰器，由协议推断（§4.6） | 隐式 |
+| `@Valid(...)`（方法参数） | DTO 字段验证装饰器 | 字段装饰器 |
+| `constructor(@Inject() dep: T)` | **不能**把 `@Inject` 写在 constructor 上（E-04）。改用：① 字段注入 `@Autowired(() => T)`（推荐）；② 类级声明 `@Service({ inject: [() => A, () => B] })`，按顺序作为构造参数传入 | 字段 / 类装饰器 |
+
+**TC39 参数装饰器提案**（[proposal-class-method-parameter-decorators](https://github.com/tc39/proposal-class-method-parameter-decorators)）截至本文仍在 Stage 1。本方案不承诺恢复时间，只承诺替代方案永不废弃。
+
+### ADR-017：TypeScript 7 双工具链（新增）
+
+**背景**：TS 7.0 是 Go 实现，npm 包只提供 `tsc` 二进制和 `typescript/unstable/*`（E-07）。
+
+**决策**：
+
+| 用途 | 编译器 | 说明 |
+|------|-------|------|
+| 构建（`tsc -b` 生成 JS + `.d.ts`）与 CI 类型检查 | **TypeScript 7.0.x** | 主编译器，速度收益最大 |
+| `ts-jest`、`typescript-eslint`、`ts-node`、`api-extractor` | **TypeScript 6.0.x** | 这些工具依赖经典 API。TS 6.0.3 满足 ts-jest `<7` 与 typescript-estree `<6.1.0`。api-extractor 自带 5.9.3，可独立运行 |
+| 生成代码（koatty-ai 使用 `ts-morph`） | ts-morph 内置的 TS | 不受影响 |
+
+**落地方式（根 `package.json`）**：
+
+```jsonc
+{
+  "devDependencies": {
+    "typescript": "~6.0.3",                 // 供依赖经典 API 的工具解析 require("typescript")
+    "typescript-7": "npm:typescript@~7.0.2" // 仅用于构建与类型检查
+  },
+  "scripts": {
+    "typecheck": "node node_modules/typescript-7/bin/tsc -b --noEmit",
+    "build:types": "node node_modules/typescript-7/bin/tsc -b"
+  }
+}
+```
+
+- 两个包都声明了名为 `tsc` 的 bin，**不要**依赖 `pnpm exec tsc`（名字冲突，最终指向哪个不确定），一律写明路径。
+- TS7 通过 optionalDependencies 安装平台二进制（如 `@typescript/typescript-darwin-arm64`），CI 禁止使用 `--no-optional`。
+- **测试转换器**：保留 ts-jest（配合 TS 6.0）作为默认，`isolatedModules: true` 以减少对类型检查的依赖。可选用 `@swc/jest` 提速：SWC 支持 legacy + `decoratorMetadata`，但它对 TC39 metadata 的支持需在 Phase 0 实测后再启用。
+- **两套编译器的一致性**：CI 中用 TS7 做一次全量 `--noEmit`，再用 TS 6.0 做一次（ts-jest 实际使用的版本），两者都必须通过。
+
+**tsconfig 调整（`tsconfig.base.json`）**：
+
+| 选项 | 现状 | v4 要求 | 理由 |
+|------|------|--------|------|
+| `strict` | 未设置 | 显式 `false`，按包逐步开启 | TS7 默认 `true`（E-08），不显式关闭会让升级即报错 |
+| `skipLibCheck` | 未设置 | `true` | 规避 `@sinclair/typebox@0.27` 的 TS2321（jest 29 的传递依赖）；长期方案是升级 jest 30 |
+| `target` | ES2022 | 不变 | 不能用 ES5（TS5108） |
+| `moduleResolution` | bundler | 不变 | 不能用 node10（TS5108） |
+| `useDefineForClassFields` | false | 不变且必须保留 | legacy 模式下原型注入依赖它（ADR-019） |
+| `importHelpers` | true | 不变；`tslib` ≥ 2.5（建议 2.8+） | TC39 装饰器依赖 `__esDecorate` / `__runInitializers`，这两个辅助函数从 tslib 2.5 开始提供 |
+
+**用户项目**：CLI 模板默认生成 TS 5.9+ 均兼容的 tsconfig，并在 README 中说明 TS7 下测试与 lint 工具的限制。
+
+### ADR-018：Symbol.metadata polyfill 与元数据写入规范（新增）
+
+1. **polyfill**：`koatty-container` 入口第一行执行：
+   ```typescript
+   (Symbol as { metadata?: symbol }).metadata ??= Symbol.for("Symbol.metadata");
+   ```
+   - 使用 `Symbol.for` 而不是新建 `Symbol()`，这样多个副本（重复安装的 koatty_container、第三方库）得到的是同一个 symbol。
+   - **求值顺序**：TS 生成的代码在**类定义求值时**读取 `Symbol.metadata`。所有导出装饰器的包（core、router、validation、swagger、serve 等）都必须在入口顶部 `import "koatty_container"`（或其中的 `polyfill` 子路径），确保只从 `koatty_validation` 导入装饰器的 DTO 文件也能先执行 polyfill。
+   - 单测：polyfill 缺失时，TC39 装饰器必须抛出明确错误（`context.metadata is undefined; import "koatty_container" first`），不能静默丢失元数据。
+2. **写入规范**：
+   - `context.metadata` 是普通对象，**禁止**使用 `.set()` / `.get()`。
+   - 键名一律使用模块私有的 `Symbol`（如 `const DTO_SOURCE = Symbol("koatty:dto-source")`），避免与其他库冲突。
+   - **写前复制**：子类 metadata 的原型指向父类 metadata（E-03）。修改集合类值之前必须先判断 `Object.hasOwn(meta, KEY)`，没有自有值时复制一份再写：
+     ```typescript
+     function appendOwn<T>(meta: DecoratorMetadataObject, key: symbol, item: T): void {
+       const own = Object.hasOwn(meta, key) ? (meta[key] as T[]) : [...((meta[key] as T[]) ?? [])];
+       own.push(item);
+       meta[key] = own;
+     }
+     ```
+   - **在装饰时写入**：字段、方法元数据必须在装饰器函数体内写入 `context.metadata`，**不得**放进 `context.addInitializer`。字段装饰器的 initializer 要到每次实例化时才执行，启动期扫描会读不到（原方案 B §11.3.2 路径 2 的错误）。
+   - 需要拿到类本身时（如 `IOC.saveClass`），在**类装饰器**中执行，或在类装饰器里用 `context.addInitializer`（类的 initializer 在类定义完成后执行一次）。
+
+### ADR-019：TC39 字段注入语义契约（新增）
+
+**事实**：
+- legacy + `useDefineForClassFields: false`：被装饰且无初始值的字段不会生成代码，实例读取时会落到原型上，因此"注入到原型"可行。
+- TC39：被装饰的字段总是成为自有属性，初始值为 `undefined`（E-11），会遮住原型。
+- Koatty 当前把依赖定义到原型上（`autowired_processor.ts:189-216`、`values_processor.ts:59`），然后在实例化后由 `overridePrototypeValue`（`lifecycle_manager.ts:27`、`container.ts:475`）把原型值复制到值为 `undefined` 的自有属性上；延迟注入在 `appReady` 时再补写已有的单例（`autowired_processor.ts:321-329`）。**所以 TC39 模式能正确注入，完全依赖这条兜底路径。**
+
+**决策**：
+1. 把"只有 IOC 创建的实例才会完成注入"写入契约与文档。直接 `new Service()` 在 legacy 模式下能拿到原型注入，在 TC39 模式下拿不到，这是有意的行为差异。
+2. TC39 分支下 `@Autowired` / `@Value` / `@Config` 装饰的字段**不允许**带初始值（`@Autowired() repo = null` 会让兜底失效）。装饰器检测到初始值不为 `undefined` 时抛错。实现方式是字段装饰器返回的 initializer 检查 `initialValue`。
+3. `overridePrototypeValue` 从"工具函数"升级为**受测试保护的不变量**。新增 C2/C3 用例：单例、Prototype 作用域、延迟注入（循环依赖）、`Object.seal` 之后的补写、继承链上的注入。
+4. 长期方案（v5，可选）：TC39 分支改为让字段装饰器返回 initializer，直接从容器解析；解析不到时返回惰性代理。这样就不再依赖原型。`accessor` 关键字方案（`@Autowired() accessor repo: Repo`）语义最干净，但需要用户改写法，只作为可选项评估。
+5. Bun 源码运行时，未装饰字段也是自有属性（E-10）。框架代码中凡是依赖原型值的**未装饰**字段（例如用户控制器里的 `app!: App`）同样要靠 `overridePrototypeValue`，并纳入 C3/C4 用例。
+
+### ADR-020：Bun 协议层"复用优先，原生按实测启用"（新增，替代方案 A 的 ADR-001/004/007/008 中与此冲突的部分）
+
+| 协议 | Bun 下的实现 | 依据 |
+|------|------------|------|
+| HTTP / HTTPS | 现有 `HttpServer` / `HttpsServer`（`node:http(s)`） | E-15：Koa 在 Bun 上可运行，且不慢于 Node |
+| HTTP/2 | 现有 `Http2Server`（`node:http2`） | E-12：`Bun.serve` 不支持 h2；`node:http2` 可用 |
+| HTTP/3 | 降级到 HTTP/2 并告警（`capabilities.http3 === false`） | Bun 没有 QUIC |
+| WS / WSS | 现有 `WsServer`（`ws` + `noServer`） | E-13 |
+| gRPC | 现有 `GrpcServer`（`@grpc/grpc-js`，底层是 `node:http2`） | Phase 0 实测 Unary / Server Streaming / Bidi Streaming |
+| GraphQL | 走 HTTP 协议 | 同 HTTP |
+
+**分步**：
+1. **v4.0**：只做上表的"复用 + 修补 + 测试"，不新增任何 `BunXxxServer`。
+2. **v4.x**：Phase 0/5 的实测若发现某个协议在 Bun 下有功能缺陷，先向上游报 issue，再做**最小修补**。
+3. **v4.x+（可选）**：只有当**同一台机器、客户端与服务端分离**的压测显示原生 `Bun.serve` 在 **Koatty 完整中间件栈**下有 ≥ 30% 的吞吐提升时，才启动可选包 `koatty-bun-native`。它的桥接必须支持流式请求与响应体（包括 SSE），不得把整个响应缓冲进 Blob。
+
+### ADR-021：性能声明必须实测（新增）
+
+- 文档与发布说明中的任何倍数，都必须附带：机器配置、客户端与服务端是否分离、工具与参数、原始数据链接。
+- 决策门使用**相对阈值 + 回归阈值**（§8），不使用未经测量的绝对倍数。
+
+---
+
+## 4. 关键技术方案细节
+
+### 4.1 compat 分派与 MetadataStore
+
+```typescript
+// koatty-container/src/decorator/compat.ts（示意，只修改方案，不在此提交代码）
+export function isTC39Context(x: unknown): x is DecoratorContext {
+  return typeof x === "object" && x !== null && "kind" in x && "metadata" in x;
+}
+
+export function createDualFieldDecorator(h: {
+  legacy: (proto: object, key: string | symbol) => void;
+  tc39: (ctx: ClassFieldDecoratorContext) => void | ((init: unknown) => unknown);
+}) {
+  return function (a: unknown, b: unknown): any {
+    if (isTC39Context(b)) {
+      if (b.metadata === undefined) throw new PolyfillMissingError();
+      return h.tc39(b as ClassFieldDecoratorContext);
+    }
+    h.legacy(a as object, b as string | symbol);
+  };
+}
+```
+
+`MetadataStore` 的读取顺序：先读 `Class[Symbol.metadata]` 中的 Koatty 私有键（TC39），再读 `Reflect.getMetadata`（legacy）。两者都有值时抛 `MixedDecoratorModeError`（ADR-012 第 3 条）。
+
+### 4.2 `@Autowired` 的类型参数
+
+TC39 没有 `design:type`，类型必须显式给出：
+
+```typescript
+@Service()
+class OrderService {
+  @Autowired(() => UserRepository)   // 推荐：thunk 形式，避免循环 import 时的 TDZ
+  private userRepo!: UserRepository;
+
+  @Autowired("UserCache")            // 字符串标识
+  private cache!: CacheService;
+}
+```
+
+- `@Autowired(UserRepository)` 这种立即求值的写法也允许，但在循环 import 时，装饰器求值那一刻 `UserRepository` 可能还处于 TDZ（会抛 `ReferenceError`）或为 `undefined`。所以只要实参不是函数、字符串或类，就报错并提示改用 thunk。
+- 区分 thunk 与类：类的 `Function.prototype.toString()` 以 `class` 开头；或者约定 thunk 必须是箭头函数（没有 `prototype`）。实现时两个条件同时校验。
+- legacy 模式继续允许 `@Autowired()` 从 `design:type` 推断类型。
+- 原 TC39 方案 §2.2 / §4.3 示例在装饰时就调用 `IOC.resolve`（该 API 不存在）解析依赖，不仅违背延迟解析，还会破坏循环依赖处理，作废。
+
+### 4.3 构造注入的可编译替代
+
+```typescript
+// 方式 1（推荐）：字段注入，两种模式通用
+@Service()
+class UserService {
+  @Autowired(() => UserRepository) private repo!: UserRepository;
+}
+
+// 方式 2：类级依赖声明（TC39 与 legacy 通用），用于需要不可变构造参数的场景
+@Service({ inject: [() => UserRepository, () => LogService] })
+class UserService {
+  constructor(private readonly repo: UserRepository, private readonly log: LogService) {}
+}
+```
+
+- `inject` 数组与构造参数按位置对应；数组长度与 `UserService.length` 不一致时，启动期告警（有默认参数时 `length` 不准，所以只告警不报错）。
+- 构造注入不能用惰性代理打破循环依赖：发现环时报错，并提示改为字段注入。
+- legacy 下 `constructor(@Inject() dep: T)` 继续可用，但标记 `@deprecated`。
+
+### 4.4 DTO 参数装饰器（双用途：legacy 参数 + 两种模式下的字段）
+
+`@Get` / `@Post` / `@Header` / `@PathVariable` / `@File` / `@RequestBody` / `@RequestParam` 按实参形态分派：
+
+| 调用形态 | 判定 | 行为 |
+|---------|-----|------|
+| `(target, key, index: number)` | legacy 参数装饰器 | 与现状相同 |
+| `(proto, key)`，其中 `key` 为 string/symbol | legacy 字段装饰器 | 写 `DTO_SOURCE`，类型可从 `design:type` 推断 |
+| `(undefined, ctx)` 且 `ctx.kind === "field"` | TC39 字段装饰器 | **在装饰时**写 `ctx.metadata[DTO_SOURCE]`（写前复制），`type` 必填 |
+
+```typescript
+class UpdateUserDto {
+  @PathVariable({ name: "id", type: Number }) @IsNotEmpty() id!: number;
+  @Post({ name: "username", type: String }) @IsNotEmpty() username!: string;
+  @Header({ name: "authorization", type: String }) token?: string;
+}
+
+@Controller("/users")
+class UserController {
+  @PutMapping("/:id")
+  @Validated(UpdateUserDto)          // = @Payload(UpdateUserDto) + 校验
+  async update(dto: UpdateUserDto) { /* ... */ }
+}
+```
+
+- **提取器预编译在两种模式下都进行**，所以性能与 D1 无关。原方案"Legacy 每请求反射、TC39 零反射"的对比不成立：路由在启动期已经用 `injectParamMetaData` 预编译好参数元数据。
+- `@Payload` / `@Validated(Dto)` 默认绑定第 0 个参数；如需绑定其他位置，写 `@Payload(Dto, { index: 1 })`。
+- 纯请求体 DTO（没有写任何数据源装饰器）的推断规则：POST/PUT/PATCH 取 body；GET/DELETE 取 query；gRPC 与 WS 取消息体。
+
+### 4.5 Symbol.metadata 相关的构建注意事项
+
+- 构建产物中每个带 TC39 装饰器的类都会引用 `Symbol.metadata`，所以**先后顺序**问题同样存在于用户代码和第三方库：入口文件的第一条 import 必须是 `koatty`（模板保证这一点，`koatty doctor` 负责检查）。
+- 采用 ESM 时，import 语句会被提升；只要 polyfill 位于依赖图中较早求值的模块里就有效。**不要**依赖"在 App.ts 顶部写一行赋值语句"，因为它晚于所有 import 求值。
+
+### 4.6 Bun 下需要修补或验证的点
+
+| 项 | 处理 |
+|----|------|
+| Bun 源码运行时未装饰字段成为自有属性（E-10） | ADR-019 第 5 条；C3/C4 用例覆盖 |
+| `ws` 客户端垫片忽略 `origin`（E-13） | 只影响测试：在 Bun 下写的 WS 测试必须通过 `headers: { Origin }` 或 curl/Node 客户端发送 Origin；服务端 Origin 校验（加固方案 SEC 系列）在 Bun 下单独加用例 |
+| 优雅关闭（`server.close` / `closeAllConnections` / `SIGTERM`） | Phase 0 实测；Bun 与 Node 对 keep-alive 连接的处理不同，需要单独用例 |
+| `koatty-trace` auto-instrumentation | 依赖 `require` 钩子（require-in-the-middle），在 Bun 下默认关闭。Koatty 自身的中间件 Span 不依赖 auto-instrumentation，服务端 Span 不受影响；出站 HTTP/DB 调用的 Span 需要手动埋点，记为已知限制 |
+| gRPC（grpc-js）三种流式模式 | Phase 0 实测，结果写入 §6 矩阵 |
+| `winston-daily-rotate-file` 文件轮转 | Phase 0 实测 |
+| Loader 的 `require(p)` 加载 `.ts`（开发模式） | Bun 原生支持，Phase 0 实测 |
+| `bun build` 打成单文件 | Loader 在运行时按目录扫描并 `require` 组件（`koatty-loader/src/index.ts:54,95`），打包后组件不再是独立文件，应用会"启动成功但没有路由与服务"。**不支持**单文件打包；构建统一用 `tsc`，保留目录结构；`koatty doctor` 检测 bundle 产物并报错 |
+
+### 4.7 开发期运行方式
+
+| 组合 | 开发期运行 | 限制 |
+|------|----------|------|
+| C1 | `ts-node`（TS 6.0）或 `swc-node` | Node 原生类型剥离不能运行装饰器（E-14）；`tsx`/esbuild 不支持 `emitDecoratorMetadata`，C1 **不能**用 tsx |
+| C2 | `tsx` / `swc-node` / `ts-node` | 必须能生成 metadata 辅助代码，Phase 0 验证 tsx 与 esbuild 的 TC39 metadata 支持 |
+| C3 / C4 | `bun src/App.ts` | E-10 字段语义差异 |
+| 所有组合（生产） | `tsc`（TS7）构建后，用 `node dist/App.js` 或 `bun dist/App.js` 运行 | — |
+
+---
+
+## 5. 实施路线图
+
+### 5.1 与加固方案的协调
+
+加固方案 ADR-107 规定：加固先于 TC39 的大面积改动。本方案遵从这一点：
+- **Phase 0 可以与加固 Phase A/B 并行**：Phase 0 只做工具链与实验，不改装饰器源码。
+- **Phase 1 的开工门禁**：加固 Phase A（测试基线全绿）已完成，且加固 Phase B 中涉及 `koatty-container`、`koatty-router` 的 PR 已合入。
+- 加固 Phase D 中的容器重构与本方案 Phase 3 合并排期，由同一负责人主导（对应加固方案 R-02）。
+
+### 5.2 总览
+
+```
+            加固 A/B ──────────┐
+Phase 0  工具链 + 实验 ━━━━    │（与加固并行）
+Phase 1  TC39 核心双模式       └─▶ ━━━━━━━━━━━━  (3 周, 2 人)
+Phase 2  Bun 兼容（复用+修补）      ━━━━━━━━━━━━  (3 周, 1 人, 与 Phase 1 并行)
+Phase 3  TC39 完整 + 注入契约                  ━━━━━━━━━━━━━━━━ (4 周, 2 人)
+Phase 4  模板 / CLI / codemod                                  ━━━━━━━━ (2 周, 1 人)
+Phase 5  矩阵测试 + 基准 + 发布                                        ━━━━━━━━ (2 周, 1.5 人)
+```
+
+从 Phase 1 开工算起约 11 周；Phase 0 另需约 1.5 周。
+
+### 5.3 Phase 0：工具链与实验（1.5 周，1 人）
+
+| 任务 | 产出 |
+|------|------|
+| 引入双编译器（ADR-017）：`typescript@~6.0.3` + 别名 `typescript-7`；新增 `typecheck` 脚本 | CI 中 TS7 与 TS6 的 `--noEmit` 均通过 |
+| `tsconfig.base.json`：显式 `strict: false`、`skipLibCheck: true`；修复 E-08 中 koatty-router 的 2 处真实类型错误 | TS7 下全仓类型检查 0 error |
+| 验证 api-extractor 能否处理 TS7 生成的 `.d.ts`；验证 tsup 的 cjs/esm 产物不受影响 | 报告 + 必要的配置调整 |
+| 固化附录 A 的实验为可重复脚本（`scripts/compat-probe/`） | E-01～E-15 在 CI 中可复现 |
+| 在 Bun 下运行**现有**测试集（具体方式由 Phase 0 确定：用 Bun 执行 jest，或用 `bun test` 对 dist 做协议冒烟） | 失败清单与根因分类 |
+| Bun 下实测：gRPC 三种流式、优雅关闭、winston 轮转、Loader 加载 `.ts`、Prometheus 与 OTLP exporter | 填入 §6.1 矩阵 |
+| 验证 SWC / esbuild（tsx）的 TC39 metadata 输出 | 决定 C2 的推荐开发工具 |
+
+**门禁**：TS7 类型检查全绿；Bun 冒烟测试通过或所有失败项都已给出根因；§6.1 中每一项都没有"未知"。
+
+### 5.4 Phase 1：TC39 核心双模式（3 周，2 人）
+
+| 任务 | 包 | 工作量 |
+|------|---|-------|
+| Symbol.metadata polyfill、`PolyfillMissingError`、`appendOwn` 等写入工具（ADR-018） | container | 1 人天 |
+| `MetadataStore` 统一读取 + 混用冲突检测（ADR-009/012） | container | 3 人天 |
+| `Component.ts` 中 8 个类装饰器 + `OnEvent` 改为双模式 | core | 4 人天 |
+| `mapping.ts` 中 `RequestMapping` 及 7 个派生装饰器改为双模式 | router | 2 人天 |
+| `@Autowired(() => T)` / 字符串标识；带初始值时报错（ADR-019 第 2 条） | container | 2 人天 |
+| 7 个参数装饰器改为三形态分派（§4.4），在装饰时写入 metadata | router | 5 人天 |
+| `@Payload(Dto, { index? })` + `injectParamMetaData` 读取 DTO_SOURCE | router | 4 人天 |
+| 双模式单测：每个装饰器都有 legacy 与 TC39 两套用例，TC39 用例用 TS7 编译 | 全部 | 4 人天 |
+
+**门禁**：C1 回归 100%；C2 下 Component、映射、DTO 端到端通过；继承场景的元数据隔离用例通过（E-03）；polyfill 缺失用例能明确报错。
+
+### 5.5 Phase 2：Bun 兼容（3 周，1 人，与 Phase 1 并行）
+
+| 任务 | 工作量 |
+|------|-------|
+| `detectRuntime()` + `app.runtime` + 启动诊断日志（ADR-010/015） | 1 人天 |
+| `checkRuntime()` 识别 Bun；`engines.bun` | 0.5 人天 |
+| HTTP/3 在 Bun 下降级到 HTTP/2（复用 `Http2Server`） | 1 人天 |
+| `koatty-trace` 在 Bun 下关闭 auto-instrumentation 并告警 | 1 人天 |
+| 修复 Phase 0 发现的 Bun 失败项（按根因逐个处理） | 5 人天（预留） |
+| C4 端到端样例 `examples/bun-legacy`：现有示例项目不改代码在 Bun 上运行 | 1 人天 |
+| 协议集成测试在 Bun 下运行：HTTP / HTTPS / HTTP2 / WS / gRPC / GraphQL | 4 人天 |
+| 优雅关闭用例（正常、超时、强制） | 1.5 人天 |
+
+**门禁**：C4 全部集成测试通过；Bun 下 HTTP/2 协商结果为 h2；WS 的 Origin 校验在 Bun 下生效。
+
+### 5.6 Phase 3：TC39 完整迁移 + 注入契约（4 周，2 人）
+
+| 任务 | 包 | 工作量 |
+|------|---|-------|
+| `@Service({ inject })` 类级构造注入 + 构造参数环检测 | container | 4 人天 |
+| ADR-019 不变量测试集（单例、Prototype 作用域、延迟注入、seal、继承） | container | 3 人天 |
+| `@Value` / `@Config` TC39 分支对齐 ADR-019 | container | 1 人天 |
+| `@Validated(Dto)` + 与 `@Payload` 的冲突规则 | validation | 3 人天 |
+| `setExpose()` TC39 路径（从 `MetadataStore` 读类型） | validation | 2 人天 |
+| Swagger 6 类装饰器双模式；`@ApiProperty({ type })` 在 TC39 下必填 | swagger | 6 人天 |
+| AOP（`@Before` / `@After` / `@Around`）在 TC39 下的继承与 `addInitializer` 时序用例 | container | 2 人天 |
+| C3 端到端样例 `examples/bun-tc39` | examples | 1 人天 |
+
+**门禁**：C1–C4 全部通过；Swagger 在 legacy 与 TC39 下生成的 OpenAPI 文档逐字段一致（快照比对）。
+
+### 5.7 Phase 4：模板 / CLI / codemod（2 周，1 人）
+
+| 任务 | 工作量 |
+|------|-------|
+| `koatty new --runtime --decorators`，支持四种组合（ADR-011） | 3 人天 |
+| 统一的模板源码 + 条件 tsconfig | 2 人天 |
+| codemod `koatty migrate --to=tc39`：参数装饰器 → DTO；`@Autowired()` → `@Autowired(() => T)`；`constructor(@Inject())` → `@Service({ inject })` | 4 人天 |
+| `koatty doctor`：编译器版本、tsconfig 关键项、装饰器模式统计、polyfill 顺序、依赖原型值的未装饰字段扫描 | 2 人天 |
+
+### 5.8 Phase 5：矩阵测试 + 基准 + 发布（2 周，1.5 人）
+
+| 任务 | 工作量 |
+|------|-------|
+| CI 矩阵：C1–C4 × 编译器（TS 5.9 / 6.0 / 7.0 编译用户侧 fixture） | 3 人天 |
+| 基准测试（§8）：客户端与服务端分离，至少 3 轮取中位数 | 3 人天 |
+| 迁移指南：C1→C2、C1→C4、C2→C3、TS5→TS7 | 3 人天 |
+| Alpha → Beta → RC → Stable | 2 周（日历时间） |
+
+### 5.9 资源估算
+
+| 阶段 | 人周 |
+|------|-----|
+| Phase 0 | 1.5 |
+| Phase 1 | 6 |
+| Phase 2 | 3 |
+| Phase 3 | 8 |
+| Phase 4 | 2 |
+| Phase 5 | 3 |
+| **合计** | **≈ 23.5**（v1.1 为 29；节省主要来自 Bun 协议层不再重写） |
+
+---
+
+## 6. 兼容性矩阵
+
+### 6.1 运行时能力（Phase 0 实测后回填）
+
+| 能力 | Node 22/24 | Bun 1.3.14 | 依据 / 状态 |
+|------|-----------|-----------|-----------|
+| legacy 装饰器 + `design:*` + reflect-metadata | ✅ | ✅ | E-09 |
+| TC39 装饰器 | ✅（需编译器降级转换） | ✅（Bun 转译器） | E-02 |
+| `Symbol.metadata` 原生 | ❌ | ❌ | E-02，需要 polyfill |
+| `useDefineForClassFields: false` 被遵守 | ✅（tsc） | ❌（源码运行时被忽略） | E-10 |
+| `node:http` / `node:https` + Koa | ✅ | ✅ | E-15 |
+| `node:http2`（h2） | ✅ | ✅ | E-12 |
+| `Bun.serve` 支持 h2 | — | ❌ | E-12 |
+| HTTP/3（QUIC） | ✅（`@matrixai/quic`） | ❌，降级 | ADR-020 |
+| `ws` noServer 升级 | ✅ | ✅ | E-13 |
+| `process.execArgv` | ✅ | ✅ | E-14 |
+| gRPC Unary / Server Streaming / Bidi | ✅ | 待 Phase 0 | — |
+| OTel auto-instrumentation | ✅ | ❌（默认关闭） | §4.6 |
+| 优雅关闭 | ✅ | 待 Phase 0 | — |
+
+### 6.2 编译器支持
+
+| 编译器 | 构建框架 | 编译用户 C1/C4 | 编译用户 C2/C3 | 备注 |
+|-------|---------|--------------|--------------|------|
+| TypeScript 5.9 | — | ✅ | ✅ | 用户侧最低版本 |
+| TypeScript 6.0 | 测试与 lint | ✅ | ✅ | ts-jest / typescript-eslint 的上限 |
+| TypeScript 7.0 | ✅ 主构建 | ✅（E-01） | ✅ | 默认 strict；没有经典 API |
+| Bun 转译器 | — | ✅ | ✅ | E-10 |
+| SWC | 可选（测试） | ✅（decoratorMetadata） | 待 Phase 0 | — |
+| esbuild / tsx | — | ❌（不支持 emitDecoratorMetadata） | 待 Phase 0 | — |
+
+### 6.3 版本承诺
+
+| Koatty | C1 | C2 | C3 | C4 |
+|--------|----|----|----|----|
+| v3.x | ✅ | ❌ | ❌ | ❌ |
+| v4.x | ✅ 默认 | ✅ 推荐 | ✅ 推荐（Bun） | ✅ 支持 |
+| v5.x | ⚠️ 维护（不再是默认） | ✅ 默认 | ✅ 默认 | ⚠️ 维护 |
+
+v5.x 是否移除 legacy，要到 v5 规划时根据 TC39 参数装饰器提案的进展与社区使用数据决定。本方案不预设。
+
+### 6.4 关键依赖
+
+| 依赖 | 要求 | 备注 |
+|------|-----|------|
+| Node.js | ≥ 20（CI：22、24） | Node 18 已 EOL |
+| Bun | ≥ 1.3.0（CI：1.3.x 最新） | — |
+| TypeScript（框架构建） | 7.0.x + 6.0.x（工具） | ADR-017 |
+| TypeScript（用户） | ≥ 5.9 | — |
+| tslib | ≥ 2.5（建议 2.8+） | TC39 辅助函数 |
+| reflect-metadata | ≥ 0.2.2 | legacy 必需；TC39 下由 `MetadataStore` 屏蔽 |
+| jest | 29（短期）→ 30 | 升级到 30 可去掉 typebox 问题 |
+
+---
+
+## 7. 风险登记
+
+| ID | 风险 | 级别 | 缓解 |
+|----|------|-----|------|
+| R1 | OTel auto-instrumentation 在 Bun 下不可用 | 中 | 框架自有 Span 不受影响；出站调用手动埋点（§4.6） |
+| R2 | gRPC 流式在 Bun 下不稳定 | 高 | Phase 0 实测；不稳定就把 gRPC 在 Bun 下标注为 beta |
+| R3 | HTTP/3 在 Bun 下不可用 | 低 | 降级 + 告警 |
+| R4 | TC39 元数据继承污染（E-03） | 高 | ADR-018 写前复制 + 继承用例 |
+| R5 | polyfill 求值顺序错误导致元数据静默丢失 | 高 | `PolyfillMissingError` 立即报错 + `koatty doctor` 检查 |
+| R6 | TC39 字段遮住原型注入（E-11） | 高 | ADR-019 不变量测试；禁止带初始值 |
+| R7 | Bun 源码运行时字段语义与 tsc 不一致（E-10） | 中 | ADR-019 第 5 条；模板不依赖原型上的未装饰字段 |
+| R8 | TS7 工具链分裂导致"构建通过、测试失败" | 中 | ADR-017：CI 用两种编译器分别做类型检查 |
+| R9 | TS7 默认 strict 让用户升级即报错 | 中 | 模板显式写 `strict`；迁移指南说明 |
+| R10 | 混用两种装饰器模式的类出现 | 中 | ADR-012 第 3 条冲突检测 |
+| R11 | `@Autowired(T)` 立即求值在循环 import 时遇到 TDZ | 中 | 推荐 thunk；非法实参报错 |
+| R12 | 构造注入环 | 中 | 检测并提示改为字段注入 |
+| R13 | 与加固方案改同一批文件产生冲突 | 高 | §5.1 门禁；同一负责人 |
+| R14 | 性能宣传失实 | 中 | ADR-021 |
+| R15 | Bun 上游行为变化（如开始遵守 `useDefineForClassFields`） | 低 | CI 固定 Bun 版本 + 每月跟进最新版 |
+| R16 | WS 测试在 Bun 下漏掉 Origin 校验（E-13） | 中 | §4.6 测试规范 |
+| R17 | 用户用 `bun build` 打包，导致组件扫描失败 | 高 | 模板用 `tsc` 构建；文档明确不支持；`koatty doctor` 检测 |
+| R18 | 仓库同时存在 `pnpm-lock.yaml`、`bun.lock`、`package-lock.json`，依赖解析不一致 | 中 | CI 与开发统一用 pnpm；多余锁文件另行清理 |
+
+**回退策略**：Bun 某个协议不达标时，只把该协议在 Bun 下标注为 beta，不阻塞 v4.0 发布。TC39 迁移受阻时，v4.0 先发布 C1 + C4（Bun 支持不依赖 TC39），C2/C3 放到 v4.1。**v1.1 中"TC39 受阻则推迟 Bun"的耦合从此消失。**
+
+---
+
+## 8. 性能基准与决策门
+
+### 8.1 基线
+
+E-15 的同机数据只能说明量级：Bun 运行 Koa 比 Node 22 快约 6%，原生 `Bun.serve` 快约 11%。Phase 5 必须按以下规范重测。
+
+### 8.2 测试规范
+
+- 客户端（`oha` / `bombardier` / `autocannon -w`）与服务端运行在**不同机器**，或把两者绑定到不同 CPU 核上（`taskset` 或容器 cpuset）。
+- 场景：hello-world；Koatty 完整中间件栈（trace + 路由 + 校验 + 序列化）；DTO 提取 + 校验；1KB/10KB/100KB JSON；WS 消息往返；启动时间（200 个控制器，用 `hyperfine`）；空闲 RSS。
+- 每个场景 3 轮，取中位数，并附原始数据。
+
+### 8.3 决策门
+
+| 对比 | 阈值 | 决策 |
+|------|-----|------|
+| C2 vs C1（任一场景） | 退化 > 5% | 阻塞发布，查根因 |
+| C3 vs C2 / C4 vs C1 | 退化 > 5% | Bun 在该场景标注"不推荐"，并向上游报告 |
+| 原生 `Bun.serve` 原型 vs C4（完整中间件栈） | 提升 ≥ 30% | 立项 `koatty-bun-native`（ADR-020 第 3 步） |
+| 启动时间 C3 vs C1 | 仅记录 | 不作为门禁 |
+
+---
+
+## 9. 验收标准
+
+### 9.1 TypeScript 7
+
+- [ ] TS 7.0.x 下全仓 `tsc -b --noEmit` 0 error；TS 6.0 下同样 0 error
+- [ ] 用 TS7 构建的产物通过全部测试；api-extractor 报告生成正常
+- [ ] 用户侧 fixture 分别用 TS 5.9 / 6.0 / 7.0 编译 C1 与 C2 项目，全部通过
+
+### 9.2 装饰器
+
+- [ ] 全部框架装饰器提供 legacy + TC39 双模式，每个都有两套用例
+- [ ] 继承场景元数据隔离（E-03）、polyfill 缺失报错、混用冲突报错这三类用例通过
+- [ ] ADR-019 不变量测试集通过
+- [ ] `@Service({ inject })`、`@Autowired(() => T)`、DTO 三形态分派通过
+- [ ] Swagger legacy/TC39 快照一致
+
+### 9.3 Bun
+
+- [ ] C3、C4 的协议集成测试通过（HTTP / HTTPS / HTTP2(h2) / WS / gRPC 按 Phase 0 结论 / GraphQL）
+- [ ] HTTP/3 降级告警正确
+- [ ] 优雅关闭三种场景通过
+- [ ] 现有示例项目不改代码在 Bun 上运行（C4）
+
+### 9.4 整体
+
+- [ ] v3.x 项目升级 v4 后不改代码行为一致（C1）
+- [ ] CI 矩阵 C1–C4 × Node 22/24 × Bun 1.3 全绿
+- [ ] 基准报告符合 §8.2，不存在触发 §8.3 阻塞条件的退化
+- [ ] 迁移指南四条路径齐全；codemod 在官方示例上的自动迁移成功率 ≥ 95%
+
+---
+
+## 10. 与其他文档的关系
+
+| 文档 | 角色 | 本版要求 |
+|------|-----|---------|
+| 本文档 | 决策与路线图的唯一来源 | — |
+| `tc39-decorator-migration-plan.md` v3.0 | 装饰器实现细节 | 顶部"v3.0 勘误"优先于正文 |
+| `koatty-bun-plan.md` v3 | Bun 协议细节与背景 | 顶部"v3 勘误"优先于正文；§5 服务器重写降为参考资料 |
+| `koatty-hardening-and-ai-evolution-plan.md` | 加固与 AI 能力 | ADR-107 的排期约束对本方案生效 |
+
+---
+
+## 附录 A：复现实验
+
+```bash
+# 环境：Node 22.x、Bun 1.3.x
+mkdir -p /tmp/kr && cd /tmp/kr
+
+# E-02 / E-03：Symbol.metadata 与继承污染
+node -e 'console.log(typeof Symbol.metadata)'; bun -e 'console.log(typeof Symbol.metadata)'
+# meta.ts：先执行 polyfill，然后 Parent/Child 两个类各用 @Tag 往 metadata.tags 数组 push
+#   结果 parent.tags 同时包含 "P" 与 "C"，说明父类被污染
+
+# E-04 / E-05 / E-06：TS7 编译诊断
+npx -p typescript@7.0.2 tsc --noEmit --target es2022 ctor.ts   # TS1206
+npx -p typescript@7.0.2 tsc --noEmit --target es5 x.ts         # TS5108
+
+# E-10：Bun 字段语义
+# class Svc extends Base { dep!: string }，Base.prototype.dep = "x"
+#   tsc(useDefine=false)→node 输出 "x"；bun 源码运行输出 undefined
+
+# E-11：TC39 被装饰字段遮住原型
+# class Svc { @Autowired() repo!: Repo }，把依赖定义到原型后 new Svc()
+#   Object.hasOwn(s, "repo") === true，值为 undefined（tsc 与 Bun 结果相同）
+
+# E-12：HTTP/2
+curl -sk --http2 -o /dev/null -w '%{http_version}' https://127.0.0.1:19201/  # Bun.serve+TLS → 1.1
+curl -sk --http2 -o /dev/null -w '%{http_version}' https://127.0.0.1:19202/  # node:http2 on Bun → 2
+
+# E-15：基准
+autocannon -c 100 -d 8 -w 4 -j http://127.0.0.1:PORT/x
+```
+
+Phase 0 把以上实验固化到 `scripts/compat-probe/`，作为 CI job 运行。
+
+## 附录 B：ParameterDecorator 迁移清单
+
+| # | 位置 | 装饰器 | 处理 |
+|---|-----|-------|------|
+| 1 | `koatty-container/decorator/autowired.ts:144` | `Inject` | legacy 保留并标记 `@deprecated`；TC39 下改用 `@Service({ inject })` 或字段注入 |
+| 2 | `koatty-router/utils/inject.ts:612-618` | `injectParam` 工厂 | 支持三形态分派 |
+| 3–9 | `koatty-router/params/params.ts:24/42/63/84/112/134/156` | `Header` `PathVariable` `Get` `Post` `File` `RequestBody` `RequestParam` | 三形态分派（§4.4） |
+| 10 | `koatty-validation/decorators.ts:183` | `Valid` | legacy 保留；TC39 下改用 DTO 字段校验 |
+| 11 | 别名 `Body` / `Param` | — | 跟随 `RequestBody` / `RequestParam` |
+
+`design:*` 读取点（9 处）见专题方案 B §附录，全部改为经由 `MetadataStore` 读取。
+
+## 附录 C：元数据兼容测试（替换 v1.1 §12.C 中无法运行的代码）
+
+```typescript
+// scripts/compat-probe/metadata.test.ts —— 分别用 TS7 编译后在 node 与 bun 下运行
+import "koatty_container"; // 先执行 polyfill
+
+const K = Symbol("k");
+
+function ClassDeco(_: unknown, ctx: ClassDecoratorContext) {
+  (ctx.metadata as Record<symbol, unknown>)[K] = "v";      // 普通对象，不是 Map
+}
+@ClassDeco class E {}
+
+test("Symbol.metadata 可用", () => {
+  expect((E as any)[Symbol.metadata][K]).toBe("v");
+});
+
+test("子类写入不污染父类", () => {
+  const T = Symbol("tags");
+  const tag = (v: string) => (_: unknown, ctx: ClassDecoratorContext) => {
+    const m = ctx.metadata as Record<symbol, string[]>;
+    m[T] = Object.hasOwn(m, T) ? m[T] : [...(m[T] ?? [])];
+    m[T].push(v);
+  };
+  @tag("P") class P {}
+  @tag("C") class C extends P {}
+  expect((P as any)[Symbol.metadata][T]).toEqual(["P"]);
+  expect((C as any)[Symbol.metadata][T]).toEqual(["P", "C"]);
+});
+
+test("字段元数据在装饰时写入，不需要实例化", () => {
+  const F = Symbol("fields");
+  const field = (_: undefined, ctx: ClassFieldDecoratorContext) => {
+    const m = ctx.metadata as Record<symbol, string[]>;
+    (m[F] = Object.hasOwn(m, F) ? m[F] : [...(m[F] ?? [])]).push(String(ctx.name));
+  };
+  class D { @field a!: string; }
+  expect((D as any)[Symbol.metadata][F]).toEqual(["a"]);   // 没有 new D()
+});
+
+test("TC39 被装饰字段是自有属性（ADR-019 前提）", () => {
+  const noop = (_: undefined, _ctx: ClassFieldDecoratorContext) => {};
+  class S { @noop dep!: string; }
+  (S.prototype as any).dep = "proto";
+  expect(Object.hasOwn(new S(), "dep")).toBe(true);
+});
+```
+
+## 附录 D：CI 矩阵
 
 ```yaml
-# .github/workflows/ci.yml 摘录
-
 jobs:
-  test-matrix:
-    name: Test (${{ matrix.combo }})
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pnpm install --frozen-lockfile        # 不能加 --no-optional（TS7 平台二进制）
+      - run: node node_modules/typescript-7/bin/tsc -b --noEmit
+      - run: node node_modules/typescript/bin/tsc -b --noEmit   # TS 6.0，与 ts-jest 一致
+
+  matrix:
+    needs: typecheck
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # v1.1：3 元组（C1/C2/C3），不再有 Bun-Legacy
+        combo: [c1, c2, c3, c4]
         include:
-          - combo: c1-node-legacy
-            runtime: node
-            decorator-mode: legacy
-            node-version: 22
-          - combo: c2-node-tc39
-            runtime: node
-            decorator-mode: tc39
-            node-version: 22
-          - combo: c3-bun-tc39
-            runtime: bun
-            decorator-mode: tc39
-            bun-version: 1.3
+          - { combo: c1, runtime: node, decorators: legacy }
+          - { combo: c2, runtime: node, decorators: tc39 }
+          - { combo: c3, runtime: bun,  decorators: tc39 }
+          - { combo: c4, runtime: bun,  decorators: legacy }
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - if: matrix.runtime == 'node'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-      - if: matrix.runtime == 'bun'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ matrix.bun-version }}
-      - run: pnpm install --frozen-lockfile
-      - name: Set decorator mode (Node only)
-        if: matrix.runtime == 'node'
-        run: |
-          if [ "${{ matrix.decorator-mode }}" = "tc39" ]; then
-            export TSCONFIG_OVERRIDE='{"compilerOptions":{"experimentalDecorators":false}}'
-          fi
-      - name: Build
-        run: pnpm build
-      - name: Test
-        run: |
-          if [ "${{ matrix.runtime }}" = "node" ]; then
-            pnpm test
-          else
-            bun test packages/koatty-bun packages/koatty-serve
-          fi
-
-  test-bun-rejection:
-    name: Verify ADR-015 rejection (Bun + Legacy must fail)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.3 }
-      - run: pnpm install
-      - name: Verify Bun rejects experimentalDecorators=true
-        run: |
-          # 故意设置错误 tsconfig，预期启动失败
-          cd test-fixtures/bun-with-legacy-tsconfig
-          if bun run src/App.ts; then
-            echo "FAIL: Bun should have rejected legacy tsconfig"
-            exit 1
-          else
-            echo "PASS: Bun correctly rejected legacy decorator config"
-          fi
-      - name: Verify Bun rejects parameter decorator usage
-        run: |
-          cd test-fixtures/bun-with-param-decorator
-          if bun run src/App.ts; then
-            echo "FAIL: Bun should have rejected parameter decorator"
-            exit 1
-          else
-            echo "PASS: Bun correctly rejected parameter decorator"
-          fi
-
-  benchmark:
-    name: Performance Benchmark (3-tuple)
-    needs: test-matrix
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: 1.3 }
-      - run: pnpm install
-      - name: Run 3-tuple benchmark
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.3.x }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # 框架测试：legacy 与 TC39 两套用例都跑，与 combo 无关
+      - if: matrix.runtime == 'node' && matrix.combo == 'c1'
+        run: pnpm test
+      # 应用级 fixture：按组合使用对应的 tsconfig
+      - run: pnpm --filter "./test-fixtures/${{ matrix.decorators }}" build
+      - if: matrix.runtime == 'node'
+        run: node test-fixtures/${{ matrix.decorators }}/dist/run-e2e.js
+      - if: matrix.runtime == 'bun'
         run: |
-          # C1: Node + Legacy
-          node benchmarks/http-throughput.js --mode=legacy > /tmp/c1.json
-          # C2: Node + TC39
-          node benchmarks/http-throughput.js --mode=tc39 > /tmp/c2.json
-          # C3: Bun + TC39
-          bun benchmarks/http-throughput.js --mode=tc39 > /tmp/c3.json
-          # Compare
-          bun benchmarks/compare.ts /tmp/c1.json /tmp/c2.json /tmp/c3.json
+          bun test-fixtures/${{ matrix.decorators }}/src/run-e2e.ts   # 源码运行（覆盖 E-10）
+          bun test-fixtures/${{ matrix.decorators }}/dist/run-e2e.js  # dist 运行
+
+  compat-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: bash scripts/compat-probe/run-all.sh   # 附录 A 的 E-01～E-14
 ```
 
-### 12.F 整合后的 ADR 完整索引
+## 附录 E：ADR 索引
 
-| ADR | 来源 | 标题 | 影响 |
-|-----|------|------|------|
-| ADR-001 | A | BunKoaBridge 初版使用方案 A | Bun MVP 实现 |
-| ADR-002 | A | koatty-bun 作为 meta-adapter 包 | 包结构 |
-| ADR-003 | A | HTTP/3 降级而非报错 | 协议层 |
-| ADR-004 | A | BunWsServer 共享端口 | WS 实现 |
-| ADR-005 | A | gRPC 不重写 | gRPC 适配 |
-| ADR-006 | A | 可观测性手动 Instrumentation | 监控 |
-| ADR-007 | A | Bun 服务器使用请求计数器替代连接池 | 服务器内部 |
-| ADR-008 | A | BunWsAdapter 继承 EventEmitter | WS 桥接 |
-| ADR-009 | 本文档 v1.0 | 以 TC39 兼容层为统一基础 | 跨包架构 |
-| ADR-010 | 本文档 v1.0 | BunBootstrap 与 Bootstrap 通过 RuntimeAdapter 统一 | Bootstrap 重构 |
-| **ADR-011** | **本文档 v1.1**（强化） | **Bun 分支强制 TC39（无 Legacy fallback）** | **CLI/模板** |
-| **ADR-012** | **本文档 v1.1**（修订） | **装饰器模式判定（仅 Node 路径读 tsconfig，Bun 路径硬编码）** | **模式判定** |
-| ADR-013 | 本文档 v1.0 | reflect-metadata 在 Bun 下的兼容性优先级提升 | Phase 0 阻断 |
-| ADR-014 | 本文档 v1.0 | 发布版本号承载双特性 | 版本管理 |
-| **ADR-015** | **本文档 v1.1**（新增） | **Bun 分支拒绝 Legacy 装饰器与参数装饰器（启动期严格检测）** | **运行时检测** |
-| **ADR-016** | **本文档 v1.1**（新增） | **参数装饰器替代方案的契约与未来恢复路线** | **API 长期承诺** |
+| ADR | 状态（v2.0） | 标题 |
+|-----|------------|------|
+| 001 | 修订 → ADR-020 | BunKoaBridge 用方案 A：进一步简化为"直接复用 node:http 服务器" |
+| 002 | 撤销 | koatty-bun 作为 meta-adapter 包 |
+| 003 | 保留 | HTTP/3 降级而非报错 |
+| 004 / 007 / 008 | 撤销 → ADR-020 | BunWsServer 共享端口、请求计数器、BunWsAdapter |
+| 005 | 保留 | gRPC 不重写 |
+| 006 | 修订 | 可观测性：Bun 下关闭 auto，框架 Span 不受影响 |
+| 009 | 保留 + 补充 | compat 层 + MetadataStore |
+| 010 | 修订 | RuntimeAdapter 只识别运行时，永不抛错 |
+| 011 | 替换 | 模板与 CLI 的模式选择相互独立 |
+| 012 | 替换 | 逐次调用判定模式，禁止运行时读 tsconfig |
+| 013 | 关闭 | reflect-metadata 在 Bun 下兼容 |
+| 014 | 保留 | 单一版本号 |
+| 015 | 撤销 | Bun 启动期拒绝 legacy |
+| 016 | 修订 | 参数装饰器替代契约（构造注入改为可编译形态） |
+| 017 | 新增 | TypeScript 7 双工具链 |
+| 018 | 新增 | Symbol.metadata polyfill 与写入规范 |
+| 019 | 新增 | TC39 字段注入语义契约 |
+| 020 | 新增 | Bun 协议层复用优先 |
+| 021 | 新增 | 性能声明必须实测 |
 
-### 12.G 风险登记完整索引
+## 附录 F：v1.1 勘误表
 
-| 编号 | 来源 | 简述 |
-|------|------|------|
-| R1-R8 | A §9 | 协议、可观测、装饰器元数据、HTTP/3、gRPC 等 |
-| R9-R12 | B §11.9 | 双模式判定、循环依赖、design:* 不可用、TC39 后续支持 |
-| R13-R18 | 本文档 | 串行依赖、版本号冲突、模板组合（v1.1 简化）、示例升级、ADR-015 检测、ADR-016 用户混淆 |
+| v1.1 位置 | 问题 | v2.0 处理 |
+|----------|------|---------|
+| 核心定位、§2.1–2.3、ADR-011/015 | "Bun 只支持 TC39"与事实不符（E-09） | 撤销；§2.2 恢复 C4 |
+| ADR-012、§6.1 `NodeRuntimeAdapter` | 运行时读 tsconfig 判定模式 | ADR-012 改为逐次调用判定 |
+| §6.1 `BaseRuntimeAdapter.detect()` | 在 Bun 下没有 import koatty-bun 就抛错，导致预编译的 dist 无法在 Bun 上运行 | ADR-010：永不抛错 |
+| §6.3 调用链、§12.C 用例 5 | `context.metadata.set(...)`：metadata 是普通对象 | ADR-018；附录 C |
+| §6.4、§6.6.6 | 说 legacy "每请求反射"（实际在启动期预编译）；3×、2.5×、30–50% 等增益没有依据 | §4.4；ADR-021；§8 |
+| §6.5 | Node 22 的 `Symbol.metadata` 标 ✅（实为 undefined）；说 Bun 下 reflect-metadata 有"边缘问题"（纯 JS，无此问题） | §6.1 |
+| §6.6.4、ADR-016、§4.3 门禁、§12.B #1 | `@Inject(A, B)` 写在 constructor 上 → TS1206 | ADR-016 / §4.3 |
+| §4.4 Track B | `BunHttp2Server`（ALPN 自动协商）：`Bun.serve` 不支持 h2（E-12） | ADR-020：复用 `node:http2` |
+| §4.4、§5.1 | 5 个 BunXxxServer + mock 桥接 | ADR-020：不重写 |
+| §4.5 Track B、§2.4 | Loader/Config 用 `Bun.file()` 加速：Loader 只是 `require`，不读文件内容 | 删除 |
+| §4.7、§10.3 | "C3 ≥ 2.5× C1"验收门 | §8.3 |
+| §5.1 | `examples/bun-hello-tc39` 同时标为 "C4" 和 "C3" | 统一为 `examples/bun-tc39`（C3）与 `examples/bun-legacy`（C4） |
+| §7.3 | 只写"TypeScript ≥ 5.0"，没有覆盖 TS7 | ADR-017；§6.2 |
+| §8.1 R8 | `process.execArgv` 在 Bun 下缺失（实际存在） | 删除 |
+| 全文 | 没有与加固方案协调 | §5.1 |
+| 全文 | 缺少 E-10 / E-11 字段语义与 E-03 元数据继承问题 | ADR-018 / ADR-019 |
 
 ---
 
 ## 文档历史
 
-| 版本 | 日期 | 作者 | 变更 |
-|------|------|------|------|
-| 1.0 | 2026-05-11 | Architect Agent | 初稿：基于 koatty-bun-plan v2 + tc39-decorator-migration-plan v2.2 + 代码现状审计输出整合实施方案 |
-| 1.1 | 2026-05-11 | Architect Agent | **核心定位调整**：Bun runtime 分支完全遵循 TC39 规范（强制），废除 Bun-Legacy 组合，4 元组矩阵简化为 3 元组（C1/C2/C3）。新增 ADR-015（Bun 拒绝 Legacy + 参数装饰器的启动期严格检测）、ADR-016（参数装饰器替代方案契约与未来恢复路线）。新增 §6.6 章节详述 Bun 下参数装饰器替代方案（8 小节）。修订 ADR-011/012 强化 Bun 强制 TC39。修订路线图 Phase 1 改为串行（最小必需集 → Bun MVP）。新增 R17/R18 风险条款。CI 矩阵简化为 3 元组 + ADR-015 拒绝测试 job。
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| 1.0 | 2026-05-11 | 初稿：整合 koatty-bun-plan v2 与 tc39-decorator-migration-plan v2.2 |
+| 1.1 | 2026-05-11 | 核心定位改为 Bun 强制 TC39；新增 ADR-015/016、§6.6；矩阵简化为三组合 |
+| **2.0** | **2026-09-27** | **评审重写**：以 E-01～E-15 实测为依据，撤销"Bun ⟹ TC39"耦合，恢复 C4；新增 ADR-017～021（TS7 双工具链、polyfill 与写入规范、字段注入契约、Bun 协议层复用、性能实测）；Bun 协议层不再重写；删除没有依据的性能门；与加固方案协调排期；附录 F 列出 v1.1 勘误 |
 
 ---
 

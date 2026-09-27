@@ -87,7 +87,7 @@ _(Optional)_ Methods which should be supported by the router.
 
 </td><td>
 
-PayloadOptions
+[PayloadOptions](./koatty_router.payloadoptions.md)
 
 
 </td><td>

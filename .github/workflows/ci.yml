@@ -96,6 +96,9 @@ jobs:
         # --force disables turbo cache on the main branch so tests really run
         run: pnpm turbo run test --force
 
+      - name: Security baseline checks (plan §12.2)
+        run: pnpm security:baseline
+
   build:
     name: Build
     runs-on: ubuntu-latest

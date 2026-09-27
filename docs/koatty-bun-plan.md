@@ -1,14 +1,110 @@
 # koatty-bun 完整方案
 
-> 状态：草案 v2  
-> 日期：2026-05-10  
-> 作者：richenlin  
-> 修订：基于代码库实际结构 + Bun 1.3.x API + 兼容性评估报告优化  
+> 状态：评审修订稿 v3（正文基于 v2，经就地修订）  
+> 日期：2026-05-10（v3 修订：2026-09-27）  
+> 作者：richenlin；v3 评审修订  
+> 修订：基于代码库实际结构 + Bun 1.3.x API + 兼容性评估报告优化；v3 基于 Bun 1.3.14 实测
 >
-> ⚠️ **本方案已被整合到** [`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md)（2026-05-11）  
-> 整合方案在阶段路线图、ADR、风险登记上**优先于本文档**。  
-> 本文档保留作为 Bun 协议层细节、`BunXxxServer` 实现、可观测性方案的详细参考。  
-> 实施前请先阅读整合方案 §1-§4 章节。
+> ⚠️ **本方案已被整合到** [`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md) **v2.0**。  
+> 整合方案在路线图、ADR、风险登记上**优先于本文档**。  
+> **阅读规则**：下面的"v3 评审勘误与补充"优先于正文。§3、§4.2、§5.2 方案 B、§5.3～§5.7 的 `BunXxxServer` 重写**降级为参考资料，v4.0 不实施**。
+
+---
+
+## v3 评审勘误与补充（优先于正文）
+
+> 实测环境：macOS arm64，Bun 1.3.14，Node v22.23.1。证据编号与整合方案 v2.0 §0.2 一致。
+
+### A. 总体结论
+
+1. **v4.0 的 Bun 适配 = 复用现有服务器 + 小修补 + 测试**。不新增 `BunHttpServer` / `BunHttpsServer` / `BunHttp2Server` / `BunWsServer`，不写 Request ↔ IncomingMessage 桥接，不新建必需的 `koatty-bun` 入口包，也不设各组件的 `bun` 分支与 dist-tag。
+   - 依据：Koa 通过 `node:http` 在 Bun 上运行良好（E-15）；Bun 上的 `node:http2` 能协商出 h2（E-12）；`ws` 的 noServer 升级在 Bun 上可用（E-13）。
+2. **Bun 不绑定装饰器模式**。legacy（本方案 §7.3 原模板的做法）与 TC39 在 Bun 上都可用（E-09），分别对应整合方案的 C4 与 C3。
+3. **性能目标改为实测驱动**。同机实测 Bun+Koa 只比 Node 22+Koa 快约 6%，原生 `Bun.serve` hello-world 快约 11%（E-15）。原 §10.1 的 ">2x" 等目标和 §5.2 的 "约 2.5x" 没有依据。
+
+### B. 正文错误与修正
+
+| # | 位置 | 问题 | 修正 |
+|---|-----|------|------|
+| 1 | §5.1 http2 "TLS + ALPN 自动协商 h2" | `Bun.serve` 开 TLS 后只协商 HTTP/1.1（`curl --http2` 实测为 `1.1`） | Bun 下直接使用现有 `Http2Server`（`node:http2`，实测为 `2`） |
+| 2 | §5.5 `BunHttp2Server`、§5.6 `BunHttp3Server`（基于 `Bun.serve`） | 前提同上，不成立 | §5.6 改为降级到现有 `Http2Server` |
+| 3 | §4.3.3 "Bun 不支持 `process.execArgv`" | Bun 支持（E-14） | 删除条件保护；R8 关闭 |
+| 4 | §4.1 / §4.4 Loader、Config 用 `Bun.file()` 加速 | Loader 用 `globby` 扫描后直接 `require(p)`（`koatty-loader/src/index.ts:54,95`），并不读取文件内容；Config 同理，"快 ~2x"不适用 | 删除 |
+| 5 | §4.2 各组件 `bun` 分支 + `bun` dist-tag | 与整合方案 ADR-014 冲突；多分支维护成本高，且会让用户依赖树分裂 | 作废 |
+| 6 | §5.2 方案 B mock | 至少 5 处功能缺陷：① Koa 通过 `res.statusCode = x` 直接赋值设置状态码，而 `getResponse()` 读的是闭包变量 `statusCode`，所以状态码永远是 200；② `on('data')` 与 `on('end')` 各调用一次 `pipeTo`，第二次会因为流已被锁定而失败；③ 没有实现 `pipe`、`readable`、`unpipe` 等 raw-body / co-body 依赖的接口；④ 整个响应缓冲进 `Blob`，流式响应与 SSE 失效；⑤ `headersSent` 永远为 `false` | 方案 B 作废。将来如要做原生路径，按整合方案 ADR-020 第 3 步另行立项 |
+| 7 | §5.2 方案 A "约 10~15% 性能损耗" | 没有测量依据；E-15 显示 Koa-on-Bun 反而比 Node 快约 6% | 删除该数字 |
+| 8 | §5.7 `BunWsServer` / `BunWsAdapter` 重写 | 现有 `ws` + `noServer` 在 Bun 上可用（E-13） | 复用现有 `WsServer`；原生 WS 只在实测显示明显收益时再考虑 |
+| 9 | §7.3 模板 `"build": "bun build src/App.ts --outdir dist --target bun"` | Koatty 的 Loader 在运行时按目录扫描并 `require` 组件。打包成单文件后，控制器与服务不再以独立文件存在，扫描不到，应用会"启动成功但没有路由" | 构建用 `tsc`（TS7），保留目录结构；开发用 `bun src/App.ts`；生产用 `bun dist/App.js` |
+| 10 | §7.3 模板依赖 `koatty-bun` | 整合方案 v2.0 不再要求单独的入口包 | 依赖 `koatty` |
+| 11 | §7.3 / §8.3 最低版本 `bun >= 1.1.0` | 本次只验证了 1.3.14；1.1 的 `node:http2`、`ws` 行为未验证 | 最低版本定为 `>=1.3.0`，CI 使用 `1.3.x` 与 `latest` |
+| 12 | §8.3 CI `bun test ... --grep "Bun"` | `bun test` 没有 `--grep`，对应参数是 `-t` / `--test-name-pattern` | 改用 `-t` |
+| 13 | §8.3 CI `bun install --frozen-lockfile` | 仓库根目录同时存在 `pnpm-lock.yaml`、`bun.lock`、`package-lock.json`，三者很容易不同步 | 依赖安装统一用 pnpm（唯一的锁文件来源），Bun 只作为运行时；清理多余的锁文件（另行处理） |
+| 14 | §8.3 "Verify decorator metadata" 用 `bun test` 跑 `koatty-container` 测试 | 现有测试是 ts-jest 风格，大量使用 `jest.mock`，`bun test` 的兼容程度未知 | Phase 0 先评估；在此之前，用 Bun 运行 dist 上的协议冒烟测试与 compat-probe |
+| 15 | §10.1 性能目标、§10.4 决策门 | 见 A.3 | 以整合方案 v2.0 §8 为准 |
+| 16 | §9 R4 "Decorator Metadata 行为变化" | reflect-metadata 是纯 JS，E-09 实测正常 | 降为"低"，改为 CI 固化 |
+
+### C. 正文遗漏的风险与测试项
+
+| 项 | 说明 | 处理 |
+|----|------|------|
+| Bun 转译器忽略 `useDefineForClassFields: false`（E-10） | 在 Bun 下直接运行源码时，**未装饰**的 `x!: T` 字段会成为值为 `undefined` 的自有属性，遮住原型值。带 legacy 装饰器的字段不受影响 | 依赖 `overridePrototypeValue` 兜底（仅对 IOC 创建的实例有效）；C3/C4 的 fixture 同时覆盖"源码运行"与"dist 运行" |
+| Bun 的 `ws` 客户端垫片忽略 `origin` 选项（E-13） | 服务端能正确收到 Origin（用 curl 发送时显示 `http://evil.test`），但在 Bun 下写的 WS 测试客户端发不出 Origin，会让 Origin 校验的测试**假通过或假失败** | Bun 下的 WS 测试通过 `headers: { Origin }` 或 Node 客户端发送 Origin |
+| 优雅关闭 | Bun 的 `node:http` 对 keep-alive 连接、`closeAllConnections` 的行为需要实测 | 加入 Phase 0 |
+| OTel auto-instrumentation | 依赖 require 钩子，Bun 下默认关闭。**但 `koatty-trace` 自己创建的中间件 Span 不依赖 auto-instrumentation**，服务端 Span 不受影响；缺失的只是出站 HTTP 与 DB 客户端的 Span | §6 的范围据此收窄 |
+| gRPC | grpc-js 构建在 `node:http2` 之上；Unary / Server Streaming / Bidi Streaming 需要逐一实测 | 加入 Phase 0，结果回填整合方案 §6.1 |
+| Loader 在开发模式下 `require('.ts')` | Bun 原生支持，需要实测 `globby` 扫描 + `require` 路径 | 加入 Phase 0 |
+
+### D. v4.0 实际工作清单（取代正文 §3、§4、§5、§13 的任务）
+
+| 任务 | 包 | 工作量 |
+|------|---|-------|
+| `detectRuntime()` + `app.runtime` + 启动诊断日志 | koatty-core / koatty | 1 人天 |
+| `checkRuntime()` 识别 Bun（≥ 1.3.0）；`engines.bun` | koatty-core | 0.5 人天 |
+| HTTP/3 在 Bun 下降级到 `Http2Server` 并告警 | koatty-serve | 1 人天 |
+| `koatty-trace` 在 Bun 下关闭 auto-instrumentation 并告警 | koatty-trace | 1 人天 |
+| Phase 0 实测失败项的修补（按根因逐个处理） | 按需 | 5 人天（预留） |
+| 协议集成测试在 Bun 下运行（HTTP / HTTPS / HTTP2 / WS / gRPC / GraphQL） | koatty-serve | 4 人天 |
+| 优雅关闭测试 | koatty-serve | 1.5 人天 |
+| `examples/bun-legacy`（C4）与 `examples/bun-tc39`（C3） | examples | 2 人天 |
+| CLI `--runtime bun`（与装饰器模式相互独立） | koatty-ai | 1 人天 |
+
+合计约 17 人天（v2 估算约 7 周）。
+
+### E. 修订后的 Bun 模板要点
+
+```jsonc
+// package.json.hbs（v3）
+{
+  "scripts": {
+    "dev":   "bun --watch src/App.ts",
+    "build": "tsc -p tsconfig.json",          // 保留目录结构，Loader 才能扫描到组件
+    "start": "bun dist/App.js",
+    "test":  "bun test"                        // 仅用于应用自身测试
+  },
+  "engines": { "bun": ">=1.3.0" },
+  "dependencies": { "koatty": "^4.0.0", "reflect-metadata": "^0.2.2", "tslib": "^2.8.0" },
+  "devDependencies": { "@types/bun": "^1.3.0", "typescript": "^5.9.0 || ^6.0.0 || ^7.0.0" }
+}
+```
+
+```jsonc
+// tsconfig.json.hbs（v3；{{#if tc39}} 分支关闭 experimentalDecorators 与 emitDecoratorMetadata）
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,   // Bun 转译器会忽略（E-10），但 tsc 构建依赖它
+    "strict": true,                      // 新项目可以开启；TS7 下这也是默认值
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "types": ["bun"]
+  },
+  "include": ["src/**/*"]
+}
+```
 
 ---
 
@@ -78,6 +174,8 @@ Bun runtime 的 HTTP 服务器使用 Web 标准 `fetch` API（`Request / Respons
 ---
 
 ## 2. 整体架构
+
+> **v3**：本章的"`koatty-bun` 入口包 + `koatty_serve/bun` 分支 + `BunXxxServer` 继承体系"已作废。v4.0 的架构是：用户照常 `import "koatty"`；`Bootstrap` 调用 `detectRuntime()`；`koatty-serve` 在 Node 与 Bun 下使用同一套 `node:http(s)` / `node:http2` / `ws` / `grpc-js` 实现，只有 HTTP/3 在 Bun 下降级。详见整合方案 v2.0 §2.4。
 
 ### 2.1 用户视角
 
@@ -149,6 +247,8 @@ BaseServer<T, S> (koatty_serve/src/server/base.ts)
 ---
 
 ## 3. Phase 1 — packages/koatty-bun
+
+> **v3：本章作废，保留作参考。** 不新建 `koatty-bun` 入口包，也不写 `BunBootstrap`（整合方案 ADR-010）。原因：① Bootstrap 逻辑与 Node 完全相同；② 如果强制用户改 import，已经预编译、`import "koatty"` 的 dist 在 Bun 下就无法直接运行；③ 运行时识别只需要几十行代码，放在 `koatty-core` 即可。
 
 ### 3.1 目录结构
 
@@ -326,11 +426,11 @@ export function getBunVersion(): string | null {
 
 | 组件 | 独立仓库 | bun 分支必要性 | 改动内容 |
 |------|---------|--------------|---------|
-| `koatty_serve` | github.com/Koatty/koatty_serve | **P0 必须** | 新增全部 BunXxxServer 实现 + 运行时分发 |
-| `koatty_core` | github.com/Koatty/koatty_core | **P0 必须** | `NativeServer` 类型扩展、`checkRuntime()` 支持 Bun、移除 Node.js 硬限制 |
-| `koatty_trace` | github.com/Koatty/koatty_trace | **P0 必须** | 手动 Instrumentation 替代 Auto-Instrumentation（详见 Phase 4） |
-| `koatty_loader` | github.com/Koatty/koatty_loader | P1 | 用 `Bun.file()` 替换 `fs.readFile`，加速启动扫描 |
-| `koatty_config` | github.com/Koatty/koatty_config | P1 | `Bun.file()` 加速配置文件读取 |
+| `koatty_serve` | github.com/Koatty/koatty_serve | **P0 必须** | ~~新增全部 BunXxxServer 实现~~ v3：复用现有服务器；只加 HTTP/3 在 Bun 下的降级，以及 Phase 0 发现问题的修补 |
+| `koatty_core` | github.com/Koatty/koatty_core | **P0 必须** | `checkRuntime()` 支持 Bun、`detectRuntime()`。v3：由于复用 `node:*` 服务器，`NativeServer` 不需要扩展 `BunNativeServer` |
+| `koatty_trace` | github.com/Koatty/koatty_trace | **P0 必须** | v3：Bun 下关闭 auto-instrumentation 并告警；框架自有 Span 不受影响 |
+| `koatty_loader` | github.com/Koatty/koatty_loader | ~~P1~~ 验证 | ~~`Bun.file()` 加速~~ v3：Loader 只做 `globby` + `require`，不读文件内容；只需验证 Bun 下 `require('.ts')` |
+| `koatty_config` | github.com/Koatty/koatty_config | ~~P1~~ 不需要 | ~~`Bun.file()` 加速~~ v3：删除 |
 | `koatty_logger` | github.com/Koatty/koatty_logger | P2 | Bun console 彩色输出优化；验证 `winston-daily-rotate-file` 兼容性 |
 | `koatty_router` | github.com/Koatty/koatty_router | P2 | 仅 `engines` 字段更新，路由逻辑无需改动 |
 | `koatty_container` | — | **不需要** | 纯 TS IoC，无 Node.js API 依赖 |
@@ -340,6 +440,8 @@ export function getBunVersion(): string | null {
 | `koatty_store` | — | **不需要** | `ioredis` + `lru-cache`，Bun 全兼容 |
 
 ### 4.2 bun 分支发布策略
+
+> **v3：本节作废。** 不设 `bun` 分支与 dist-tag。Node 与 Bun 共用同一套版本（整合方案 ADR-014），运行时差异在代码内通过 `detectRuntime()` 分支处理。
 
 各组件的 `bun` 分支发布到 npm 时使用 `bun` dist-tag：
 
@@ -373,7 +475,7 @@ export function checkRuntime() {
   // Bun runtime 跳过 Node.js 版本检查
   if (typeof Bun !== 'undefined') {
     const bunVersion = Bun.version;
-    const minBun = '1.1.0';
+    const minBun = '1.3.0';   // v3：只验证了 1.3.x
     if (semverLt(bunVersion, minBun)) {
       Logger.Fatal(`koatty requires Bun >= ${minBun}, current: ${bunVersion}`);
     }
@@ -401,14 +503,18 @@ type NativeServer = NodeNativeServer | BunNativeServer;
 
 #### 4.3.3 process.execArgv 兼容
 
+> **v3：本节不需要。** Bun 1.3.14 提供 `process.execArgv`（E-14），现有代码无需修改。
+
 ```typescript
-// Bun 不支持 process.execArgv，需条件判断
+// （v2 原文，前提不成立）Bun 不支持 process.execArgv，需条件判断
 const isDebugMode = typeof process.execArgv !== 'undefined'
   ? process.execArgv.some(arg => /--inspect|--debug/.test(arg))
   : false;
 ```
 
 ### 4.4 koatty_loader/bun 分支关键改动
+
+> **v3：本节作废。** Loader 用 `globby.sync` 扫描后直接 `require(p)`（`koatty-loader/src/index.ts:54,95`），并不读取文件内容，下面的 `readFileContent` 没有调用方。Bun 下只需验证开发模式的 `require('.ts')`。
 
 ```typescript
 // 用 Bun.file() 替换 fs.readFile，提升文件扫描性能
@@ -426,16 +532,18 @@ async function readFileContent(filePath: string): Promise<string> {
 
 ### 5.1 Bun 能力矩阵（基于 Bun 1.3.x）
 
-| 协议 | Bun 原生支持 | 底层机制 | 与 Node.js 关键差异 |
-|------|------------|---------|------------------|
-| **http** | ✅ 完整 | `Bun.serve({ fetch })` | fetch handler vs 事件回调 |
-| **https** | ✅ 完整 | `Bun.serve({ tls, fetch })` | TLS 配置使用 `Bun.file()` |
-| **http2** | ✅ 完整 | TLS + ALPN 自动协商 h2 | 无需显式 http2 开关，TLS 自动支持 |
-| **http3** | ❌ 不支持 | QUIC 未实现 | 降级到 HTTP/2 + 告警 |
-| **ws** | ✅ 完整 | `Bun.serve({ websocket })` | WS 与 HTTP **共享同一端口** |
-| **wss** | ✅ 完整 | 同上 + TLS | 同上 |
-| **grpc** | ⚠️ 兼容 | `@grpc/grpc-js` 经 Node compat 层 | 性能略有损耗，双向流存在风险 |
-| **graphql** | ✅ 完整 | 底层复用 BunHttpServer | 与 HTTP 处理一致 |
+> **v3：本表按 Bun 1.3.14 实测重写。** "Koatty 采用"一列是 v4.0 的实现方式。
+
+| 协议 | `Bun.serve` 原生 | Bun 的 `node:*` 兼容层 | Koatty v4.0 采用 | 依据 |
+|------|----------------|-----------------|----------------|------|
+| **http** | ✅ | ✅ `node:http` + Koa | 现有 `HttpServer` | E-15 |
+| **https** | ✅ | ✅ `node:https` | 现有 `HttpsServer` | — |
+| **http2** | ❌ **只协商 HTTP/1.1** | ✅ `node:http2`（h2） | 现有 `Http2Server` | E-12 |
+| **http3** | ❌ | ❌ | 降级到 `Http2Server` + 告警 | 没有 QUIC |
+| **ws** | ✅ `websocket` handler | ✅ `ws` + noServer 升级 | 现有 `WsServer` | E-13 |
+| **wss** | ✅ | ✅ | 现有 `WsServer` + TLS | — |
+| **grpc** | — | ⚠️ `@grpc/grpc-js`（基于 `node:http2`） | 现有 `GrpcServer`，三种流式模式待 Phase 0 实测 | — |
+| **graphql** | — | ✅ | 走 HTTP | — |
 
 ---
 
@@ -485,9 +593,13 @@ export class BunHttpServer extends BaseServer<HttpServerOptions, Server> {
 
 **优势**：工程量极小（~50 行差异），Koa 中间件链零适配，连接池/优雅关闭逻辑可完全复用 `HttpServer`。
 
-**劣势**：无法利用 Bun 原生 `fetch` handler 的性能优势（约 10~15% 性能损耗）。
+**劣势**：无法利用 Bun 原生 `fetch` handler 的性能优势。~~（约 10~15% 性能损耗）~~ v3：这个数字没有测量依据。同机 hello-world 实测，Bun+Koa（`node:http`）为 45.0k req/s，原生 `Bun.serve`（不经过 Koa）为 47.4k req/s，差距约 5%；再加上 Koatty 完整中间件栈后，差距只会被进一步稀释。
+
+> **v3 补充**：方案 A 不需要新建 `BunHttpServer` 类，现有 `HttpServer` 本身就是 `node:http` 实现，可以直接在 Bun 上运行。上面的示例代码只作说明，不必实施。
 
 #### 方案 B — Bun.serve() 原生 + Request/Response 桥接（最优性能）
+
+> **v3：作废（保留作反面参考）。** 下面的 mock 至少有 5 处功能缺陷，详见文首勘误 B.6。其中最严重的是：Koa 通过 `res.statusCode = code` 直接赋值设置状态码，而 `getResponse()` 读的是闭包变量 `statusCode`，所以除非调用 `writeHead`，所有响应都是 200。另外，整个响应被缓冲进 `Blob`，流式响应与 SSE 都会失效。"约 2.5x Node.js 吞吐"没有测量依据。
 
 使用 `Bun.serve()` 的原生 `fetch` handler，手动将 Web 标准 `Request` 转换为 Node.js `IncomingMessage`，将 Koa 产出的响应转换回 Web 标准 `Response`。
 
@@ -606,7 +718,7 @@ export async function bunKoaBridge(
 }
 ```
 
-**优势**：利用 Bun 原生 HTTP 栈性能（约 2.5x Node.js 吞吐）。
+**优势**：利用 Bun 原生 HTTP 栈性能。~~（约 2.5x Node.js 吞吐）~~ v3：没有依据，实测见 E-15。
 
 **劣势**：IncomingMessage/ServerResponse mock 约 400~600 行，需覆盖所有 Koa 使用的属性和方法；需要完整的集成测试验证边界情况。
 
@@ -871,9 +983,11 @@ export class BunHttpsServer extends BaseServer<HttpsServerOptions, BunServer> {
 
 ### 5.5 HTTP/2 → BunHttp2Server
 
+> **v3：本节前提错误，作废。** `Bun.serve({ tls })` 只协商 HTTP/1.1，不会走 h2（`curl --http2` 实测 `http_version=1.1`）。下面的实现会让 `protocol: "http2"` 的配置静默退化为 HTTPS/1.1。**Bun 下直接使用现有 `Http2Server`（`node:http2`）**，实测协商结果为 h2。
+
 **文件**：`src/server/bun-http2.ts`
 
-**关键差异**：Bun **不需要显式开启 HTTP/2**。配置了 TLS 后，Bun 通过 ALPN 自动协商 `h2 / http/1.1`，底层实现与 `BunHttpsServer` 相同，仅 protocol 标识不同。
+**关键差异**：~~Bun **不需要显式开启 HTTP/2**。配置了 TLS 后，Bun 通过 ALPN 自动协商 `h2 / http/1.1`，底层实现与 `BunHttpsServer` 相同，仅 protocol 标识不同。~~
 
 ```typescript
 export class BunHttp2Server extends BaseServer<Http2ServerOptions, BunServer> {
@@ -922,7 +1036,9 @@ export class BunHttp2Server extends BaseServer<Http2ServerOptions, BunServer> {
 
 **文件**：`src/server/bun-http3.ts`
 
-Bun 不支持 HTTP/3/QUIC，提供带警告的降级实现：
+Bun 不支持 HTTP/3/QUIC，提供带警告的降级实现。
+
+> **v3**：降级目标改为现有的 `Http2Server`（`node:http2`），不要用下面基于 `Bun.serve` 的实现，否则会退化到 HTTP/1.1（见 §5.5 v3 说明）。实现方式：`serve.ts` 工厂在 `protocol === "http3" && !app.runtime.capabilities.http3` 时创建 `Http2Server`，并输出一次告警。
 
 ```typescript
 export class BunHttp3Server extends BaseServer<Http3ServerOptions, BunServer> {
@@ -973,6 +1089,10 @@ export class BunHttp3Server extends BaseServer<Http3ServerOptions, BunServer> {
 ---
 
 ### 5.7 WebSocket/WSS → BunWsServer（架构变化最大）
+
+> **v3：v4.0 不实施。** 现有 `WsServer`（`ws` 库 + `node:http` 的 `upgrade` 事件 + `noServer` 模式）在 Bun 1.3.14 上可用（E-13），服务端能正确收到 `Origin` 请求头。本节的原生重写只有在"客户端与服务端分离"的压测显示消息吞吐有显著提升（≥ 30%）时才考虑，并且必须保持与现有 `WsServer` 相同的 Origin 校验、消息大小限制和心跳语义（参见加固方案 SEC 系列）。
+>
+> **测试注意**：Bun 自带的 `ws` 客户端垫片会忽略 `new WebSocket(url, { origin })` 中的 `origin` 选项。在 Bun 下编写 Origin 校验测试时，必须通过 `headers: { Origin: ... }` 发送，或改用 Node 客户端或 curl。
 
 **文件**：`src/server/bun-ws.ts`
 
@@ -1610,8 +1730,10 @@ koatty-ai-template-project-bun/
 }
 ```
 
+> **v3 修正**：上面的 `package.json` 与下面的 `tsconfig.json` 以文首勘误 E 为准。主要变化：① `build` 不能用 `bun build` 打单文件，否则 Loader 扫描不到组件，改用 `tsc`；② 依赖 `koatty` 而不是 `koatty-bun`；③ `engines.bun >= 1.3.0`；④ `bun-types` 改为 `@types/bun`；⑤ 装饰器模式由 CLI 的 `--decorators legacy|tc39` 选择，与运行时无关。
+>
 > **与 Node 模板的关键区别**：
-> - 依赖 `koatty-bun` 替代 `koatty`
+> - ~~依赖 `koatty-bun` 替代 `koatty`~~（v3：两者都依赖 `koatty`）
 > - 无 `tsx`、`ts-jest`、`cross-env`（Bun 原生支持 TS 和测试）
 > - 无 `rimraf`（`bun build` 无需预清理）
 > - scripts 使用 `bun run` 替代 `npm run`
@@ -1664,6 +1786,8 @@ timeout = 5000
 现有 `turbo.json` 已使用 `^build` 依赖链，`koatty-bun` 依赖 `koatty`、`koatty_core`、`koatty_serve`，turbo 会自动按拓扑顺序构建，无需额外配置。
 
 ### 8.3 CI — Bun 测试矩阵
+
+> **v3**：CI 以整合方案 v2.0 附录 D 为准。下面的 YAML 有三处问题：① `bun test` 没有 `--grep` 参数，对应的是 `-t` / `--test-name-pattern`；② 依赖安装应统一用 pnpm，仓库同时存在三份锁文件，`bun install --frozen-lockfile` 容易与 pnpm 的结果不一致；③ 最低版本应为 `1.3.x`。另外，现有测试基于 ts-jest，能否直接用 `bun test` 运行需要在 Phase 0 评估。
 
 `.github/workflows/ci.yml` 新增（在现有 `lint` / `test` / `build` 三个 job 基础上添加）：
 
@@ -1739,22 +1863,26 @@ jobs:
 
 | ID | 风险 | 级别 | 影响 | 缓解措施 | 状态 |
 |----|------|------|------|---------|------|
-| R1 | OpenTelemetry auto-instrumentation 不兼容 | **关键** | 丢失自动链路追踪、指标采集 | Phase 4 手动 Instrumentation 方案 + 降级告警 | 方案已设计 |
-| R2 | gRPC 双向流不稳定 | **高** | 生产 gRPC 服务可能异常 | gRPC 不重写，经 Node compat 运行；CI 添加兼容测试；文档标注限制 | 方案已设计 |
-| R3 | HTTP/3 (QUIC) 不可用 | **高** | HTTP/3 协议无法使用 | BunHttp3Server 降级到 HTTP/2 + 警告日志 | 方案已设计 |
-| R4 | Decorator Metadata 行为变化 | **中** | IoC 容器注入异常 | 锁定 Bun 版本；CI 测试 reflect-metadata；tsconfig 显式配置 | 待实施 |
-| R5 | `ws` 库与 Bun 原生 WS 的接口差异 | **中** | koatty_router WS 路由兼容问题 | BunWsAdapter 继承 EventEmitter 桥接 | 方案已设计 |
-| R6 | BunKoaBridge 方案 B 的 mock 完整性 | **中** | Koa 中间件使用未 mock 的属性导致异常 | Phase 1 用方案 A 规避；方案 B 需完整集成测试覆盖 | 待实施 |
-| R7 | `winston-daily-rotate-file` 文件轮转兼容性 | **低** | 日志文件轮转异常 | P2 阶段验证；降级为 winston 基础 file transport | 待验证 |
-| R8 | `process.execArgv` Bun 兼容性 | **低** | 调试模式检测失败 | 条件判断保护 | 方案已设计 |
+| R1 | OpenTelemetry auto-instrumentation 不兼容 | ~~**关键**~~ **中**（v3） | ~~丢失自动链路追踪、指标采集~~ v3：只缺出站 HTTP/DB 的 Span；框架中间件 Span 与指标不受影响 | Bun 下关闭 auto 并告警；出站调用手动埋点 | 方案已设计 |
+| R2 | gRPC 双向流不稳定 | **高** | 生产 gRPC 服务可能异常 | gRPC 不重写；Phase 0 实测三种流式模式；不稳定就把 Bun 下的 gRPC 标注为 beta | 待实测 |
+| R3 | HTTP/3 (QUIC) 不可用 | ~~**高**~~ **低**（v3） | HTTP/3 协议无法使用 | 降级到**现有 `Http2Server`**（v3：不是基于 `Bun.serve` 的实现） | 方案已设计 |
+| R4 | Decorator Metadata 行为变化 | ~~**中**~~ **低**（v3） | IoC 容器注入异常 | v3：E-09 实测正常；CI 固化 compat-probe | 已验证 |
+| R5 | `ws` 库与 Bun 原生 WS 的接口差异 | ~~**中**~~ 不适用（v3） | — | v3：继续使用 `ws` 库，不引入 Bun 原生 WS | 关闭 |
+| R6 | BunKoaBridge 方案 B 的 mock 完整性 | 不适用（v3） | — | v3：方案 B 作废 | 关闭 |
+| R7 | `winston-daily-rotate-file` 文件轮转兼容性 | **低** | 日志文件轮转异常 | Phase 0 验证；降级为 winston 基础 file transport | 待验证 |
+| R8 | `process.execArgv` Bun 兼容性 | 不适用（v3） | — | v3：Bun 支持 | 关闭 |
+| R9（v3） | Bun 转译器忽略 `useDefineForClassFields: false`（E-10） | **中** | 未装饰字段遮住原型值 | `overridePrototypeValue` 兜底 + 源码运行与 dist 运行两套 fixture | 待实施 |
+| R10（v3） | Bun 的 `ws` 客户端忽略 `origin` 选项（E-13） | **中** | Origin 校验测试假通过或假失败 | Bun 下的测试用 `headers: { Origin }`（已实测可用） | 待实施 |
+| R11（v3） | `bun build` 打包导致 Loader 扫描不到组件 | **高** | 应用启动但没有路由与服务 | 模板用 `tsc` 构建；`koatty doctor` 检测单文件 bundle | 待实施 |
+| R12（v3） | 优雅关闭行为差异 | **中** | 发布时连接被强制中断 | Phase 0 实测 + 专项用例 | 待实测 |
 
 ### 回退策略
 
 若 Bun 适配在某个阶段遇到阻断性问题：
 
-1. **包级回退**：`koatty-bun` 的 `package.json` 将依赖切回 Node.js 版本（去掉 `@bun` dist-tag）
-2. **用户级回退**：用户将 `import from 'koatty-bun'` 改回 `import from 'koatty'`，应用代码无需其他修改
-3. **功能级回退**：特定协议（如 gRPC）可配置为仅在 Node.js 下启用
+1. ~~**包级回退**：`koatty-bun` 的 `package.json` 将依赖切回 Node.js 版本（去掉 `@bun` dist-tag）~~（v3：不再有单独的包和 dist-tag）
+2. **用户级回退**（v3）：同一份 dist 改用 `node dist/App.js` 启动，应用代码与依赖都不用改
+3. **功能级回退**：特定协议（如 gRPC）可配置为仅在 Node.js 下启用；或在文档中把该协议在 Bun 下标注为 beta
 
 ---
 
@@ -1762,7 +1890,9 @@ jobs:
 
 ### 10.1 测试目标
 
-| 场景 | 目标指标 | 基准（Node.js） |
+> **v3：下表中的倍数目标作废。** 同机实测（autocannon `-c100 -d8 -w4`，hello-world）结果：Node 22 + Koa 为 42.5k req/s（p99 4ms）；Bun 1.3.14 + Koa（`node:http`）为 45.0k req/s（p99 4ms）；原生 `Bun.serve` 为 47.4k req/s（p99 2ms）。客户端与服务端在同一台机器上，结果只能说明量级。倍数目标改为"不退化"门禁，以整合方案 v2.0 §8 为准：C4 相对 C1、C3 相对 C2 在任一场景退化超过 5% 就要调查；原生 `Bun.serve` 原型在完整中间件栈下提升 ≥ 30%，才立项原生路径。
+
+| 场景 | 目标指标（v2，已作废） | 基准（Node.js） |
 |------|---------|----------------|
 | HTTP QPS（hello world） | > 2x Node.js | `HttpServer` 当前值 |
 | HTTP QPS（Koa 中间件链 5 层） | > 1.5x Node.js | `HttpServer` + middleware |
@@ -1779,6 +1909,8 @@ jobs:
 - **对比框架**：同时测试 `koatty` (Node) vs `koatty-bun` (Bun)
 
 ### 10.3 测试矩阵
+
+> **v3**：GitHub Actions 的 2 vCPU 共享机器上，压测客户端与服务端会争抢 CPU，数据噪声大，只适合做回归趋势，不适合给出绝对结论。发布前的基准要在独立机器上运行，客户端与服务端分离或绑定到不同 CPU 核，每个场景 3 轮取中位数。
 
 ```
 环境：
@@ -1953,7 +2085,17 @@ bun run App.ts
 
 ## 13. 实施顺序与优先级
 
-### 阶段划分
+> **v3：本章的周计划、MVP 与里程碑已被文首勘误 D（约 17 人天）与整合方案 v2.0 §5.5（Phase 2，3 周 1 人，与 TC39 Phase 1 并行）取代。** 修订后的里程碑：
+>
+> | 里程碑 | 交付物 | 验收标准 |
+> |-------|-------|---------|
+> | M1 | Phase 0 实测报告 | 整合方案 §6.1 中没有"待实测"项 |
+> | M2 | C4 可运行 | `examples/bun-legacy` 不改代码在 Bun 上运行，HTTP / HTTPS / HTTP2(h2) / WS 集成测试通过 |
+> | M3 | 降级与观测 | HTTP/3 → `Http2Server` 降级告警；trace 降级告警；优雅关闭用例通过 |
+> | M4 | C3 可运行 | `examples/bun-tc39` 在 TC39 Phase 1 完成后通过 |
+> | M5 | 发布 | 与 `koatty@4.0.0` 同版本发布，**不**另设 `koatty-bun` 包或 dist-tag |
+
+### 阶段划分（v2 原文，仅供参考）
 
 ```
 Week 1-2: 跑通最小可用版本（MVP）
@@ -2015,6 +2157,19 @@ Week 7: CI + 文档 + 发布
 
 ## 14. 技术决策记录
 
+> **v3 状态汇总**（详见整合方案 v2.0 附录 E）：
+>
+> | ADR | v3 状态 | 说明 |
+> |-----|--------|------|
+> | 001 | 保留并简化 | 不新建 `BunHttpServer`，直接复用现有 `HttpServer`；"损耗 > 15% 就迁移方案 B"改为整合方案 ADR-020 的 ≥ 30% 立项门槛 |
+> | 002 | 撤销 | 不新建 `koatty-bun` 入口包 |
+> | 003 | 保留，修订实现 | 降级目标为现有 `Http2Server`（`node:http2`），不是 `Bun.serve` |
+> | 004 | 撤销 | 继续用 `ws` + `node:http` upgrade，HTTP 与 WS 端口配置语义与 Node 一致 |
+> | 005 | 保留 | Bidi Streaming 的状态以 Phase 0 实测为准 |
+> | 006 | 修订 | 框架自有 Span 不受影响，只关闭 auto-instrumentation；不强制 `initBunTracing()` |
+> | 007 | 撤销 | 继续使用现有服务器及其连接管理 |
+> | 008 | 撤销 | 不引入 `BunWsAdapter` |
+
 ### ADR-001：BunKoaBridge 初版使用方案 A（Node compat 层）
 
 **决策**：Phase 1 使用 Bun 内建 `node:http` compat 层，直接 `createServer()` 运行 Koa。  
@@ -2065,4 +2220,11 @@ Week 7: CI + 文档 + 发布
 
 ---
 
-*本文档随实施进展持续更新。上次修订：2026-05-10 v2（基于代码库结构和兼容性评估完善）*
+## 文档历史
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| v2 | 2026-05-10 | 基于代码库结构和兼容性评估完善 |
+| **v3** | **2026-09-27** | **评审修订**（基于 Bun 1.3.14 实测）：新增文首"v3 评审勘误与补充"（16 项正文错误、6 项遗漏的风险与测试项、修订后的工作清单与模板）。v4.0 改为"复用现有服务器 + 修补 + 测试"；作废 `koatty-bun` 入口包、`bun` 分支与 dist-tag、方案 B 桥接（至少 5 处功能缺陷）、基于 `Bun.serve` 的 HTTP/2（实际只协商 HTTP/1.1）、`BunWsServer` 重写、Loader/Config 的 `Bun.file()` 加速；修正 `process.execArgv`、模板 `bun build` 打包导致组件扫描失败、CI 参数（`--grep` → `-t`）与锁文件问题；性能目标改为实测驱动的"不退化"门禁；风险表新增 R9～R12 |
+
+*本文档随实施进展持续更新。上次修订：2026-09-27 v3*

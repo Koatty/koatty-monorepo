@@ -121,6 +121,17 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[bodyParser(ctx, options)](./koatty_router.bodyparser.md)
+
+
+</td><td>
+
+Parse request body and cache the result. Returns cached result synchronously on subsequent calls (avoids microtask overhead). First call returns a Promise that resolves after parsing.
+
+
+</td></tr>
+<tr><td>
+
 [DeleteMapping(path, routerOptions)](./koatty_router.deletemapping.md)
 
 
@@ -247,6 +258,17 @@ Get path variable (take value from ctx.params).
 </td></tr>
 <tr><td>
 
+[payload(options)](./koatty_router.payload.md)
+
+
+</td><td>
+
+Middleware for parsing request payload (query parameters and request body).
+
+
+</td></tr>
+<tr><td>
+
 [Post(name, defaultValue)](./koatty_router.post.md)
 
 
@@ -276,6 +298,17 @@ Routes HTTP POST requests to the specified path.
 </td><td>
 
 Routes HTTP PUT requests to the specified path.
+
+
+</td></tr>
+<tr><td>
+
+[queryParser(ctx, \_options)](./koatty_router.queryparser.md)
+
+
+</td><td>
+
+Parse and merge query parameters and route parameters from context
 
 
 </td></tr>
@@ -333,6 +366,17 @@ Routes HTTP requests to the specified path with enhanced middleware support.
 
 Get parsed query-string and path variable(koa ctx.query and ctx.params), and set as an object.
 
+
+
+</td></tr>
+<tr><td>
+
+[safeFilename(name)](./koatty_router.safefilename.md)
+
+
+</td><td>
+
+Sanitize an attacker-controlled filename (SEC-05): strip directory components and path separators so the value can never traverse outside the intended upload directory. `originalFilename` from multipart requests must always pass through this helper before being used for storage.
 
 
 </td></tr>
@@ -474,6 +518,17 @@ Middleware execution context
 </td></tr>
 <tr><td>
 
+[PayloadOptions](./koatty_router.payloadoptions.md)
+
+
+</td><td>
+
+请求参数选项
+
+
+</td></tr>
+<tr><td>
+
 [ProtocolExtConfigMap](./koatty_router.protocolextconfigmap.md)
 
 
@@ -565,6 +620,17 @@ Description
 </td><td>
 
 Alias of 
+
+
+</td></tr>
+<tr><td>
+
+[FILE\_KEY](./koatty_router.file_key.md)
+
+
+</td><td>
+
+Symbol key for uploaded files in parsed multipart body. Use this key to access files from the parsed body object:
 
 
 </td></tr>
