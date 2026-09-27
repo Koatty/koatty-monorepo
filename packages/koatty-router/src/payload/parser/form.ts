@@ -8,18 +8,22 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { DefaultLogger as Logger } from "koatty_logger";
 import { KoattyContext } from "koatty_core";
 import { PayloadOptions } from "../interface";
+import { emptyFallback, payloadParseError, resolveOnParseError } from "../error_policy";
 import { parseText } from "./text";
 import { parse } from "fast-querystring";
 
 /**
  * Parse form-urlencoded request body.
- * 
+ *
+ * Fail-closed (SEC-02 / ADR-101): parse failures throw an Exception with
+ * HTTP status 400. The legacy fallback remains available via
+ * `onParseError: 'empty'`.
+ *
  * @param {KoattyContext} ctx - The Koatty context object
  * @param {PayloadOptions} opts - The payload parsing options
- * @returns {Promise<Record<string, any>>} Parsed form data object, or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed form data object
  * @private
  */
 export async function parseForm(ctx: KoattyContext, opts: PayloadOptions) {
@@ -32,8 +36,9 @@ export async function parseForm(ctx: KoattyContext, opts: PayloadOptions) {
     const result = parse(str);
     return result;  // Already a flat object
   } catch (error) {
-    Logger.Error('[FormParseError]', error);
-
-    return {};
+    if (resolveOnParseError(ctx, opts) === 'empty') {
+      return emptyFallback('malformed form body', error);
+    }
+    throw payloadParseError('malformed form body', 400, error);
   }
 }

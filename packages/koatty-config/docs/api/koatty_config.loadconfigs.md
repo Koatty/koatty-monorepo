@@ -10,7 +10,7 @@ LoadConfigs
 **Signature:**
 
 ```typescript
-export declare function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[]): Record<string, any>;
+export declare function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[], schema?: ValidationSchema): Record<string, any>;
 ```
 
 ## Parameters
@@ -90,6 +90,22 @@ string\[\]
 </td><td>
 
 _(Optional)_
+
+
+</td></tr>
+<tr><td>
+
+schema
+
+
+</td><td>
+
+[ValidationSchema](./koatty_config.validationschema.md)
+
+
+</td><td>
+
+_(Optional)_ Optional configuration schema. When provided, defaults from the schema are applied first, then the loaded config is validated. Validation failure throws `Configuration validation failed` with one line per offending field path (COR-08).
 
 
 </td></tr>

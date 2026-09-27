@@ -87,8 +87,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Phase A / QA-02: fail fast when a submodule is not checked out or has
+      # no test script — turbo would silently report "no tasks" and pass
+      - name: Assert submodules are testable
+        run: node scripts/doctor.js --assert-submodules
+
       - name: Run tests
-        run: pnpm test
+        # --force disables turbo cache on the main branch so tests really run
+        run: pnpm turbo run test --force
 
   build:
     name: Build

@@ -6,4 +6,5 @@
  * @LastEditTime: 2022-02-18 11:20:40
  */
 export * from "./config";
+export * from "./validator";
 

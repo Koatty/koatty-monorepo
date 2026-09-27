@@ -1,6 +1,6 @@
 /*
- * @Description: 
- * @Usage: 
+ * @Description:
+ * @Usage:
  * @Author: richen
  * @Date: 2021-12-01 17:22:13
  * @LastEditTime: 2024-11-06 15:24:18
@@ -10,13 +10,16 @@ import { Koatty } from "koatty_core";
 import { LoadConfigs } from "../src/index";
 import { ConfigTest } from "./test";
 
+// the loader scans ./test recursively; never load jest test files as config
+const TEST_IGNORE = ["*.test.ts", "test.ts", "regression/**", "fixtures/**"];
+
 describe("TestConfig", () => {
     beforeAll(async () => {
         process.env.NODE_ENV = "development";
         process.env.ff = "999";
     })
     test("LoadDir", async function () {
-        const res = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"])
+        const res = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE)
         expect(res.config).not.toBeNull();
         expect(res.config.ff).toEqual("999");
         expect(res.config.aa).toEqual(4);
@@ -24,7 +27,7 @@ describe("TestConfig", () => {
     });
 
     it("Config", async () => {
-        const appConfig = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"])
+        const appConfig = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE)
         const app = new Koatty();
         app.setMetaData("_configs", appConfig);
         IOCContainer.setApp(app);
@@ -34,7 +37,7 @@ describe("TestConfig", () => {
     })
 
     it("Config Validation - Valid Config", async () => {
-        const appConfig = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"]);
+        const appConfig = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE);
         const schema = {
             config: {
                 type: 'object',
@@ -45,7 +48,7 @@ describe("TestConfig", () => {
                 required: true
             }
         };
-        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        const result = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE, schema);
         expect(result.config).toBeDefined();
         expect(result.config.ff).toBe("999");
         expect(result.config.aa).toBe(4);
@@ -59,7 +62,7 @@ describe("TestConfig", () => {
             }
         };
         expect(() => {
-            LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+            LoadConfigs(["./test"], "", undefined, TEST_IGNORE, schema);
         }).toThrow("Configuration validation failed");
     });
 
@@ -70,7 +73,7 @@ describe("TestConfig", () => {
             }
         };
         expect(() => {
-            LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+            LoadConfigs(["./test"], "", undefined, TEST_IGNORE, schema);
         }).toThrow("Configuration validation failed");
     });
 
@@ -81,7 +84,7 @@ describe("TestConfig", () => {
                 default: 'default_value'
             }
         };
-        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        const result = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE, schema);
         expect(result.nonExistent).toBe("default_value");
     });
 
@@ -94,8 +97,9 @@ describe("TestConfig", () => {
                 }
             }
         };
-        const result = await LoadConfigs(["./test"], "", undefined, ["*.test.ts", "test.ts"], schema);
+        const result = await LoadConfigs(["./test"], "", undefined, TEST_IGNORE, schema);
         expect(result.config.ff).toBe("999");
     });
 });
+
 

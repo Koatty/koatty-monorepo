@@ -19,6 +19,15 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[applyDefaults(config, schema)](./koatty_config.applydefaults.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [Config(key, type)](./koatty_config.config.md)
 
 
@@ -49,13 +58,55 @@ Indicates that an decorated configuration as a property.
 </td></tr>
 <tr><td>
 
-[LoadConfigs(loadPath, baseDir, pattern, ignore)](./koatty_config.loadconfigs.md)
+[LoadConfigs(loadPath, baseDir, pattern, ignore, schema)](./koatty_config.loadconfigs.md)
 
 
 </td><td>
 
 LoadConfigs
 
+
+
+</td></tr>
+<tr><td>
+
+[validateConfig(config, schema)](./koatty_config.validateconfig.md)
+
+
+</td><td>
+
+
+</td></tr>
+</tbody></table>
+
+## Interfaces
+
+<table><thead><tr><th>
+
+Interface
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[ValidationResult](./koatty_config.validationresult.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[ValidationSchema](./koatty_config.validationschema.md)
+
+
+</td><td>
 
 
 </td></tr>

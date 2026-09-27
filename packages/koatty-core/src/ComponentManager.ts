@@ -226,6 +226,14 @@ export class ComponentManager {
   }
 
   private registerComponentEvents(name: string, meta: ComponentMeta): void {
+    // idempotency guard: registering the same component twice would double-bind
+    // every event handler (and thus double-execute run())
+    if (this.registeredEvents.has(`${name}:__registered__`)) {
+      Logger.Debug(`Component ${name} events already registered, skipping`);
+      return;
+    }
+    this.registeredEvents.add(`${name}:__registered__`);
+
     // Get or create instance if not already set
     if (!meta.instance && meta.target) {
       meta.instance = IOC.getInsByClass(meta.target);
@@ -341,29 +349,13 @@ export class ComponentManager {
       const meta = this.userComponents.get(name);
       if (!meta) continue;
 
-      // 注册事件（包括 run 方法的默认绑定）
+      // Register event bindings. Components whose `run()` is not marked with
+      // @OnEvent get it auto-bound to `appReady` here (COR-01: `run()` must
+      // execute exactly once — direct invocation at load time was removed).
+      // Plugins that genuinely need to run during loading should be
+      // explicitly marked with `@OnEvent(AppEvent.loadComponent)`.
       this.registerComponentEvents(name, meta);
-
-      // 检查是否有需要手动执行的初始化逻辑
-      // 如果组件只有 @OnEvent 绑定，不需要额外调用 run
-      // 如果组件有 run 方法，已经被 registerComponentEvents 自动绑定到 appReady
-      const hasEventBindings = Object.keys(meta.events).length > 0;
-      const hasRunMethod = Helper.isFunction(meta.instance.run);
-
-      if (!hasEventBindings && hasRunMethod) {
-        try {
-          Logger.Log('Koatty', '', `Loading user component: ${name}`);
-          await meta.instance.run(meta.options, this.app);
-          loaded.push(name);
-          Logger.Log('Koatty', '', `✓ User component ${name} loaded`);
-        } catch (error) {
-          Logger.Error(`Failed to load user component ${name}:`, error);
-          throw error;
-        }
-      } else if (hasEventBindings) {
-        // 有事件绑定，自动处理
-        loaded.push(name);
-      }
+      loaded.push(name);
     }
 
     Logger.Log('Koatty', '', `============ Loaded ${loaded.length} User Components ============`);

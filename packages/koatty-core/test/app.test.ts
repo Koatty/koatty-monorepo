@@ -451,21 +451,29 @@ describe("App", () => {
     });
 
     test("captureError - handles EADDRINUSE error", () => {
-      const testApp = new App();
-      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called');
-      });
-      
-      // Create EADDRINUSE error
-      const addrInUseError = new Error("EADDRINUSE: address already in use");
-      
-      expect(() => {
-        process.emit('uncaughtException', addrInUseError);
-      }).toThrow('process.exit called');
-      
-      spy.mockRestore();
-      exitSpy.mockRestore();
+      // fake timers: Logger.Fatal schedules `setImmediate(() => exit(1))`;
+      // without fake timers that immediate fires after the spy is restored
+      // and kills the whole jest worker
+      jest.useFakeTimers();
+      try {
+        const testApp = new App();
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
+          throw new Error('process.exit called');
+        });
+
+        // Create EADDRINUSE error
+        const addrInUseError = new Error("EADDRINUSE: address already in use");
+
+        expect(() => {
+          process.emit('uncaughtException', addrInUseError);
+        }).toThrow('process.exit called');
+
+        spy.mockRestore();
+        exitSpy.mockRestore();
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

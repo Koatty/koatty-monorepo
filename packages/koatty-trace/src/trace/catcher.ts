@@ -46,8 +46,13 @@ export function catcher<T extends Exception>(
       setMessage(sanitizedMessage).setSpan(span).setStack(stack).handler(ctx);
   }
   // 执行自定义全局异常处理
-  const ins: Exception = IOCContainer.getInsByClass(ext.globalErrorHandler,
-    [sanitizedMessage, code, status, stack, span])
+  // guard: `globalErrorHandler` may be undefined (bare Koa without an
+  // ExceptionHandler component); getInsByClass throws on non-class input
+  let ins: Exception | undefined;
+  if (ext.globalErrorHandler && Helper.isClass(ext.globalErrorHandler)) {
+    ins = IOCContainer.getInsByClass(ext.globalErrorHandler,
+      [sanitizedMessage, code, status, stack, span]);
+  }
   if (Helper.isFunction(ins?.handler)) {
     return ins.handler(ctx);
   }

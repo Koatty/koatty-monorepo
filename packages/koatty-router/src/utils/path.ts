@@ -30,21 +30,36 @@ export function parsePath(opath: string): string {
 }
 
 /**
- * @description: Asynchronously delete multiple files based on the given file paths
+ * Uploaded file descriptor produced by formidable.
+ * `multiples: false` yields single objects, `multiples: true` yields arrays;
+ * formidable v3 uses `filepath`, older shapes may expose `path` (SEC-05).
+ */
+type FormFile = { filepath?: string; path?: string };
+
+/**
+ * @description: Asynchronously delete uploaded temporary files.
+ * Accepts both the flat `{ field: file }` and the multiples
+ * `{ field: file[] }` shapes, so temp files are never leaked.
  * @param {Record} files
- * @param {*} param2
  * @return {*}
  */
-export async function deleteFiles(files: Record<string, { path: string }>) {
-  const deletePromises = Object.keys(files).map(async (key) => {
-    try {
-      const filePath = files[key].path;
-      await fsPromise.access(filePath);
-      await fsPromise.unlink(filePath);
-    } catch (error) {
-      logger.Error(error);
-    }
-  });
+export async function deleteFiles(files: Record<string, FormFile | FormFile[]>) {
+  const list: FormFile[] = Object.values(files ?? {})
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((f): f is FormFile => !!f && typeof f === 'object');
 
-  return Promise.all(deletePromises);
+  await Promise.all(list.map(async (file) => {
+    const filePath = file.filepath ?? file.path;
+    if (!filePath) {
+      return;
+    }
+    try {
+      await fsPromise.unlink(filePath);
+    } catch (error: any) {
+      // already gone is fine; anything else is a real cleanup failure
+      if (error?.code !== 'ENOENT') {
+        logger.Error(error);
+      }
+    }
+  }));
 };

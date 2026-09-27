@@ -8,7 +8,6 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { DefaultLogger as Logger } from "koatty_logger";
 import { KoattyContext } from "koatty_core";
 import { PayloadOptions } from "../interface";
 import { XMLParser } from "fast-xml-parser";
@@ -28,9 +27,14 @@ const xmlParser = new XMLParser({
 
 /**
  * Parse XML payload from request body
+ *
+ * Fail-closed (SEC-02 / ADR-101): parse failures throw an Exception with
+ * HTTP status 400. The legacy fallback remains available via
+ * `onParseError: 'empty'`.
+ *
  * @param ctx KoattyContext instance
  * @param opts Payload parsing options
- * @returns {Promise<Record<string, any>>} Parsed XML object or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed XML object
  */
 export async function parseXml(ctx: KoattyContext, opts: PayloadOptions) {
   const str = await parseText(ctx, opts);
@@ -42,9 +46,10 @@ export async function parseXml(ctx: KoattyContext, opts: PayloadOptions) {
       ? parsed
       : { value: parsed };
   } catch (error) {
-    Logger.Error(error);
-
-    return {};
+    if (resolveOnParseError(ctx, opts) === 'empty') {
+      return emptyFallback('malformed XML body', error);
+    }
+    throw payloadParseError('malformed XML body', 400, error);
   }
 }
 

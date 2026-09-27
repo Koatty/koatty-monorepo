@@ -9,7 +9,6 @@
  */
 import { KoattyContext, KoattyNext } from "koatty_core";
 import { Helper } from "koatty_lib";
-import { DefaultLogger as Logger } from "koatty_logger";
 import {
   cacheManager,
   DEFAULT_ENCODING, DEFAULT_LIMIT, IDENTITY_ENCODING, ParserFunction,
@@ -157,26 +156,24 @@ export function bodyParser(ctx: KoattyContext, options?: PayloadOptions): any {
 
 /**
  * Internal: parse body and store in WeakMap cache.
+ *
+ * Parse errors propagate to the caller (fail-closed, SEC-02 / ADR-101):
+ * parsers throw an Exception carrying the HTTP status (400/413/415) unless
+ * the legacy `onParseError: 'empty'` fallback is selected, in which case the
+ * parsers themselves resolve to `{}`. Only successful parses are cached.
  * @internal
  */
 async function parseBodyAndCache(ctx: KoattyContext, options?: PayloadOptions): Promise<any> {
-  try {
-    // Double-check after async boundary (prevents duplicate parsing under concurrency)
-    const cached = bodyCache.get(ctx);
-    if (cached !== undefined) return cached;
+  // Double-check after async boundary (prevents duplicate parsing under concurrency)
+  const cached = bodyCache.get(ctx);
+  if (cached !== undefined) return cached;
 
-    const opts = cacheManager.getMergedOptions(options);
-    const body = await parseBody(ctx, opts);
-    bodyCache.set(ctx, body);
-    // Backward compatibility: also write to ctx metadata for direct getMetaData('_body') callers
-    try { ctx.setMetaData("_body", body); } catch { /* ignore if metadata not initialized */ }
-    return body;
-  } catch (err) {
-    Logger.Error(err);
-    const empty = {};
-    bodyCache.set(ctx, empty);
-    return empty;
-  }
+  const opts = cacheManager.getMergedOptions(options);
+  const body = await parseBody(ctx, opts);
+  bodyCache.set(ctx, body);
+  // Backward compatibility: also write to ctx metadata for direct getMetaData('_body') callers
+  try { ctx.setMetaData("_body", body); } catch { /* ignore if metadata not initialized */ }
+  return body;
 }
 
 /**

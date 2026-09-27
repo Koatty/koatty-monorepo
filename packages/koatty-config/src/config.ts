@@ -7,7 +7,9 @@
  */
 import { IOCContainer, TAGGED_ARGS } from "koatty_container";
 import * as Helper from "koatty_lib";
+import { resolveProfileName } from "koatty_core";
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
+import { ValidationSchema, validateConfig } from "./validator";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -78,45 +80,87 @@ const rc = require("run-con");
  * @param {string} [baseDir]
  * @param {string[]} [pattern]
  * @param {string[]} [ignore]
- * @returns {*}  
+ * @param {ValidationSchema} [schema] Optional configuration schema. When provided,
+ *        defaults from the schema are applied first, then the loaded config is
+ *        validated. Validation failure throws `Configuration validation failed`
+ *        with one line per offending field path (COR-08).
+ * @returns {*}
  */
-export function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[]) {
+export function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[], schema?: ValidationSchema) {
   const conf: Record<string, any> = {};
   const env = process.env.KOATTY_ENV || process.env.NODE_ENV || "";
 
   Load(loadPath, baseDir, (name: string, path: string, exp: any) => {
     let tempConf: any = {};
+    // deep-clone: parseEnv must never mutate the required module's exports,
+    // otherwise a second LoadConfigs call sees pre-interpolated values (COR-08)
+    const loaded = Helper.isObject(exp) ? Helper.clone(exp, true) : exp;
     if (name.includes("_")) {
       const t = name.slice(name.lastIndexOf("_") + 1);
       if (t && env.startsWith(t)) {
         name = name.replace(`_${t}`, "");
-        tempConf = rc(name, { [name]: parseEnv(exp) });
+        tempConf = rc(name, { [name]: parseEnv(loaded) });
       }
     } else {
-      tempConf = rc(name, { [name]: parseEnv(exp) });
+      tempConf = rc(name, { [name]: parseEnv(loaded) });
     }
     conf[name] = tempConf[name];
   }, pattern, ignore);
 
   decryptConfigValues(conf);
+
+  if (schema && Helper.isObject(schema)) {
+    // apply schema defaults before validation
+    for (const [key, rule] of Object.entries(schema)) {
+      if (rule && rule.default !== undefined && conf[key] === undefined) {
+        conf[key] = rule.default;
+      }
+    }
+    const result = validateConfig(conf, schema);
+    if (!result.valid) {
+      const details = result.errors.map(e => `  - ${e.path}: ${e.message}`).join("\n");
+      throw new Error(`Configuration validation failed:\n${details}`);
+    }
+  }
+
   return conf;
 }
 
 /**
- * parse process.env to replace ${}
+ * Environment variable reference: `${VAR}` or `${VAR:-default}`.
+ * Both whole-string references and embedded interpolation are supported.
+ */
+const ENV_VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g;
+
+/**
+ * Replace `${VAR}` / `${VAR:-default}` references in a string with environment
+ * values. When the variable is undefined and has no default:
+ * - strict profile (production): throws (fail-closed, COR-06/C-6);
+ * - otherwise: replaced with an empty string (legacy behavior).
  *
  * @param {*} conf
- * @returns {*}  
+ * @returns {*}
  */
 function parseEnv(conf: any) {
   if (!Helper.isObject(conf)) return conf;
+  const isStrict = resolveProfileName() === "strict";
   Object.keys(conf).forEach(key => {
     const element = conf[key];
     if (Helper.isObject(element)) {
       conf[key] = parseEnv(element);
-    } else if (Helper.isString(element) && element.startsWith("${") && element.endsWith("}")) {
-      const value = process.env[element.slice(2, -1)] || "";
-      conf[key] = Helper.isTrueEmpty(value) ? "" : value;
+    } else if (Helper.isString(element) && element.includes("${")) {
+      conf[key] = element.replace(ENV_VAR_RE, (match: string, name: string, def?: string) => {
+        const value = process.env[name];
+        if (value !== undefined && value !== "") return value;
+        if (def !== undefined) return def;
+        if (value !== undefined) return value;
+        if (isStrict) {
+          throw new Error(
+            `Configuration environment variable '${name}' is not set and has no default value (referenced by '${match}')`
+          );
+        }
+        return "";
+      });
     }
   });
   return conf;

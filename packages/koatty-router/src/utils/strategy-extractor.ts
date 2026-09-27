@@ -777,7 +777,7 @@ export class StrategyHandlerFactory {
           return validateParam(app, ctx, value, paramOptions, v.compiledValidator, v.compiledTypeConverter);
         }
 
-        let rawValue = sources ? extractValueFromSource(sources, v) : undefined;
+        const rawValue = sources ? extractValueFromSource(sources, v) : undefined;
         if (rawValue === undefined && v.defaultValue !== undefined) {
           return v.defaultValue;
         }

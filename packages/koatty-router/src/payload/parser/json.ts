@@ -8,17 +8,22 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { DefaultLogger as Logger } from "koatty_logger";
 import { KoattyContext } from "koatty_core";
 import { PayloadOptions } from "../interface";
+import { emptyFallback, payloadParseError, resolveOnParseError } from "../error_policy";
 import { parseText } from "./text";
 
 
 /**
  * Parse request body as JSON
+ *
+ * Fail-closed (SEC-02 / ADR-101): malformed JSON throws an Exception with
+ * HTTP status 400 instead of silently resolving to `{}`. The legacy fallback
+ * remains available via `onParseError: 'empty'`.
+ *
  * @param {KoattyContext} ctx - Koatty context object
  * @param {PayloadOptions} opts - Payload parsing options
- * @returns {Promise<Record<string, any>>} Parsed JSON object, or empty object if parsing fails
+ * @returns {Promise<Record<string, any>>} Parsed JSON object
  */
 export async function parseJson(ctx: KoattyContext, opts: PayloadOptions) {
   const str = await parseText(ctx, opts);
@@ -31,8 +36,10 @@ export async function parseJson(ctx: KoattyContext, opts: PayloadOptions) {
       ? parsed
       : { value: parsed };
   } catch (error) {
-    Logger.Error(error);
-
-    return {};
+    if (resolveOnParseError(ctx, opts) === 'empty') {
+      return emptyFallback('malformed JSON body', error);
+    }
+    // message must not contain request body fragments
+    throw payloadParseError('malformed JSON body', 400, error);
   }
 }

@@ -265,9 +265,77 @@ function generateMarkdownMatrix(matrix) {
   return content;
 }
 
+/**
+ * Assert that every submodule declared in .gitmodules is actually checked out
+ * and testable (Phase A / QA-02): each path must contain a package.json with a
+ * `test` script, otherwise turbo silently treats the package as "no tasks"
+ * and CI passes without running any tests. Exits 1 on the first problem.
+ */
+function assertSubmodules() {
+  console.log(colors.cyan('\n🔍 Asserting submodules are checked out and testable...\n'));
+
+  // documentation-only submodules: no code, intentionally no test script
+  const DOCS_ONLY_SUBMODULES = new Set(['packages/koatty-awesome']);
+
+  const gitmodulesPath = path.join(rootDir, '.gitmodules');
+  if (!fs.existsSync(gitmodulesPath)) {
+    console.log(colors.yellow('⚠️  No .gitmodules found, nothing to assert\n'));
+    return true;
+  }
+
+  const gitmodules = fs.readFileSync(gitmodulesPath, 'utf8');
+  const paths = [];
+  for (const match of gitmodules.matchAll(/path\s*=\s*(.+)/g)) {
+    paths.push(match[1].trim());
+  }
+
+  const problems = [];
+  for (const subPath of paths) {
+    if (DOCS_ONLY_SUBMODULES.has(subPath)) {
+      continue;
+    }
+    const pkgPath = path.join(rootDir, subPath, 'package.json');
+    if (!fs.existsSync(pkgPath)) {
+      problems.push(`${subPath}: package.json missing (submodule not checked out?)`);
+      continue;
+    }
+    let pkg;
+    try {
+      pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    } catch (e) {
+      problems.push(`${subPath}: package.json is not valid JSON (${e.message})`);
+      continue;
+    }
+    if (!pkg.scripts || !pkg.scripts.test) {
+      problems.push(`${subPath}: package.json has no "test" script (turbo would skip it)`);
+    }
+  }
+
+  if (problems.length > 0) {
+    console.log(colors.red('❌ Submodule assertion failed:\n'));
+    problems.forEach((problem) => {
+      console.log(colors.red(`  - ${problem}`));
+    });
+    console.log();
+    return false;
+  }
+
+  console.log(colors.green(`✅ All ${paths.length} submodules are checked out and have a test script\n`));
+  return true;
+}
+
 async function main() {
+  const args = process.argv.slice(2);
+  const assertOnly = args.includes('--assert-submodules');
+
   console.log(colors.bold.cyan('\n🩺 Koatty Doctor - Health Check Tool\n'));
   console.log(colors.gray('='.repeat(50)) + '\n');
+
+  // standalone CI gate: verify submodules only, exit non-zero on failure
+  if (assertOnly) {
+    const ok = assertSubmodules();
+    process.exit(ok ? 0 : 1);
+  }
 
   const checks = [
     checkEngineCompatibility,
@@ -312,5 +380,6 @@ module.exports = {
   checkVersionConsistency,
   checkEngineCompatibility,
   checkWorkspaceDeps,
-  generateCompatibilityMatrix
+  generateCompatibilityMatrix,
+  assertSubmodules
 };

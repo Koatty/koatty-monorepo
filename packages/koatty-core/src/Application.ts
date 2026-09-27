@@ -19,6 +19,7 @@ import {
 } from "./IApplication";
 import { KoattyContext, RequestType, ResponseType } from "./IContext";
 import { KoattyMetadata } from "./Metadata";
+import { profileSummary, resolveProfile, SecurityConfigOptions, SecurityProfile } from "./security/profile";
 import { bindProcessEvent, isPrevent, isPrototypePollution, parseExp } from "./Utils";
 
 /**
@@ -100,6 +101,13 @@ export class Koatty extends Koa implements KoattyApplication {
    * Set to true after bootstrap completes (all components loaded).
    */
   private _ready: boolean = false;
+
+  /**
+   * Effective security profile (ADR-102). Resolved lazily on first access so
+   * that `config/security.ts` overrides (loaded during bootstrap) are taken
+   * into account. Frozen after resolution; never mutate it at runtime.
+   */
+  private _security?: SecurityProfile;
 
   /**
    * Protected constructor for the Application class.
@@ -445,6 +453,27 @@ export class Koatty extends Koa implements KoattyApplication {
    */
   get isReady(): boolean {
     return this._ready;
+  }
+
+  /**
+   * Effective security profile (ADR-102).
+   *
+   * Selection rules:
+   * - `config/security.ts` `profile` field wins over environment;
+   * - otherwise NODE_ENV=production -> 'strict', development|test -> 'development',
+   *   unset -> 'standard' (never 'development' by accident);
+   * - `legacyDefaults: true` rolls all 4.3.0 tightened defaults back and prints
+   *   a WARN listing every reverted item (removed in 5.0.0).
+   *
+   * The profile is resolved once, frozen, and summarized in the startup log.
+   */
+  get security(): SecurityProfile {
+    if (this._security) return this._security;
+    const secConfig = (this.config('security') || undefined) as SecurityConfigOptions | undefined;
+    const profile = resolveProfile(secConfig);
+    this._security = profile;
+    if (!this.silent) Logger.Log('Koatty', '[Security]', profileSummary(profile));
+    return profile;
   }
 
   /**

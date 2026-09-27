@@ -85,14 +85,14 @@ pnpm lint
 
 ```bash
 # 运行基础应用示例
-cd examples/basic-app
+cd packages/koatty/examples/basic-app
 pnpm dev
 
 # 或使用VS Code调试 (推荐)
 # 按F5，选择 "Koatty Basic App"
 ```
 
-查看更多示例: [examples/README.md](examples/README.md)
+查看更多示例: [packages/koatty/examples/README.md](packages/koatty/examples/README.md)
 
 ## 项目结构
 

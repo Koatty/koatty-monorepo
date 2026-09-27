@@ -286,6 +286,31 @@ Router instance - Single protocol: KoattyRouter instance - Multi-protocol: Recor
 </td></tr>
 <tr><td>
 
+[security](./koatty_core.koatty.security.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+[SecurityProfile](./koatty_core.securityprofile.md)
+
+
+</td><td>
+
+Effective security profile (ADR-102).
+
+Selection rules: - `config/security.ts` `profile` field wins over environment; - otherwise NODE\_ENV=production -<!-- -->&gt; 'strict', development\|test -<!-- -->&gt; 'development', unset -<!-- -->&gt; 'standard' (never 'development' by accident); - `legacyDefaults: true` rolls all 4.3.0 tightened defaults back and prints a WARN listing every reverted item (removed in 5.0.0).
+
+The profile is resolved once, frozen, and summarized in the startup log.
+
+
+</td></tr>
+<tr><td>
+
 [server](./koatty_core.koatty.server.md)
 
 

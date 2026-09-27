@@ -465,6 +465,17 @@ Plugin decorator for registering plugin components. The decorated class must hav
 </td></tr>
 <tr><td>
 
+[profileSummary(profile)](./koatty_core.profilesummary.md)
+
+
+</td><td>
+
+Build a one-line startup summary of the effective profile, e.g.: `[Security] profile=strict payload.limit=1mb payload.onParseError=reject graphql.playground=off ...`
+
+
+</td></tr>
+<tr><td>
+
 [protocolMiddleware(protocol, middleware)](./koatty_core.protocolmiddleware.md)
 
 
@@ -482,6 +493,28 @@ Wrap middleware to only execute on specific protocol(s)
 </td><td>
 
 Create a middleware that executes different handlers based on protocol
+
+
+</td></tr>
+<tr><td>
+
+[resolveProfile(options, env)](./koatty_core.resolveprofile.md)
+
+
+</td><td>
+
+Resolve the final effective security profile.
+
+
+</td></tr>
+<tr><td>
+
+[resolveProfileName(env)](./koatty_core.resolveprofilename.md)
+
+
+</td><td>
+
+Resolve the profile name from environment. Selection rules (ADR-102): - NODE\_ENV/KOATTY\_ENV = production -<!-- -->&gt; strict - NODE\_ENV/KOATTY\_ENV = development\|test -<!-- -->&gt; development - unset or anything else -<!-- -->&gt; standard (NOT development, to avoid "forgot to set the env var = everything open")
 
 
 </td></tr>
@@ -785,6 +818,28 @@ RouterImplementation
 </td></tr>
 <tr><td>
 
+[SecurityConfigOptions](./koatty_core.securityconfigoptions.md)
+
+
+</td><td>
+
+User-provided security config (from `config/security.ts`<!-- -->). Every field is optional; unspecified fields inherit the profile value.
+
+
+</td></tr>
+<tr><td>
+
+[SecurityProfile](./koatty_core.securityprofile.md)
+
+
+</td><td>
+
+Security profile options that can be overridden via `config/security.ts`<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [WebSocketContext](./koatty_core.websocketcontext.md)
 
 
@@ -842,6 +897,17 @@ Description
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[LEGACY\_DEFAULTS](./koatty_core.legacy_defaults.md)
+
+
+</td><td>
+
+Pre-4.3.0 defaults, applied when `security.legacyDefaults: true` (ADR-103). Each entry records the reverted item for the startup WARN summary.
 
 
 </td></tr>
@@ -1023,6 +1089,17 @@ KoattyNext
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[ProfileName](./koatty_core.profilename.md)
+
+
+</td><td>
+
+Security profile name. - strict: production default, fail-closed everywhere - standard: balanced defaults - development: relaxed limits for local development
 
 
 </td></tr>
