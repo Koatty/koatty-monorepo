@@ -15,6 +15,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # NPM_TOKEN lives in the GitHub environment of the same name
+    environment: NPM_TOKEN
     outputs:
       published: ${{ steps.changesets.outputs.published }}
       publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
@@ -70,6 +72,8 @@ jobs:
     name: Sync koatty to standalone repo
     needs: release
     runs-on: ubuntu-latest
+    # SYNC_TOKEN lives in the GitHub environment of the same name
+    environment: SYNC_TOKEN
     # Only run when packages were actually published and koatty is among them
     if: |
       needs.release.outputs.published == 'true' &&
