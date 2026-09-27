@@ -63,14 +63,14 @@
 - `packages/koatty-ai`：untrack 147 个编译产物（QA-03）；README examples 路径修正（QA-05）；`koatty-doc` 补 test 脚本。
 - 新增 `SecurityProfile`（ADR-102）：strict/standard/development + `legacyDefaults` 回退 + `app.security` 只读暴露 + 启动摘要。
 
-## 五、新增回归测试清单（ADR-104，共 96 例）
+## 五、新增回归测试清单（ADR-104，共 100 例）
 
 | 文件 | 覆盖 |
 |---|---|
-| `koatty-core/test/security/B-0.security-profile.test.ts` | 画像选择、legacyDefaults、冻结、app.security（18） |
+| `koatty-core/test/security/B-0.security-profile.test.ts` | 画像选择、legacyDefaults（含启动 WARN 逐项输出验证）、冻结、app.security（19） |
 | `koatty-core/test/regression/COR-01.plugin-run-once.test.ts` | 插件 run() 恰好一次（3） |
 | `koatty-container/test/regression/SEC-01.aop-fail-closed.test.ts` | AOP fail-closed、onError、profile、TC39（7） |
-| `koatty-router/test/regression/SEC-02.parse-fail-closed.test.ts` | 400/413/415、上传限制、临时清理、safeFilename（18） |
+| `koatty-router/test/regression/SEC-02.parse-fail-closed.test.ts` | 400/413/415、上传限制、临时清理、safeFilename、画像化 body limit（21） |
 | `koatty-router/test/regression/SEC-04.graphql-security.test.ts` + `SEC-04b` | 内置深度限制/环检测、introspection、playground 画像、复杂度缺包失败（11） |
 | `koatty-validation/test/regression/SEC-03.dto-whitelist.test.ts` | 白名单、strict 拒绝、原型污染（5） |
 | `koatty-lib/test/regression/SEC-09.lib-hardening.test.ts` | escapeHtml/unescapeHtml、rand、ReDoS 基准（22） |
