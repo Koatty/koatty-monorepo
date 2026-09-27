@@ -41,3 +41,4 @@ reports/
 **/.opencode/.evolution_mode_active
 
 .opencode/
+*.tsbuildinfo
