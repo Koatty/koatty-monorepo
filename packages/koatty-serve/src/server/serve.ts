@@ -413,19 +413,39 @@ export class SingleProtocolServer implements KoattyServer {
     return async (ctx: any, next: () => Promise<void>) => {
       const path = ctx.path || ctx.url;
       
-      // Health check endpoint
+      // Liveness endpoint (SEC-06 / B-6): minimal body only — no memory,
+      // CPU or connection details
       if (path === '/health' || path === '/healthz') {
         const health = this.getHealthStatus();
         ctx.status = health.status === 'healthy' ? 200 : 503;
         ctx.type = 'application/json';
-        ctx.body = health;
+        ctx.body = { status: health.status === 'healthy' ? 'ok' : 'unhealthy' };
         return;
       }
       
-      // Metrics endpoint
+      // Metrics endpoint (SEC-06 / B-6): exposure governed by the security
+      // profile; internal policy restricts to loopback/RFC1918 or ops token
       if (path === '/metrics') {
+        const policy = (this.app as any)?.security?.ops?.exposeMetrics ?? 'internal';
+        if (policy === 'off') {
+          ctx.status = 404;
+          ctx.body = { message: 'Not Found' };
+          return;
+        }
+        if (policy !== 'public') {
+          const ip = String(ctx.req?.socket?.remoteAddress || '');
+          const { isTrustedRemoteIp } = await import('../middleware/healthCheck');
+          const auth = String(ctx.headers?.authorization || '');
+          const token = (this.app as any)?.config?.('ops')?.token;
+          const trusted = isTrustedRemoteIp(ip) || (token && auth === `Bearer ${token}`);
+          if (!trusted) {
+            ctx.status = 403;
+            ctx.body = { message: 'Forbidden' };
+            return;
+          }
+        }
         ctx.status = 200;
-        ctx.type = 'text/plain; version=0.0.4';
+        ctx.type = 'text/plain; version=0.0.4; charset=utf-8';
         ctx.body = this.getMetrics();
         return;
       }

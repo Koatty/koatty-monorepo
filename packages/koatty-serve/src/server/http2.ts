@@ -13,7 +13,8 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
 import { Http2ConnectionPoolManager } from "../pools/http2";
 import { ConfigHelper, Http2ServerOptions, ListeningOptions, SSL2Config } from "../config/config";
-import { createHealthCheckMiddleware } from "../middleware/healthCheck";
+import { createHealthCheckMiddleware, resolveOpsConfig } from "../middleware/healthCheck";
+import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 /**
  * HTTP/2 Server implementation using template method pattern
@@ -43,12 +44,19 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
    */
   protected createProtocolServer(): void {
     const http2Options = this.createHTTP2Options();
-    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
+    const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
+    const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
     
     this.server = createSecureServer(http2Options, async (req, res) => {
       try {
         await healthMiddleware(req, res, async () => {
-          this.app.callback()(req, res);
+          if (rateLimitMiddleware) {
+            await rateLimitMiddleware(req, res, async () => {
+              this.app.callback()(req, res);
+            });
+          } else {
+            this.app.callback()(req, res);
+          }
           
           // 请求指标由连接池自动处理
         });

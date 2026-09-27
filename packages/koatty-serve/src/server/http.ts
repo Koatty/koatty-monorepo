@@ -12,7 +12,8 @@ import { CreateTerminus } from "../utils/terminus";
 import { BaseServer, ConfigChangeAnalysis } from "./base";
 import { HttpConnectionPoolManager } from "../pools/http";
 import { ConfigHelper, HttpServerOptions, ListeningOptions } from "../config/config";
-import { createHealthCheckMiddleware } from "../middleware/healthCheck";
+import { createHealthCheckMiddleware, resolveOpsConfig } from "../middleware/healthCheck";
+import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 
 /**
@@ -42,7 +43,8 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
    * 创建HTTP服务器实例
    */
   protected createProtocolServer(): void {
-    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
+    const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
+    const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
     
     this.server = createServer(async (req, res) => {
       try {
@@ -57,7 +59,13 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
           }
         });
         await healthMiddleware(req, res, async () => {
-          this.app.callback()(req, res);
+          if (rateLimitMiddleware) {
+            await rateLimitMiddleware(req, res, async () => {
+              this.app.callback()(req, res);
+            });
+          } else {
+            this.app.callback()(req, res);
+          }
         });
       } catch (error) {
         this.logger.error('Request handling error', {}, error);

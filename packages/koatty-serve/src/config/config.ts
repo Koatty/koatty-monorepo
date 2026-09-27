@@ -27,6 +27,7 @@ export interface BaseSSLConfig {
   ciphers?: string;                         // Allowed cipher suites
   honorCipherOrder?: boolean;               // Honor cipher order
   secureProtocol?: string;                  // SSL/TLS protocol version
+  minVersion?: 'TLSv1.2' | 'TLSv1.3';       // Minimum TLS version (SEC-12, B-12)
 }
 
 /**

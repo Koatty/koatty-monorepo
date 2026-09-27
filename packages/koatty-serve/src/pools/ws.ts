@@ -289,6 +289,10 @@ export class WebSocketConnectionPoolManager extends ConnectionPoolManager<WS.Web
     this.heartbeatInterval = setInterval(() => {
       this.cleanupDeadConnections();
     }, heartbeatInterval);
+
+    // COR-14: never hold the process open just for heartbeat timers
+    this.pingInterval.unref();
+    this.heartbeatInterval.unref();
   }
 
   /**
@@ -422,6 +426,16 @@ export class WebSocketConnectionPoolManager extends ConnectionPoolManager<WS.Web
   }
 
   async destroy(): Promise<void> {
+    // COR-14: stop heartbeat timers, otherwise they keep firing (and the
+    // keep-alive pings keep sockets alive) after the pool is destroyed
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = undefined;
+    }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = undefined;
+    }
     // 调用父类销毁方法（会清理所有TimerManager的定时器）
     await super.destroy();
   }

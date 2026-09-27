@@ -208,14 +208,12 @@ export class HttpsConnectionPoolManager extends ConnectionPoolManager<TLSSocket>
       score += 40;
     }
     
-    // 协议版本检查 (20分)
+    // 协议版本检查 (20分) — SEC-12: TLSv1.0/1.1 earn no score at all
     const protocol = connection.getProtocol();
     if (protocol === 'TLSv1.3') {
       score += 20;
     } else if (protocol === 'TLSv1.2') {
       score += 15;
-    } else if (protocol === 'TLSv1.1') {
-      score += 10;
     }
     
     // 加密套件检查 (20分)

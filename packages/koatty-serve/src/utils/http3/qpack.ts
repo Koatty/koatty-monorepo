@@ -242,7 +242,7 @@ function huffmanDecode(data: Buffer): Buffer {
   let nodeIdx = 0;
 
   for (let byteIdx = 0; byteIdx < data.length; byteIdx++) {
-    let byte = data[byteIdx];
+    const byte = data[byteIdx];
     for (let bit = 7; bit >= 0; bit--) {
       const b = (byte >> bit) & 1;
       const childIdx = b === 0 ? tree[nodeIdx].left : tree[nodeIdx].right;

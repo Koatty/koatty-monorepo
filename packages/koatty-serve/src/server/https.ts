@@ -14,7 +14,8 @@ import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
 import { HttpsConnectionPoolManager } from "../pools/https";
 import { ConfigHelper, HttpsServerOptions, ListeningOptions, SSL1Config } from "../config/config";
-import { createHealthCheckMiddleware } from "../middleware/healthCheck";
+import { createHealthCheckMiddleware, resolveOpsConfig } from "../middleware/healthCheck";
+import { createRateLimitMiddleware } from "../middleware/rateLimit";
 
 /**
  * HTTPS Server implementation using template method pattern
@@ -44,13 +45,19 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
    */
   protected createProtocolServer(): void {
     const sslOptions = this.createSSLOptions();
-    const healthMiddleware = createHealthCheckMiddleware(this.options.health);
+    const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
+    const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
     
     this.server = createServer(sslOptions, async (req, res) => {
       try {
         await healthMiddleware(req, res, async () => {
           const startTime = Date.now();
-          this.app.callback()(req, res);
+          const invokeApp = () => this.app.callback()(req, res);
+          if (rateLimitMiddleware) {
+            await rateLimitMiddleware(req, res, async () => { invokeApp(); });
+          } else {
+            invokeApp();
+          }
           
           // 记录请求指标
           res.on('finish', () => {
@@ -120,6 +127,27 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
   }
 
   /**
+   * Resolve the minimum TLS version (B-12 / SEC-12): explicit config wins,
+   * then the application security profile (`app.security.tls.minVersion`).
+   * The profile default is TLSv1.2 for every profile, so TLSv1.0/1.1 are
+   * never accepted unless a user explicitly opts in.
+   */
+  private resolveMinVersion(sslConfig: SSL1Config): 'TLSv1.2' | 'TLSv1.3' {
+    if (sslConfig.minVersion === 'TLSv1.2' || sslConfig.minVersion === 'TLSv1.3') {
+      return sslConfig.minVersion;
+    }
+    try {
+      const minVersion = (this.app as any)?.security?.tls?.minVersion;
+      if (minVersion === 'TLSv1.2' || minVersion === 'TLSv1.3') {
+        return minVersion;
+      }
+    } catch {
+      // profile not reachable; keep the safe default below
+    }
+    return 'TLSv1.2';
+  }
+
+  /**
    * 自动SSL配置
    */
   private createAutoSSLOptions(sslConfig: SSL1Config): ServerOptions {
@@ -132,7 +160,8 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
     
     const options: ServerOptions = {
       key: loadCertificate(keyPath, 'private key'),
-      cert: loadCertificate(certPath, 'certificate')
+      cert: loadCertificate(certPath, 'certificate'),
+      minVersion: this.resolveMinVersion(sslConfig)
     };
     
     // 在auto模式下也处理扩展配置选项
@@ -183,7 +212,8 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
       passphrase: sslConfig.passphrase,
       ciphers: sslConfig.ciphers,
       honorCipherOrder: sslConfig.honorCipherOrder,
-      secureProtocol: sslConfig.secureProtocol
+      secureProtocol: sslConfig.secureProtocol,
+      minVersion: this.resolveMinVersion(sslConfig)
     };
     
     if (caPath) {

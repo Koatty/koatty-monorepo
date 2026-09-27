@@ -22,6 +22,11 @@ import { ConfigHelper, ListeningOptions, WebSocketServerOptions } from "../confi
  * 继承BaseServer，只实现WebSocket特定的逻辑
  */
 export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketServer> {
+  private checkOriginEnabled = false;
+  private allowedOrigins: string[] = [];
+  private maxConnections = 0;
+  private maxBufferedAmount = 1024 * 1024;
+
   protected connectionPool!: WebSocketConnectionPoolManager;
   
   readonly httpServer!: HttpServer | HttpsServer;
@@ -55,11 +60,31 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
    * 创建WebSocket服务器实例
    */
   protected createProtocolServer(): void {
-    // 配置WebSocket服务器，使用noServer模式手动处理升级
+    // SEC-08 / B-8: hardened defaults, explicit config wins.
+    // - maxPayload defaults from the security profile (1MiB in strict);
+    // - perMessageDeflate defaults off (compression bombs / CPU amplification);
+    // - perMessageDeflate and protocol limits can still be set via wsOptions.
+    const wsProfile = ((this.app as any)?.security?.ws ?? {}) as { maxPayload?: number; checkOrigin?: boolean };
+    const wsConfig = (this.app as any)?.config?.('ws') ?? {};
     this.options.wsOptions = {
       ...this.options.wsOptions,
       noServer: true,
+      maxPayload: this.options.wsOptions?.maxPayload ?? wsProfile.maxPayload ?? 0,
+      perMessageDeflate: this.options.wsOptions?.perMessageDeflate ?? false,
     };
+
+    // Origin checking: enabled via security profile (`ws.checkOrigin`);
+    // allowed origins come from config/ws.ts `allowedOrigins` (glob-like
+    // patterns, `*` wildcards match one label: `*.example.com`)
+    this.checkOriginEnabled = wsProfile.checkOrigin === true;
+    this.allowedOrigins = Array.isArray(wsConfig.allowedOrigins)
+      ? wsConfig.allowedOrigins
+      : [];
+    this.maxConnections = Number(wsConfig.maxConnections) || 0;
+    if (this.checkOriginEnabled && this.allowedOrigins.length === 0) {
+      this.logger.warn('WebSocket checkOrigin is enabled but ws.allowedOrigins is empty; every upgrade will be rejected');
+    }
+    this.maxBufferedAmount = Number(wsConfig.maxBufferedAmount) || 1024 * 1024;
 
     this.server = new WS.WebSocketServer(this.options.wsOptions);
     
@@ -120,10 +145,68 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
   }
 
   /**
+   * Check the upgrade Origin header against `ws.allowedOrigins`
+   * (SEC-08). `*` allows any origin; patterns like `*.example.com` match
+   * one wildcard label. A missing or malformed Origin is rejected.
+   */
+  private isOriginAllowed(origin: unknown): boolean {
+    if (typeof origin !== 'string' || origin.length === 0 || origin.length > 256) {
+      return false;
+    }
+    if (this.allowedOrigins.includes('*')) {
+      return true;
+    }
+    let host = '';
+    try {
+      host = new URL(origin).host.toLowerCase();
+    } catch {
+      return false;
+    }
+    return this.allowedOrigins.some((pattern) => {
+      let normalized = String(pattern).toLowerCase();
+      // patterns may carry a scheme ('https://app.example.com'): compare hosts
+      if (normalized.includes('://')) {
+        try {
+          normalized = new URL(normalized).host;
+        } catch {
+          return false;
+        }
+      }
+      if (normalized.includes('*')) {
+        const escaped = normalized
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '[^.]+');
+        return new RegExp(`^${escaped}$`).test(host);
+      }
+      return host === normalized || host === normalized.replace(/:\d+$/, '');
+    });
+  }
+
+  /**
    * 设置WebSocket升级处理
    */
   private setupUpgradeHandling(): void {
     this.upgradeHandler = (request: any, socket: any, head: any) => {
+      // SEC-08: reject upgrades before completing the handshake
+      if (this.checkOriginEnabled && !this.isOriginAllowed(request?.headers?.origin)) {
+        this.logger.warn('WebSocket upgrade rejected: origin not allowed', {}, {
+          origin: String(request?.headers?.origin || ''),
+          remoteAddress: socket?.remoteAddress
+        });
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      if (this.maxConnections > 0 &&
+          this.connectionPool &&
+          this.connectionPool.getActiveConnectionCount() >= this.maxConnections) {
+        this.logger.warn('WebSocket upgrade rejected: connection limit reached', {}, {
+          maxConnections: this.maxConnections
+        });
+        socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       this.server.handleUpgrade(request, socket, head, (ws: WS.WebSocket) => {
         this.server.emit('connection', ws, request);
       });
@@ -246,6 +329,13 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
                 const sendData = typeof responseData === 'string' 
                   ? responseData 
                   : JSON.stringify(responseData);
+                // SEC-08: drop slow consumers instead of buffering without
+                // bounds (memory exhaustion via unacknowledged frames)
+                if ((ws as any).bufferedAmount > this.maxBufferedAmount) {
+                  this.logger.warn('WebSocket slow consumer detected, closing', {}, { connectionId });
+                  ws.close(1008, 'Slow consumer');
+                  return;
+                }
                 ws.send(sendData);
               } catch (error) {
                 this.logger.error('Error sending WebSocket response', {}, {
@@ -275,9 +365,10 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
         
         // 发送错误消息给客户端
         try {
+          // SEC-08: never echo internal error details to the client
           ws.send(JSON.stringify({
             error: 'Internal server error',
-            message: (error as Error).message
+            requestId: connectionId
           }));
         } catch (sendError) {
           this.logger.error('Error sending error message', {}, {
