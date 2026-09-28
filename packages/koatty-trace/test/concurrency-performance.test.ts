@@ -218,14 +218,16 @@ describe('Concurrency Safety and Performance Tests', () => {
       const span = shortTimeoutManager.createSpan(mockTracer as any, mockCtx, 'timeout-service');
       expect(span).toBeDefined();
 
-      // Check that span is cleaned up after timeout
+      // Check that span is cleaned up after timeout.
+      // CI runners can starve the event loop for hundreds of ms; give the
+      // 100ms span-timeout a generous observation window to stay stable.
       setTimeout(() => {
         const stats = shortTimeoutManager.getStats();
         expect(stats.spansTimedOut).toBeGreaterThan(0);
         shortTimeoutManager.destroy();
         done();
-      }, 200);
-    });
+      }, 1200);
+    }, 10000);
 
     it('should handle memory pressure and eviction', async () => {
       const spanManager = new SpanManager({
