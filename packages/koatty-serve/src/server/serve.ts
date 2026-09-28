@@ -203,9 +203,27 @@ export class SingleProtocolServer implements KoattyServer {
   }
 
   /**
+   * COR-03 (C-1): drain this instance before closing sockets.
+   *
+   * Delegates to the protocol server so its health middleware flips `/ready`
+   * to 503 (load balancer stops routing here) while in-flight requests are
+   * still served until `Stop()` runs.
+   */
+  beginDrain(): void {
+    if (this.status === 503) return;
+    this.status = 503;
+    const inner = this.serverInstance as any;
+    if (inner && typeof inner.beginDrain === 'function') {
+      inner.beginDrain();
+    }
+  }
+
+  /**
    * Stop server
    */
   Stop(callback?: () => void): void {
+    // COR-03: /ready must be 503 before the listeners are closed
+    this.beginDrain();
     // Simple stop log - no traceId needed
     this.logger.info('Server stopping', {}, {
       protocol: this.options.protocol,

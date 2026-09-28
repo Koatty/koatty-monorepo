@@ -9,7 +9,7 @@ import { createServer, Server } from "http";
 import { KoattyApplication, NativeServer } from "koatty_core";
 import { generateTraceId } from "../utils/logger";
 import { CreateTerminus } from "../utils/terminus";
-import { BaseServer, ConfigChangeAnalysis } from "./base";
+import { BaseServer, closeIdleConnections, ConfigChangeAnalysis } from "./base";
 import { HttpConnectionPoolManager } from "../pools/http";
 import { ConfigHelper, HttpServerOptions, ListeningOptions } from "../config/config";
 import { createHealthCheckMiddleware, resolveOpsConfig } from "../middleware/healthCheck";
@@ -45,6 +45,8 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
   protected createProtocolServer(): void {
     const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
     const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
+    // COR-03: keep a handle so beginDrain() can flip /ready to 503
+    this.healthMiddleware = healthMiddleware;
     
     this.server = createServer(async (req, res) => {
       try {
@@ -242,14 +244,18 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
   protected async stopAcceptingNewConnections(traceId: string): Promise<void> {
     this.logger.info('Step 1: Stopping acceptance of new HTTP connections', { traceId });
 
-    // HTTP服务器停止监听新连接
+    // COR-03: the listener stops immediately, but `close()` only calls back once
+    // *every* socket is gone — including idle keep-alive sockets, which would
+    // make the drain step wait for the whole keepAliveTimeout. So: stop
+    // listening, release idle sockets, and let in-flight requests (step 2/3)
+    // decide when the drain is over.
     if (this.server.listening) {
-      await new Promise<void>((resolve, reject) => {
-        this.server.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
+      this.server.close((err) => {
+        if (err && (err as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING') {
+          this.logger.warn('Error while closing the HTTP listener', { traceId }, err);
+        }
       });
+      closeIdleConnections(this.server);
     }
 
     this.logger.debug('New HTTP connection acceptance stopped', { traceId });
@@ -378,6 +384,9 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
       // 启动连接池监控
       this.startConnectionPoolMonitoring();
 
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
+
       if (finalCallback) {
         finalCallback();
       }
@@ -421,7 +430,7 @@ export class HttpServer extends BaseServer<HttpServerOptions, Server> {
     this.logger.info('Destroying HTTP server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       this.logger.info('HTTP server destroyed successfully', { traceId });
     } catch (error) {
       this.logger.error('Error destroying HTTP server', { traceId }, error);

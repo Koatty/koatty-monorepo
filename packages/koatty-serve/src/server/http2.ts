@@ -7,7 +7,7 @@
  */
 import { createSecureServer, Http2SecureServer, SecureServerOptions } from "http2";
 import { KoattyApplication, NativeServer } from "koatty_core";
-import { BaseServer, ConfigChangeAnalysis } from "./base";
+import { BaseServer, closeIdleConnections, ConfigChangeAnalysis } from "./base";
 import { generateTraceId } from "../utils/logger";
 import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
@@ -46,6 +46,8 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
     const http2Options = this.createHTTP2Options();
     const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
     const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
+    // COR-03: keep a handle so beginDrain() can flip /ready to 503
+    this.healthMiddleware = healthMiddleware;
     
     this.server = createSecureServer(http2Options, async (req, res) => {
       try {
@@ -369,12 +371,14 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
     
     // 停止HTTP/2服务器监听
     if (this.server.listening) {
-      await new Promise<void>((resolve, reject) => {
-        this.server.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
+      // COR-03: stop listening, then release idle keep-alive sessions so the
+      // drain step only waits for streams that are really in flight.
+      this.server.close((err) => {
+        if (err && (err as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING') {
+          this.logger.warn('Error while closing the HTTP/2 listener', { traceId }, err);
+        }
       });
+      closeIdleConnections(this.server);
     }
     
     this.logger.debug('New HTTP/2 connection acceptance stopped', { traceId });
@@ -520,6 +524,9 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
       
       // 启动连接池监控
       this.startConnectionPoolMonitoring();
+
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
       
       if (listenCallback) {
         listenCallback();
@@ -575,7 +582,7 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
     this.logger.info('Destroying HTTP/2 server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       this.logger.info('HTTP/2 server destroyed successfully', { traceId });
     } catch (error) {
       this.logger.error('Error destroying HTTP/2 server', { traceId }, error);

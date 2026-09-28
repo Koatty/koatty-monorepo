@@ -20,7 +20,7 @@ import {
 import { KoattyContext, RequestType, ResponseType } from "./IContext";
 import { KoattyMetadata } from "./Metadata";
 import { profileSummary, resolveProfile, SecurityConfigOptions, SecurityProfile } from "./security/profile";
-import { bindProcessEvent, isPrevent, isPrototypePollution, parseExp } from "./Utils";
+import { isPrevent, isPrototypePollution, parseExp } from "./Utils";
 
 /**
  * Koatty Application 
@@ -209,8 +209,18 @@ export class Koatty extends Koa implements KoattyApplication {
       Logger.Error('The parameter is not a function.');
       return;
     }
+    // COR-12: per-protocol stacks are copies of the global stack taken the first
+    // time callback(protocol) ran; they must be dropped or the new middleware
+    // would silently never run. Composed handlers are rebuilt from them.
+    this.middlewareStacks.clear();
     // Middleware stack changed, invalidate all composed callback caches
     this.composedCallbackCache.clear();
+    if (this._ready) {
+      Logger.Warn(
+        'app.use() was called after appReady: the middleware now applies to ' +
+        'subsequent requests only. Register middleware before listen() to avoid this.'
+      );
+    }
     return super.use(<any>fn);
   }
 
@@ -442,9 +452,11 @@ export class Koatty extends Koa implements KoattyApplication {
    * @returns {NativeServer} The native server instance
    */
   listen(listenCallback?: any) {//:NativeServer {
-    // binding event "appStop"
-    Logger.Log('Koatty', '', 'Bind App Stop event ...');
-    bindProcessEvent(this, 'appStop');
+    // COR-03: no `bindProcessEvent(this, 'appStop')` here anymore.
+    // It used to move every appStop listener onto process 'beforeExit', which
+    // never fires when the process is terminated by a signal, so resource
+    // cleanup (db/redis/trace/log flush) was skipped on SIGTERM. The ordered
+    // shutdown is now coordinated by TerminusManager (drain -> stop -> appStop).
     
     // Wrap callback to pass app instance
     // listenCallback expects (app: KoattyApplication) but Server.Start calls callback with no args
@@ -575,31 +587,38 @@ export class Koatty extends Koa implements KoattyApplication {
    * @param {Function} [callback] Optional callback function to be executed after all servers stop
    * @returns {void}
    */
-  stop(callback?: () => void): void {
-    if (Array.isArray(this.server)) {
-      // Multi-protocol: stop all servers
-      let stoppedCount = 0;
-      const totalServers = this.server.length;
-      
-      this.server.forEach((srv, index) => {
-        srv.Stop(() => {
-          stoppedCount++;
-          Logger.Log('Koatty', '', `Server ${index + 1}/${totalServers} stopped`);
-          
-          // Call callback only after all servers are stopped
-          if (stoppedCount === totalServers) {
-            Logger.Log('Koatty', '', 'All servers stopped');
-            callback?.();
-          }
-        });
+  async stop(callback?: () => void): Promise<void> {
+    const servers: any[] = Array.isArray(this.server) ? this.server : [this.server];
+    const totalServers = servers.length;
+
+    // COR-03: drain first (503 on /ready so load balancers stop routing new
+    // traffic) and only then close the listeners / force-close leftovers.
+    await Promise.all(servers.map((srv: any, index: number) => new Promise<void>((resolve) => {
+      if (srv && typeof srv.beginDrain === 'function') {
+        srv.beginDrain();
+      }
+      if (!srv || typeof srv.Stop !== 'function') {
+        resolve();
+        return;
+      }
+      srv.Stop(() => {
+        Logger.Log('Koatty', '', `Server ${index + 1}/${totalServers} stopped`);
+        resolve();
       });
-    } else {
-      // Single protocol: stop single server
-      this.server.Stop(() => {
-        Logger.Log('Koatty', '', 'Server stopped');
-        callback?.();
-      });
+    })));
+
+    Logger.Log('Koatty', '', 'All servers stopped');
+
+    // Resource cleanup happens after the servers are down; listeners may be async.
+    for (const listener of this.listeners('appStop')) {
+      try {
+        await (listener as any).call(this, this);
+      } catch (err) {
+        Logger.Error('Error while handling appStop event:', err as Error);
+      }
     }
+
+    callback?.();
   }
 
   /**

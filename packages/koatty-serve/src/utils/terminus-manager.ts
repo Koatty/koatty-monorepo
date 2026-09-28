@@ -46,6 +46,12 @@ export class TerminusManager {
   private signalsRegistered = false;
   private exitOnShutdown = true;
   private registeredServerCount = 0;
+  /** COR-03: servers to drain/stop, in registration order */
+  private servers: Array<{ server: KoattyServer; serverId: string }> = [];
+  /** COR-03: /ready reports 503 for this long before sockets are closed */
+  private preStopDelay = 5000;
+  /** COR-03: upper bound for in-flight requests to finish */
+  private drainTimeout = 25000;
   // Stored handler references for explicit removal on reset (prevents handler accumulation in tests)
   private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
 
@@ -65,6 +71,24 @@ export class TerminusManager {
     this.exitOnShutdown = value;
   }
 
+  /** COR-03: override the preStop delay (ms) — used by config and tests. */
+  setPreStopDelay(ms: number): void {
+    if (typeof ms === 'number' && ms >= 0) this.preStopDelay = ms;
+  }
+
+  /** COR-03: override the drain timeout (ms) — used by config and tests. */
+  setDrainTimeout(ms: number): void {
+    if (typeof ms === 'number' && ms >= 0) this.drainTimeout = ms;
+  }
+
+  getPreStopDelay(): number {
+    return this.preStopDelay;
+  }
+
+  getDrainTimeout(): number {
+    return this.drainTimeout;
+  }
+
   /**
    * Register a server instance
    * 
@@ -72,10 +96,26 @@ export class TerminusManager {
    * @param server - Server instance to register
    * @param serverId - Unique identifier for the server
    */
-  registerServer(app: KoattyApplication, _server: KoattyServer, serverId: string): void {
+  registerServer(app: KoattyApplication, server: KoattyServer, serverId: string): void {
     this.app = app;
     this.registeredServerCount++;
-    
+    this.servers.push({ server, serverId });
+
+    // COR-03: drain budget may come from config/server.ts `shutdown`
+    try {
+      const serverConf = (app as any)?.config?.('server') as
+        | { shutdown?: { preStopDelay?: number; drainTimeout?: number } }
+        | undefined;
+      if (typeof serverConf?.shutdown?.preStopDelay === 'number') {
+        this.setPreStopDelay(serverConf.shutdown.preStopDelay);
+      }
+      if (typeof serverConf?.shutdown?.drainTimeout === 'number') {
+        this.setDrainTimeout(serverConf.shutdown.drainTimeout);
+      }
+    } catch {
+      // config not reachable: keep the defaults
+    }
+
     Logger.Info(`Server registered in TerminusManager: ${serverId}`);
     
     // 只在第一次注册时设置信号处理器
@@ -95,8 +135,14 @@ export class TerminusManager {
     signals.forEach(signal => {
       const handler = () => {
         this.shutdownAll(signal).catch(err => {
-          Logger.Fatal('Error during shutdown', err);
-          process.exit(1);
+          // Logger.Fatal exits the process; only do that when this manager owns
+          // the process lifetime (tests / embedders set exitOnShutdown = false).
+          if (this.exitOnShutdown) {
+            Logger.Fatal('Error during shutdown', err);
+            process.exit(1);
+            return;
+          }
+          Logger.Error('Error during shutdown', err);
         });
       };
       this.signalHandlers.set(signal, handler);
@@ -107,11 +153,19 @@ export class TerminusManager {
   }
 
   /**
-   * Shutdown all registered servers
-   * 
-   * Only triggers appStop event. Actual server shutdown is handled by
-   * ServeComponent.stopServer which listens to appStop event.
-   * 
+   * Shutdown all registered servers in the order required for zero-downtime
+   * deploys (COR-03 / C-1):
+   *
+   * ```
+   * signal
+   *   -> 1. beginDrain(): /ready answers 503 everywhere (out of rotation)
+   *   -> 2. preStopDelay: give load balancers time to propagate
+   *   -> 3. Stop(): stop accepting connections, drain in-flight requests,
+   *          force-close whatever is left after drainTimeout
+   *   -> 4. appStop: resource cleanup (db, redis, tracing, log flush)
+   *   -> 5. process 'beforeExit' listeners
+   * ```
+   *
    * @param signal - Signal that triggered the shutdown
    */
   private async shutdownAll(signal: string): Promise<void> {
@@ -123,42 +177,96 @@ export class TerminusManager {
     this.isShuttingDown = true;
     Logger.Warn(`Received kill signal (${signal}), shutting down all servers...`);
 
-    const shutdownTimeout = 30000;
+    // COR-03: the budget covers the whole sequence, not only the drain:
+    // preStopDelay + in-flight drain + force close + appStop resource cleanup.
+    // It stays below terminationGracePeriodSeconds ("must stay below" comment).
+    const forceCloseGraceMs = 5000;
+    const shutdownTimeout = this.preStopDelay + this.drainTimeout + forceCloseGraceMs;
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
     try {
-      // 触发应用层清理（ServeComponent.stopServer 会处理实际的服务器关闭）
-      if (this.app) {
-        Logger.Info('Triggering application stop events');
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error(`Shutdown timeout after ${shutdownTimeout}ms`)),
+          shutdownTimeout
+        );
+        timeoutHandle.unref?.();
+      });
 
-        let timeoutHandle: NodeJS.Timeout | undefined;
-        const timeoutPromise = new Promise<void>((_, reject) => {
-          timeoutHandle = setTimeout(
-            () => reject(new Error(`Shutdown timeout after ${shutdownTimeout}ms`)),
-            shutdownTimeout
-          );
-        });
-
-        try {
-          await Promise.race([
-            asyncEvent(this.app, 'appStop').then(() => triggerListeners(process, 'beforeExit')),
-            timeoutPromise
-          ]);
-        } finally {
-          if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
-        }
+      try {
+        await Promise.race([this.drainAndStop(), timeoutPromise]);
+      } finally {
+        if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
       }
 
-      Logger.Fatal('Graceful shutdown completed');
       if (this.exitOnShutdown) {
+        // Logger.Fatal terminates the process (exit 1); it must not run when the
+        // embedder (or a test) disabled exit-on-shutdown.
+        Logger.Fatal('Graceful shutdown completed');
         process.exit(0);
       }
+      Logger.Info('Graceful shutdown completed');
 
     } catch (error) {
+      if (!this.exitOnShutdown) {
+        Logger.Error('Error during shutdown', error);
+        throw error;
+      }
       Logger.Fatal('Error during shutdown', error);
-      if (this.exitOnShutdown) {
-        process.exit(1);
+      process.exit(1);
+    }
+  }
+
+  /**
+   * COR-03: the ordered drain -> stop -> appStop sequence used by shutdownAll.
+   * Exposed indirectly through `shutdown()` so tests can drive it without
+   * sending real signals.
+   */
+  private async drainAndStop(): Promise<void> {
+    // 1. /ready -> 503 on every registered server
+    for (const { serverId, server } of this.servers) {
+      const drainable = server as any;
+      if (drainable && typeof drainable.beginDrain === 'function') {
+        drainable.beginDrain();
+        Logger.Info(`Server draining: ${serverId}`);
       }
     }
+
+    // 2. let load balancers observe the 503 before sockets close
+    if (this.preStopDelay > 0) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, this.preStopDelay);
+        timer.unref?.();
+      });
+    }
+
+    // 3. stop servers: no new connections; in-flight requests drain
+    await Promise.all(this.servers.map(({ server }) => new Promise<void>((resolve) => {
+      const stoppable = server as any;
+      if (stoppable && typeof stoppable.Stop === 'function') {
+        try {
+          stoppable.Stop(() => resolve());
+        } catch {
+          resolve();
+        }
+      } else {
+        resolve();
+      }
+    })));
+
+    // 4. resource cleanup, after the servers are down (nothing new is accepted)
+    if (this.app) {
+      Logger.Info('Triggering application stop events');
+      await asyncEvent(this.app, 'appStop').then(() => triggerListeners(process, 'beforeExit'));
+    }
+  }
+
+  /**
+   * Trigger the ordered shutdown without a real signal (used by tests and by
+   * embedders that receive the shutdown command out-of-band).
+   */
+  async shutdown(signal = 'SIGTERM'): Promise<void> {
+    return this.shutdownAll(signal);
   }
 
   /**
@@ -174,6 +282,7 @@ export class TerminusManager {
       TerminusManager.instance.isShuttingDown = false;
       TerminusManager.instance.signalsRegistered = false;
       TerminusManager.instance.registeredServerCount = 0;
+      TerminusManager.instance.servers = [];
       TerminusManager.instance = null;
     }
   }

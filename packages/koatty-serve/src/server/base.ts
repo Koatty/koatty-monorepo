@@ -18,11 +18,13 @@ import {
 } from "../pools/pool";
 import type { ConnectionStats } from "../pools/pool";
 import { ListeningOptions } from "../config/config";
+import type { DrainableHealthMiddleware } from "../middleware/healthCheck";
 // 优雅关闭相关类型定义
 export interface GracefulShutdownOptions {
   timeout?: number;        // 总超时时间
   drainDelay?: number;     // 排空延迟
   stepTimeout?: number;    // 单步超时
+  waitTimeout?: number;    // COR-03: 等待在途请求完成的时间（drainTimeout）
 }
 
 export interface ShutdownResult {
@@ -39,6 +41,32 @@ export interface ShutdownResult {
 /**
  * Configuration change detection result
  */
+export interface ConfigChangeAnalysis {
+  requiresRestart: boolean;
+  changedKeys: string[];
+  restartReason?: string;
+  canApplyRuntime?: boolean;
+}
+
+/**
+ * COR-03: release the *idle* (keep-alive) sockets of a listener.
+ *
+ * `server.close()` stops accepting new connections but keeps waiting for every
+ * existing socket, so a keep-alive socket would hold the graceful-shutdown
+ * drain open for the whole `keepAliveTimeout`. `closeIdleConnections()` (Node
+ * >=18.2) drops the idle ones immediately while in-flight requests keep
+ * running. The call is defensive because mocks and older runtimes lack it.
+ */
+export function closeIdleConnections(server: unknown): void {
+  const fn = (server as { closeIdleConnections?: () => void } | undefined)
+    ?.closeIdleConnections;
+  if (typeof fn !== 'function') return;
+  try {
+    fn.call(server);
+  } catch {
+    // not a `net` based server (or already closed): nothing to release
+  }
+}
 export interface ConfigChangeAnalysis {
   requiresRestart: boolean;
   changedKeys: string[];
@@ -69,6 +97,13 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
   protected serverId: string;
   protected shutdownTimeout = 30000;
   protected drainDelay = 5000;
+  // COR-03 (C-1): /ready must answer 503 before a single socket is closed, and
+  // preStopDelay buys load balancers time to stop routing to this instance.
+  // preStopDelay + drainTimeout must stay below terminationGracePeriodSeconds.
+  protected preStopDelay = 5000;
+  protected drainTimeout = 25000;
+  protected healthMiddleware: DrainableHealthMiddleware | null = null;
+  protected stopRequested = false;
   protected connectionPool?: ConnectionPoolManager<any>;
   protected timerManager: TimerManager;
   private isShuttingDown = false;
@@ -82,6 +117,18 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
     this.protocol = options.protocol;
     this.status = 0;
     this.serverId = generateServerId(options.protocol);
+
+    // COR-03: drain budget from options.shutdown { preStopDelay, drainTimeout }
+    const shutdownOptions = ((options as any).shutdown ?? {}) as {
+      preStopDelay?: number;
+      drainTimeout?: number;
+    };
+    if (typeof shutdownOptions.preStopDelay === 'number') {
+      this.preStopDelay = shutdownOptions.preStopDelay;
+    }
+    if (typeof shutdownOptions.drainTimeout === 'number') {
+      this.drainTimeout = shutdownOptions.drainTimeout;
+    }
 
     // 初始化定时器管理器
     this.timerManager = new TimerManager();
@@ -223,7 +270,7 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
 
       // 步骤 2: 等待现有连接完成
       try {
-        const waitTimeout = options.stepTimeout || 15000;
+        const waitTimeout = options.waitTimeout || options.stepTimeout || this.drainTimeout;
         await this.executeWithTimeout(
           () => this.waitForConnectionCompletion(waitTimeout, traceId),
           waitTimeout + 1000,
@@ -605,11 +652,25 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
    * 停止服务器（向后兼容）
    */
   Stop(callback?: (err?: Error) => void): void {
+    // COR-03: Stop() implies the drain phase. /ready flips to 503 before any
+    // socket is closed so load balancers can take this instance out of rotation.
+    this.beginDrain();
+
+    // Idempotent: TerminusManager stops the servers first, then `appStop`
+    // listeners (e.g. ServeComponent) may ask to stop them again.
+    if (this.stopRequested) {
+      callback?.();
+      return;
+    }
+    this.stopRequested = true;
+
     const traceId = generateTraceId();
     this.logger.info('Server stopping', { traceId });
 
     this.destroy()
       .then(() => {
+        // COR-03: the listener is gone, so the instance is neither ready nor draining
+        this.status = 0;
         this.logger.info('Server stopped', { traceId }, {
           gracefulShutdown: true,
           finalConnectionCount: this.getActiveConnectionCount()
@@ -620,6 +681,7 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
         this.logger.error('Server stop failed', { traceId }, err);
         this.forceShutdown(traceId);
 
+        this.status = 0;
         this.logger.info('Server stopped', { traceId }, {
           forcedShutdown: true,
           finalConnectionCount: this.getActiveConnectionCount()
@@ -627,6 +689,43 @@ export abstract class BaseServer<T extends ListeningOptions = ListeningOptions, 
 
         if (callback) callback(err);
       });
+  }
+
+  /**
+   * COR-03: the listener is up and the instance is healthy.
+   * `getStatus()` / `/ready` report 200 until `beginDrain()` flips them to 503.
+   */
+  protected markStarted(): void {
+    this.status = 200;
+  }
+
+  /**
+   * COR-03 (C-1): enter the drain phase.
+   *
+   * - `/ready` starts answering 503 so orchestrators/load balancers stop
+   *   routing new traffic here (the health middleware is flipped via
+   *   `setDraining(true)`);
+   * - `status` becomes 503 for anything that polls `getStatus()`;
+   * - in-flight requests keep being served: sockets are closed only when
+   *   `Stop()` runs.
+   */
+  beginDrain(): void {
+    if (this.status === 503) return;
+    this.status = 503;
+    this.healthMiddleware?.setDraining?.(true);
+    this.logger.warn('Server draining: /ready now returns 503', {}, {
+      protocol: this.protocol,
+      serverId: this.serverId,
+      preStopDelay: this.preStopDelay,
+      drainTimeout: this.drainTimeout
+    });
+  }
+
+  /**
+   * COR-03: whether the server is in the drain phase.
+   */
+  isDraining(): boolean {
+    return this.status === 503;
   }
 }
 

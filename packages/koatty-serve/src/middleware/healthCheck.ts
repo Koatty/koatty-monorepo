@@ -260,7 +260,26 @@ export function resolveOpsConfig(app: unknown): Partial<HealthCheckConfig> {
   }
 }
 
-export function createHealthCheckMiddleware(config?: HealthCheckConfig) {
-  const middleware = new HealthCheckMiddleware(config);
-  return middleware.middleware();
+/**
+ * COR-03 (C-1): the middleware function returned by createHealthCheckMiddleware
+ * carries the drain switch so servers can flip `/ready` to 503 before closing
+ * their sockets.
+ */
+export type DrainableHealthMiddleware = ((
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  req: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  res: any,
+  next: () => Promise<void>
+) => Promise<void>) & {
+  setDraining?(draining: boolean): void;
+  healthCheck?: HealthCheckMiddleware;
+};
+
+export function createHealthCheckMiddleware(config?: HealthCheckConfig): DrainableHealthMiddleware {
+  const instance = new HealthCheckMiddleware(config);
+  const middleware = instance.middleware() as DrainableHealthMiddleware;
+  middleware.setDraining = (draining: boolean) => instance.setDraining(draining);
+  middleware.healthCheck = instance;
+  return middleware;
 }

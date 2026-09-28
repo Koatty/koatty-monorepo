@@ -684,6 +684,9 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
       
       // 启动连接池监控
       this.startConnectionPoolMonitoring();
+
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
       
       // 调用启动回调
       if (listenCallback) {
@@ -744,7 +747,7 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
     this.logger.info('Destroying WebSocket server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       
       // 清理事件监听器
       if (this.upgradeHandler && typeof (this.httpServer as any).removeListener === 'function') {

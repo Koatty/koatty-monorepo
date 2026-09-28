@@ -8,7 +8,7 @@
 import { createServer, Server, ServerOptions } from "https";
 import { TLSSocket } from "tls";
 import { KoattyApplication, NativeServer } from "koatty_core";
-import { BaseServer, ConfigChangeAnalysis } from "./base";
+import { BaseServer, closeIdleConnections, ConfigChangeAnalysis } from "./base";
 import { generateTraceId } from "../utils/logger";
 import { CreateTerminus } from "../utils/terminus";
 import { loadCertificate } from "../utils/cert-loader";
@@ -47,6 +47,8 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
     const sslOptions = this.createSSLOptions();
     const rateLimitMiddleware = createRateLimitMiddleware((this.options as any).rateLimit);
     const healthMiddleware = createHealthCheckMiddleware({ ...(this.options.health ?? {}), ...resolveOpsConfig(this.app) });
+    // COR-03: keep a handle so beginDrain() can flip /ready to 503
+    this.healthMiddleware = healthMiddleware;
     
     this.server = createServer(sslOptions, async (req, res) => {
       try {
@@ -429,13 +431,14 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
     
     // 检查服务器是否真的在监听（对测试环境友好）
     if (this.server.listening) {
-      // 停止HTTPS服务器监听
-      await new Promise<void>((resolve, reject) => {
-        this.server.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
+      // COR-03: stop listening, then release idle keep-alive sockets so the
+      // drain step only waits for requests that are really in flight.
+      this.server.close((err) => {
+        if (err && (err as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING') {
+          this.logger.warn('Error while closing the HTTPS listener', { traceId }, err);
+        }
       });
+      closeIdleConnections(this.server);
     } else {
       this.logger.debug('HTTPS server is not listening, skip close', { traceId });
     }
@@ -570,6 +573,9 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
       
       // 启动连接池监控
       this.startConnectionPoolMonitoring();
+
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
       
       if (listenCallback) {
         listenCallback();
@@ -630,7 +636,7 @@ export class HttpsServer extends BaseServer<HttpsServerOptions, Server> {
     this.logger.info('Destroying HTTPS server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       this.logger.info('HTTPS server destroyed successfully', { traceId });
     } catch (error) {
       this.logger.error('Error destroying HTTPS server', { traceId }, error);

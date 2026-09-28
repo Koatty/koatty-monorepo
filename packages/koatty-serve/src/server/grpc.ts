@@ -545,6 +545,9 @@ export class GrpcServer extends BaseServer<GrpcServerOptions, Server> {
       
       // Start connection monitoring
       this.startConnectionMonitoring();
+
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
       
       if (finalCallback) {
         finalCallback();
@@ -811,7 +814,7 @@ export class GrpcServer extends BaseServer<GrpcServerOptions, Server> {
     this.logger.info('Destroying gRPC server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       this.logger.info('gRPC server destroyed successfully', { traceId });
     } catch (error) {
       this.logger.error('Error destroying gRPC server', { traceId }, error);

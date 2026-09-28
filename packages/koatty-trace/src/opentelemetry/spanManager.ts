@@ -81,9 +81,11 @@ export class SpanManager {
       this.performPeriodicCleanup();
     }, Math.min(this.options.spanTimeout || 30000, 60000)); // Cleanup every minute or span timeout, whichever is smaller
 
-    // Setup graceful shutdown
-    process.once('SIGTERM', () => this.destroy());
-    process.once('SIGINT', () => this.destroy());
+    // COR-03 (C-1): SpanManager must NOT register its own SIGTERM/SIGINT
+    // handlers anymore — shutdown is coordinated by koatty-serve's
+    // TerminusManager (drain -> stop -> appStop) and koatty-trace destroys the
+    // span manager on `appStop` (see trace.ts). Self-registered signal
+    // handlers raced with that ordering and swallowed the shutdown signal.
   }
 
   /**

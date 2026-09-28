@@ -644,6 +644,9 @@ export class Http3Server extends BaseServer<Http3ServerOptions, any> {
       
       // 启动连接池监控
       this.startConnectionPoolMonitoring();
+
+      // COR-03: the listener is up: /ready reports 200 until beginDrain()
+      this.markStarted();
       
       if (listenCallback) {
         listenCallback();
@@ -707,7 +710,7 @@ export class Http3Server extends BaseServer<Http3ServerOptions, any> {
     this.logger.info('Destroying HTTP/3 server', { traceId });
 
     try {
-      await this.gracefulShutdown();
+      await this.gracefulShutdown({ waitTimeout: this.drainTimeout });
       this.logger.info('HTTP/3 server destroyed successfully', { traceId });
     } catch (error) {
       this.logger.error('Error destroying HTTP/3 server', { traceId }, error);

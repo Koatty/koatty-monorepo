@@ -88,6 +88,16 @@ export interface ListeningOptions {
   port: number;
   protocol: string;
   trace?: boolean; // Full stack debug & trace, default: false
+  /**
+   * COR-03 (C-1) graceful-shutdown budget.
+   * `preStopDelay`: how long /ready reports 503 before sockets close (default 5000ms);
+   * `drainTimeout`: how long in-flight requests may finish (default 25000ms).
+   * preStopDelay + drainTimeout must stay below terminationGracePeriodSeconds.
+   */
+  shutdown?: {
+    preStopDelay?: number;
+    drainTimeout?: number;
+  };
   ssl?: { [key: string]: unknown; } & BaseSSLConfig;  // SSL配置 (推荐)
   ext?: {    
     protoFile?: string;
@@ -109,6 +119,10 @@ export interface BaseServerOptions {
   port: number;
   protocol: string;
   trace?: boolean; // Full stack debug & trace, default: false
+  shutdown?: {
+    preStopDelay?: number;
+    drainTimeout?: number;
+  };
   connectionPool?: ConnectionPoolConfig;
   health?: HealthCheckConfig;
   ext?: {
@@ -291,7 +305,8 @@ export class ConfigHelper {
       ...options,  // Preserve all incoming fields
       connectionPool: poolConfig,
       hostname: options.hostname || 'localhost',
-      port: options.port || 3000,
+      // COR-03: use ?? so an explicit `port: 0` (ephemeral port) is preserved.
+      port: options.port ?? 3000,
       protocol: options.protocol || 'http',
       trace: options.trace || false
     } as HttpServerOptions;
@@ -324,7 +339,7 @@ export class ConfigHelper {
       connectionPool: poolConfig,
       ssl: sslConfig,
       hostname: options.hostname || 'localhost',
-      port: options.port || 443,
+      port: options.port ?? 443,
       protocol: options.protocol || 'https',
       trace: options.trace || false
     }
@@ -362,7 +377,7 @@ export class ConfigHelper {
       ssl: sslConfig,
       http2: options.http2 || options.ext.http2 || {},
       hostname: options.hostname || 'localhost',
-      port: options.port || 443,
+      port: options.port ?? 443,
       protocol: options.protocol || 'http2',
       trace: options.trace || false
     }
@@ -400,7 +415,7 @@ export class ConfigHelper {
       ssl: sslConfig,
       connectionPool: poolConfig,
       hostname: options.hostname || 'localhost',
-      port: options.port || 50051,
+      port: options.port ?? 50051,
       protocol: options.protocol || 'grpc',
       trace: options.trace || false,
     } as GrpcServerOptions;
@@ -435,7 +450,7 @@ export class ConfigHelper {
       http3: options.http3 || options.ext.http3 || {},
       quic: options.quic || options.ext.quic || {},
       hostname: options.hostname || 'localhost',
-      port: options.port || 443,
+      port: options.port ?? 443,
       protocol: options.protocol || 'http3',
       trace: options.trace || false
     }
@@ -473,7 +488,7 @@ export class ConfigHelper {
       ssl: sslConfig,
       connectionPool: poolConfig,
       hostname: options.hostname || 'localhost',
-      port: options.port || 8080,
+      port: options.port ?? 8080,
       protocol: options.protocol || 'ws',
       trace: options.trace || false
     } as WebSocketServerOptions;
