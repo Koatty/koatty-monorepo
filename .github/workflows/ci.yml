@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
   pull_request:
 
 concurrency:
@@ -96,7 +96,12 @@ jobs:
 
       - name: Run tests
         # --force disables turbo cache on the main branch so tests really run
-        run: pnpm turbo run test --force
+        # --concurrency=2 bounds package-level parallelism: several suites
+        # (koatty-core unhandledRejection, koatty-typeorm/koatty-trace timing
+        # assertions) fail only when the machine is oversubscribed by
+        # max-concurrency jest workers. Raise it again once the remaining
+        # timing assertions have moved to the §12.3 benchmarks.
+        run: pnpm turbo run test --force --concurrency=2
 
       - name: Security baseline checks (plan §12.2)
         run: pnpm security:baseline
