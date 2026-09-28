@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.1
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_graphql@2.0.1
+
 ## 2.3.0
 
 ### Minor Changes
@@ -7,7 +14,6 @@
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
-
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -357,12 +363,10 @@ This is a major release focusing on **performance**, **memory efficiency**, and 
 **If upgrading from v1.20.0-8 or earlier:**
 
 1. **Validator Compilation**: Ensure all validation rules are compatible with pre-compilation
-
    - Custom validation functions must be pure functions
    - All `ValidRules` references must exist in `FunctionValidator`
 
 2. **Error Handling**: Applications will now fail at startup (not runtime) if validators cannot compile
-
    - Check application startup logs for compilation errors
    - Fix any custom validators that throw during compilation
 

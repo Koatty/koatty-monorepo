@@ -143,6 +143,8 @@ describe('Koa 3.0 Integration Tests', () => {
       expect(callback).toBeInstanceOf(Function);
     });
 
+    // [SKIP-04] reason not recorded (pre-Phase A); supertest against app.callback() never settles here
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     test.skip('should handle request with callback', async () => {
       const testApp = new App();
       testApp.use(async (ctx: any) => {

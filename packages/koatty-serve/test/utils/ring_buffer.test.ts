@@ -43,6 +43,8 @@ describe('DynamicRingBuffer', () => {
     expect(buffer.get(49)).toBe(49);
   });
 
+  // [SKIP-05] reason not recorded (pre-Phase A); asserts DynamicRingBuffer auto-expansion
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should expand when reaching threshold', async () => {
     // Fill buffer completely (100 items)
     for (let i = 0; i < 100; i++) {
@@ -62,6 +64,8 @@ describe('DynamicRingBuffer', () => {
     expect(buffer.size).toBeLessThanOrEqual(1000);
   });
 
+  // [SKIP-06] reason not recorded (pre-Phase A); asserts DynamicRingBuffer auto-shrink
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should shrink when below threshold', async () => {
     // Fill buffer completely to trigger expansion
     for (let i = 0; i < 100; i++) {
@@ -95,6 +99,8 @@ describe('DynamicRingBuffer', () => {
     expect(buffer.size).toBeGreaterThanOrEqual(50);
   });
 
+  // [SKIP-07] reason not recorded (pre-Phase A); asserts min/max capacity clamps
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should respect max and min capacity limits', async () => {
     // Test max capacity
     for (let i = 0; i < 200; i++) {
@@ -124,6 +130,8 @@ describe('DynamicRingBuffer', () => {
     expect(array).toEqual(items);
   });
 
+  // [SKIP-08] reason not recorded (pre-Phase A); percentile assertion depends on exact rounding
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should calculate percentiles correctly', () => {
     // Add exactly 100 items
     for (let i = 0; i < 100; i++) {
@@ -162,6 +170,8 @@ describe('DynamicRingBuffer', () => {
     expect(stats).toHaveProperty('shrinkThreshold');
   });
 
+  // [SKIP-09] reason not recorded (pre-Phase A); asserts resizeUpManual()
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should allow manual resize', () => {
     for (let i = 0; i < 100; i++) {
       buffer.push(i);
@@ -175,6 +185,8 @@ describe('DynamicRingBuffer', () => {
     expect(buffer.size).toBeGreaterThan(100);
   });
 
+  // [SKIP-10] reason not recorded (pre-Phase A); asserts clear() resets capacity
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should reset to initial capacity on clear', async () => {
     // Expand buffer by adding enough items to fill it completely
     for (let i = 0; i < 100; i++) {
@@ -367,6 +379,8 @@ describe('Connection Pool Warmup', () => {
     expect(result.duration).toBeLessThanOrEqual(endTime - startTime + 100);
   });
 
+  // [SKIP-11] expectation diverges from implementation (warmup does not enforce maxConnections)
+  // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
   test.skip('should respect max connections limit', async () => {
     // NOTE: warmup currently doesn't check maxConnections limit
     // This is intentional - maxConnections is enforced at runtime, not during warmup

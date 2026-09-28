@@ -526,6 +526,8 @@ describe('ConnectionPoolManager', () => {
       await pool.destroy();
     });
 
+    // [SKIP-12] expectation diverges from implementation (maxConnections enforced at runtime, not warmup)
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should respect max connections limit during warmup', async () => {
       const config: ConnectionPoolConfig = {
         maxConnections: 3,

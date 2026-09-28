@@ -293,6 +293,8 @@ describe("App", () => {
       expect(result).toBeDefined();
     });
 
+    // [SKIP-01] reason not recorded (pre-Phase A); supertest request against app.callback() never settles here
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     test.skip("response", async () => {
       const callback = app.callback();
       const agent = request.agent(callback);
@@ -303,6 +305,8 @@ describe("App", () => {
       await new Promise(resolve => setImmediate(resolve));
     }, 15000);
 
+    // [SKIP-02] reason not recorded (pre-Phase A); same supertest/callback hang as SKIP-01
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     test.skip("response - with middleware stack", async () => {
       const testApp = new App();
       testApp.use(async (ctx: any, next: any) => {
@@ -550,6 +554,8 @@ describe("App", () => {
       expect(testApp.config("level1.level2")).toEqual({ level3: "deepValue" });
     });
 
+    // [SKIP-03] reason not recorded (pre-Phase A); depends on a real request round-trip
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     test.skip("middleware order preservation", async () => {
       const testApp = new App();
       const order: number[] = [];

@@ -48,6 +48,8 @@ export class SpanManager {
   private span: Span | undefined;
   // ✅ 添加 WeakMap 用于存储 ctx -> span 映射
   private readonly contextSpans = new WeakMap<KoattyContext, Span>();
+  // ✅ 保证 span.end() 只执行一次：超时/内存驱逐的强制结束与请求正常结束存在竞争
+  private readonly endedSpans = new WeakSet<Span>();
   private readonly propagator: W3CTraceContextPropagator;
   private readonly options: NonNullable<TraceOptions['opentelemetryConf']>;
   private readonly cleanupInterval: NodeJS.Timeout;
@@ -166,6 +168,22 @@ export class SpanManager {
   }
 
   /**
+   * End a span exactly once.
+   *
+   * A span can be ended from two racing paths: the span-timeout timer /
+   * memory-pressure eviction (`forceEndSpan`) and the normal request completion
+   * (`endSpan`). Ending twice double-counts metrics and double-exports the span.
+   *
+   * @returns true when this call was the one that ended the span
+   */
+  private endSpanOnce(span: Span): boolean {
+    if (this.endedSpans.has(span)) return false;
+    this.endedSpans.add(span);
+    span.end();
+    return true;
+  }
+
+  /**
    * Force end a span with proper cleanup
    */
   private forceEndSpan(traceId: string, reason: string): void {
@@ -175,10 +193,10 @@ export class SpanManager {
     try {
       clearTimeout(entry.timer);
       entry.span.addEvent('span_forced_end', { reason });
-      entry.span.end();
+      const ended = this.endSpanOnce(entry.span);
       this.activeSpans.delete(traceId);
-      
-      if (reason === 'timeout') {
+
+      if (ended && reason === 'timeout') {
         this.stats.spansTimedOut.increment();
       }
       
@@ -423,9 +441,10 @@ export class SpanManager {
         this.activeSpans.delete(traceId);
       }
 
-      // End the span
-      span.end();
-      this.stats.spansEnded.increment();
+      // End the span (idempotent: a forced end may already have ended it)
+      if (this.endSpanOnce(span)) {
+        this.stats.spansEnded.increment();
+      }
       
       // Clear from WeakMap (context will be GC'd automatically)
       this.contextSpans.delete(ctx);

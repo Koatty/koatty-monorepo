@@ -119,6 +119,8 @@ export class GraphQLRouter implements KoattyRouter {
   private routerMap: Map<string, RouterImplementation>;
   /** resolved from security profile unless explicitly configured (SEC-04) */
   private playgroundEnabled = false;
+  // SEC-04 / B-4: resolved introspection flag (observable for tests/audits)
+  private introspectionEnabled = false;
 
   constructor(app: Koatty, options: RouterOptions = { protocol: "graphql", prefix: "" }) {
     const extConfig = getProtocolConfig('graphql', options.ext || {});
@@ -174,10 +176,12 @@ export class GraphQLRouter implements KoattyRouter {
       complexityLimit?: number;
     };
     const playgroundEnabled = this.options.ext?.playground ?? profile.playground ?? false;
-    const introspectionEnabled = this.options.ext?.introspection ?? profile.introspection ?? true;
+    // fail-closed: introspection stays OFF unless the security profile or ext enables it
+    const introspectionEnabled = this.options.ext?.introspection ?? profile.introspection ?? false;
     const depthLimit = this.options.ext?.depthLimit ?? profile.depthLimit ?? 0;
     const complexityLimit = this.options.ext?.complexityLimit ?? profile.complexityLimit ?? 0;
     this.playgroundEnabled = playgroundEnabled;
+    this.introspectionEnabled = introspectionEnabled;
 
     const validationRules: any[] = [];
 

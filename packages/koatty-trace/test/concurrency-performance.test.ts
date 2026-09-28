@@ -100,7 +100,6 @@ describe('Concurrency Safety and Performance Tests', () => {
       ];
 
       // First pass - populate cache
-      const startTime = Date.now();
       for (let i = 0; i < 1000; i++) {
         const path = paths[i % paths.length];
         const mockCtx = {
@@ -111,10 +110,7 @@ describe('Concurrency Safety and Performance Tests', () => {
         } as any;
         metricsCollector.collectRequestMetrics(mockCtx, 100);
       }
-      const firstPassTime = Date.now() - startTime;
-
       // Second pass - should use cache
-      const cacheStartTime = Date.now();
       for (let i = 0; i < 1000; i++) {
         const path = paths[i % paths.length];
         const mockCtx = {
@@ -125,14 +121,14 @@ describe('Concurrency Safety and Performance Tests', () => {
         } as any;
         metricsCollector.collectRequestMetrics(mockCtx, 100);
       }
-      const cachePassTime = Date.now() - cacheStartTime;
-
-      // Cache should improve performance (allow some variance)
-      expect(cachePassTime).toBeLessThanOrEqual(firstPassTime * 2.0);
-      
-      // Verify cache is working by checking hit rate
+      // Deterministic cache assertions only: the previous
+      // `cachePassTime <= firstPassTime * 2` wall-clock comparison was load-sensitive
+      // (failed under `turbo run test --force`) and belongs to benchmarks (plan §12.3).
       const stats = metricsCollector.getStats();
+      // Verify cache is working by checking hit rate
       expect(stats.pathCacheStats.hitRate).toBeGreaterThan(0.8); // At least 80% hit rate
+      // 1000 lookups over 7 distinct paths must not grow the cache past those paths
+      expect(stats.pathCacheStats.size).toBeLessThanOrEqual(paths.length);
     });
 
     it('should handle batch processing correctly', (done) => {
