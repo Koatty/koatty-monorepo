@@ -1,0 +1,17 @@
+[
+  {
+    "name": "startup",
+    "exitCode": 1,
+    "file": "/tmp/koatty-quiet-benchmark-startup.log"
+  },
+  {
+    "name": "http",
+    "exitCode": 1,
+    "file": "/tmp/koatty-quiet-benchmark-http.log"
+  },
+  {
+    "name": "scope",
+    "exitCode": 0,
+    "file": "/tmp/koatty-quiet-benchmark-scope.log"
+  }
+]

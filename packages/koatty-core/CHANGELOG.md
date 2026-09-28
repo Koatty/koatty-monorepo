@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — Phase A–D completion
+
+- appStart 在所有传输真正监听后触发一次，appReady 仅表示初始化完成；createApplication 不提前发出 appStart。
+- 公开声明依赖 @types/koa、@types/ws、@grpc/grpc-js 和运行期 reflect-metadata 随包声明，修复独立安装缺失依赖。
+- 修正组件元数据中的应用实例类型；声明构建遇到 TypeScript 错误不再忽略。
+
+本轮尚未发布；验收边界见根目录 `docs/audits/phase-ad-completion-2026-09-28.md`。
+
+## Unreleased (Phase A–D remediation)
+
+- `app.container` 与 Core ALS 贯通；请求结束释放对应容器的请求实例。组件实例和事件处理器使用所属应用。
+- Controller 保留 middleware 类引用，避免类级鉴权配置被转换为无法识别的名称。Legacy/TC39 实际编译与 HTTP 拒绝回归覆盖该路径。
+- `app.getCurrentContext()` 返回当前请求上下文；`app.stop()` 移除该应用注册的进程监听器。
+
+迁移说明：`docs/migration/phase-d-router-hotpath.md`。尚未发布。
+
 ## 2.5.0
 
 ### Minor Changes

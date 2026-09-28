@@ -11,7 +11,7 @@ Interface representing a Koatty application that extends Koa. Defines the struct
 **Signature:**
 
 ```typescript
-export interface KoattyApplication extends Koa 
+export interface KoattyApplication extends Koa
 ```
 **Extends:** Koa
 
@@ -113,6 +113,25 @@ Overloaded signature for Koa compatibility: - callback(): returns standard (req,
 </td><td>
 
 Get or set configuration value by name and type.
+
+
+</td></tr>
+<tr><td>
+
+[container](./koatty_core.koattyapplication.container.md)
+
+
+</td><td>
+
+
+</td><td>
+
+IContainer
+
+
+</td><td>
+
+The IOC container this application resolves beans from (ARCH-01 / D-1). Defaults to the global `IOC`<!-- -->; assign an isolated container before bootstrap to run an independent application in the same process.
 
 
 </td></tr>
@@ -411,6 +430,27 @@ string
 </td></tr>
 <tr><td>
 
+[paths?](./koatty_core.koattyapplication.paths.md)
+
+
+</td><td>
+
+
+</td><td>
+
+{ rootPath: string; appPath: string; koattyPath: string; }
+
+
+</td><td>
+
+_(Optional)_ Canonical application path record (ARCH-01 / D-1).
+
+Populated during `Loader.initialize`<!-- -->. New code should read `app.paths.rootPath` etc. instead of the deprecated `process.env.ROOT_PATH` family; the individual `app.*Path` fields above remain supported.
+
+
+</td></tr>
+<tr><td>
+
 [rootPath](./koatty_core.koattyapplication.rootpath.md)
 
 
@@ -516,12 +556,33 @@ Silent mode flag - when true, suppresses startup logs and console output Used pr
 
 </td><td>
 
-(callback?: () =&gt; void) =&gt; void
+(callback?: () =&gt; void) =&gt; void \| Promise&lt;void&gt;
 
 
 </td><td>
 
 Stop all servers gracefully. - For single protocol: stops the single server - For multi-protocol: stops all servers sequentially
+
+
+</td></tr>
+<tr><td>
+
+[stopResources?](./koatty_core.koattyapplication.stopresources.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+() =&gt; Promise&lt;void&gt;
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>
@@ -581,6 +642,32 @@ string
 
 
 </td><td>
+
+
+</td></tr>
+</tbody></table>
+
+## Methods
+
+<table><thead><tr><th>
+
+Method
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[getCurrentContext()?](./koatty_core.koattyapplication.getcurrentcontext.md)
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

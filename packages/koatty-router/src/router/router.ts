@@ -20,7 +20,7 @@ import { PayloadOptions } from "../payload/interface";
  * @export
  * @interface RouterOptions
  */
-export interface RouterOptions {
+export interface RouterOptions extends Record<string, unknown> {
   /** 路由前缀 */
   prefix: string;
   /**
@@ -95,7 +95,7 @@ export function NewRouter(app: KoattyApplication, opt?: RouterOptions): { router
   const options: RouterOptions = { protocol: "http", prefix: "", ...opt };
 
   // Use RouterFactory to create router instance
-  const factory = RouterFactory.getInstance();
+  const factory = RouterFactory.getInstance(app);
   const router = factory.create(options.protocol!, app, options);
 
   Helper.define(router, "protocol", options.protocol);

@@ -71,8 +71,6 @@
     "jest": "^29.x.x",
     "jest-html-reporters": "^3.x.x",
     "koa": "^2.x.x",
-    "koatty_core": "workspace:*",
-    "koatty_exception": "workspace:*",
     "openai": "^6.7.0",
     "reflect-metadata": "^0.2.2",
     "supertest": "^7.0.0",
@@ -97,6 +95,8 @@
     "koa-compress": "^5.1.1",
     "koatty_container": "workspace:*",
     "koatty_lib": "workspace:*",
-    "koatty_logger": "workspace:*"
+    "koatty_logger": "workspace:*",
+    "koatty_core": "workspace:*",
+    "koatty_exception": "workspace:*"
   }
 }

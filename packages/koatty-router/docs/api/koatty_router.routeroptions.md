@@ -11,8 +11,9 @@ RouterOptions
 **Signature:**
 
 ```typescript
-export interface RouterOptions 
+export interface RouterOptions extends Record<string, unknown>
 ```
+**Extends:** Record&lt;string, unknown&gt;
 
 ## Properties
 

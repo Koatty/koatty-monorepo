@@ -4,8 +4,6 @@
 
 ## unregisterConnectionPoolMetrics() function
 
-Unregister connection pool metrics callback from Application instance
-
 **Signature:**
 
 ```typescript
@@ -42,8 +40,6 @@ KoattyApplication
 
 </td><td>
 
-Application instance
-
 
 </td></tr>
 </tbody></table>
@@ -51,6 +47,4 @@ Application instance
 **Returns:**
 
 void
-
-{<!-- -->void<!-- -->}
 

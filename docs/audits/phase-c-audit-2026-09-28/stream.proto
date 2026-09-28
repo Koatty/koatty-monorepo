@@ -1,0 +1,10 @@
+syntax = "proto3";
+package audit;
+message Input { string value = 1; int32 delay = 2; }
+message Output { string value = 1; }
+service Probe {
+ rpc Unary(Input) returns (Output);
+ rpc ClientStream(stream Input) returns (Output);
+ rpc ServerStream(Input) returns (stream Output);
+ rpc BidiStream(stream Input) returns (stream Output);
+}

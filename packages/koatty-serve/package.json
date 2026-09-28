@@ -1,11 +1,11 @@
 {
   "name": "koatty_serve",
   "version": "3.5.0",
-  "description": "Provide http1/2/3, websocket, gRPC server for Koatty.",
+  "description": "HTTP, HTTPS, HTTP2, WebSocket and gRPC servers for Koatty",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",
     "build:js": "tsup",
-    "build:dts": "bash ../../scripts/build-dts.sh",
+    "build:dts": "bash ../../scripts/build-dts.sh && api-extractor run --local --config api-extractor.internal.json",
     "build:doc": "api-documenter markdown --input temp --output docs/api",
     "build:cp": "node ../../scripts/postBuild.js",
     "clean": "rimraf dist temp docs/api",
@@ -20,6 +20,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.mjs",
+      "require": "./dist/internal.js"
     }
   },
   "repository": {
@@ -81,7 +86,6 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
-    "@matrixai/quic": "^2.0.9",
     "koatty_container": "workspace:*",
     "koatty_core": "workspace:*",
     "koatty_exception": "workspace:*",

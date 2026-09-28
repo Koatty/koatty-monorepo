@@ -6,7 +6,7 @@
 
 gRPC ServerImpl
 
- {<!-- -->{ call: IRpcServerCall<!-- -->&lt;<!-- -->any, any<!-- -->&gt;<!-- -->; callback?: IRpcServerCallback<any>; }<!-- -->}  KoattyContext
+ {<!-- -->{ call: IRpcServerCall<!-- -->&lt;<!-- -->any, any<!-- -->&gt;<!-- -->; callback?: IRpcServerCallback<any>; path?: string; kind?: "unary" \| "client\_stream" \| "server\_stream" \| "bidi\_stream"; }<!-- -->}  KoattyContext
 
 **Signature:**
 
@@ -14,5 +14,7 @@ gRPC ServerImpl
 rpc?: {
         call: IRpcServerCall<any, any>;
         callback?: IRpcServerCallback<any>;
+        path?: string;
+        kind?: "unary" | "client_stream" | "server_stream" | "bidi_stream";
     };
 ```

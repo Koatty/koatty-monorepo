@@ -4,12 +4,10 @@
 
 ## SingleProtocolServer.Start() method
 
-Start server
-
 **Signature:**
 
 ```typescript
-Start(listenCallback?: () => void): any;
+Start(callback?: () => void): any;
 ```
 
 ## Parameters
@@ -32,7 +30,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-listenCallback
+callback
 
 
 </td><td>

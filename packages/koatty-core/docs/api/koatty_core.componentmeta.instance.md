@@ -9,5 +9,5 @@ Component instance (lazy-loaded)
 **Signature:**
 
 ```typescript
-instance: IPlugin | null;
+instance: IPlugin | KoattyApplication | null;
 ```

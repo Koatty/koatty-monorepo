@@ -184,8 +184,9 @@ export class GrpcRouter implements KoattyRouter {
   options: GrpcRouterOptions;
   router: Map<string, RouterImplementation>;
   private streamManager: StreamManager;
+  private streamTimers = new Map<string, NodeJS.Timeout>();
 
-  constructor(app: Koatty, options: RouterOptions = { protocol: "grpc", prefix: "" }) {
+  constructor(private app: Koatty, options: RouterOptions = { protocol: "grpc", prefix: "" }) {
     const extConfig = getProtocolConfig('grpc', options.ext || {});
     
     // 配置验证
@@ -286,7 +287,7 @@ export class GrpcRouter implements KoattyRouter {
       const ctx = app.createContext(call, callback, 'grpc');
       
       Logger.Debug(`[GRPC_ROUTER] Context created, getting controller instance`);
-      const ctl = IOC.getInsByClass(ctlItem.ctl, [ctx]);
+      const ctl = (this.app.container ?? IOC).getInsByClass(ctlItem.ctl, [ctx]);
       
       Logger.Debug(`[GRPC_ROUTER] Calling Handler for ${ctlItem.method}`);
       const result = await Handler(app, ctx, ctl, ctlItem.method, ctlItem.params, undefined, ctlItem.composedMiddleware);
@@ -320,20 +321,24 @@ export class GrpcRouter implements KoattyRouter {
       const timeout = setTimeout(() => {
         Logger.Warn(`[GRPC_ROUTER] Server stream ${streamId} timeout`);
         call.end();
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       }, this.options.streamConfig?.streamTimeout || 300000);
+      this.streamTimers.set(streamId, timeout);
+      timeout.unref?.();
+      call.on('close', () => this.removeStream(streamId));
+      call.on('finish', () => this.removeStream(streamId));
 
       // 处理流结束
       call.on('cancelled', () => {
         Logger.Debug(`[GRPC_ROUTER] Server stream ${streamId} cancelled`);
         clearTimeout(timeout);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
 
       call.on('error', (error) => {
         Logger.Error(`[GRPC_ROUTER] Server stream ${streamId} error:`, error);
         clearTimeout(timeout);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
 
       // 直接创建 context，不再调用 app.callback
@@ -357,17 +362,17 @@ export class GrpcRouter implements KoattyRouter {
       ctx.endStream = () => {
         call.end();
         clearTimeout(timeout);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       };
 
       // 获取控制器实例并执行
-      const ctl = IOC.getInsByClass(ctlItem.ctl, [ctx]);
+      const ctl = (this.app.container ?? IOC).getInsByClass(ctlItem.ctl, [ctx]);
       await Handler(app, ctx, ctl, ctlItem.method, ctlItem.params, undefined, ctlItem.composedMiddleware);
       
     } catch (error) {
       Logger.Error(`[GRPC_ROUTER] Error in server streaming: ${error}`);
       call.end();
-      this.streamManager.removeStream(streamId);
+      this.removeStream(streamId);
     }
   }
 
@@ -391,8 +396,12 @@ export class GrpcRouter implements KoattyRouter {
       const timeout = setTimeout(() => {
         Logger.Warn(`[GRPC_ROUTER] Client stream ${streamId} timeout`);
         callback(new Error('Stream timeout'));
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       }, this.options.streamConfig?.streamTimeout || 300000);
+      this.streamTimers.set(streamId, timeout);
+      timeout.unref?.();
+      call.on('close', () => this.removeStream(streamId));
+      call.on('finish', () => this.removeStream(streamId));
 
       // 处理数据接收
       call.on('data', (data: any) => {
@@ -422,18 +431,18 @@ export class GrpcRouter implements KoattyRouter {
           ctx.streamMessages = messages;
           
           // 获取控制器实例并执行
-          const ctl = IOC.getInsByClass(ctlItem.ctl, [ctx]);
+          const ctl = (this.app.container ?? IOC).getInsByClass(ctlItem.ctl, [ctx]);
           const result = await Handler(app, ctx, ctl, ctlItem.method, ctlItem.params, undefined, ctlItem.composedMiddleware);
           
           // 调用 callback 返回结果
           const response = result || ctx.body;
           callback(null, response);
           
-          this.streamManager.removeStream(streamId);
+          this.removeStream(streamId);
         } catch (error) {
           Logger.Error(`[GRPC_ROUTER] Error processing client stream: ${error}`);
           callback(error as Error);
-          this.streamManager.removeStream(streamId);
+          this.removeStream(streamId);
         }
       });
 
@@ -441,19 +450,19 @@ export class GrpcRouter implements KoattyRouter {
         Logger.Error(`[GRPC_ROUTER] Client stream ${streamId} error:`, error);
         clearTimeout(timeout);
         callback(error);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
 
       call.on('cancelled', () => {
         Logger.Debug(`[GRPC_ROUTER] Client stream ${streamId} cancelled`);
         clearTimeout(timeout);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
       
     } catch (error) {
       Logger.Error(`[GRPC_ROUTER] Error in client streaming: ${error}`);
       callback(error as Error);
-      this.streamManager.removeStream(streamId);
+      this.removeStream(streamId);
     }
   }
 
@@ -475,8 +484,12 @@ export class GrpcRouter implements KoattyRouter {
       const timeout = setTimeout(() => {
         Logger.Warn(`[GRPC_ROUTER] Bidirectional stream ${streamId} timeout`);
         call.end();
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       }, this.options.streamConfig?.streamTimeout || 300000);
+      this.streamTimers.set(streamId, timeout);
+      timeout.unref?.();
+      call.on('close', () => this.removeStream(streamId));
+      call.on('finish', () => this.removeStream(streamId));
 
       // 处理数据接收
       call.on('data', async (data: any) => {
@@ -511,11 +524,11 @@ export class GrpcRouter implements KoattyRouter {
           ctx.endStream = () => {
             call.end();
             clearTimeout(timeout);
-            this.streamManager.removeStream(streamId);
+            this.removeStream(streamId);
           };
 
           // 获取控制器实例并执行
-          const ctl = IOC.getInsByClass(ctlItem.ctl, [ctx]);
+          const ctl = (this.app.container ?? IOC).getInsByClass(ctlItem.ctl, [ctx]);
           await Handler(app, ctx, ctl, ctlItem.method, ctlItem.params, undefined, ctlItem.composedMiddleware);
         } catch (error) {
           Logger.Error(`[GRPC_ROUTER] Error processing bidirectional stream message: ${error}`);
@@ -527,26 +540,26 @@ export class GrpcRouter implements KoattyRouter {
         Logger.Debug(`[GRPC_ROUTER] Bidirectional stream ${streamId} ended`);
         clearTimeout(timeout);
         call.end();
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
 
       call.on('error', (error) => {
         Logger.Error(`[GRPC_ROUTER] Bidirectional stream ${streamId} error:`, error);
         clearTimeout(timeout);
         call.end();
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
 
       call.on('cancelled', () => {
         Logger.Debug(`[GRPC_ROUTER] Bidirectional stream ${streamId} cancelled`);
         clearTimeout(timeout);
-        this.streamManager.removeStream(streamId);
+        this.removeStream(streamId);
       });
       
     } catch (error) {
       Logger.Error(`[GRPC_ROUTER] Error in bidirectional streaming: ${error}`);
       call.end();
-      this.streamManager.removeStream(streamId);
+      this.removeStream(streamId);
     }
   }
 
@@ -614,7 +627,7 @@ export class GrpcRouter implements KoattyRouter {
 
       for (const n of list) {
         Logger.Debug(`[GRPC_ROUTER] Processing controller: ${n}`);
-        const ctlClass = IOC.getClass(n, "CONTROLLER");
+        const ctlClass = (app.container ?? IOC).getClass(n, "CONTROLLER");
         const ctlRouters = await injectRouter(app, ctlClass, this.options.protocol);
         Logger.Debug(`[GRPC_ROUTER] Controller ${n} routers:`, ctlRouters ? Object.keys(ctlRouters).length : 0);
         if (!ctlRouters) continue;
@@ -755,7 +768,7 @@ export class GrpcRouter implements KoattyRouter {
         Logger.Debug(`[GRPC_ROUTER] Found controller: ${ctlItem.name}.${ctlItem.method}`);
         
         // Execute controller
-        const ctl = IOC.getInsByClass(ctlItem.ctl, [ctx]);
+        const ctl = (this.app.container ?? IOC).getInsByClass(ctlItem.ctl, [ctx]);
         const result = await Handler(app, ctx, ctl, ctlItem.method, ctlItem.params, undefined, ctlItem.composedMiddleware);
         
         // Set result to ctx.body
@@ -780,7 +793,15 @@ export class GrpcRouter implements KoattyRouter {
   /**
    * Cleanup all gRPC resources (for graceful shutdown)
    */
+  private removeStream(streamId: string): void {
+    clearTimeout(this.streamTimers.get(streamId));
+    this.streamTimers.delete(streamId);
+    this.streamManager.removeStream(streamId);
+  }
+
   public cleanup(): void {
+    for (const timer of this.streamTimers.values()) clearTimeout(timer);
+    this.streamTimers.clear();
     Logger.Info('Starting gRPC router cleanup...');
 
     // Close all active streams

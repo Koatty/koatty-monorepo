@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — Phase A–D completion
+
+- 以 ConnectionTracker 替换入站连接池；统一排空、超时强制关闭和失败后的资源清理。源码降至 5000 物理行以内。
+- HTTP/3 提取至实验性 koatty_http3；核心不再依赖 @matrixai/quic。原核心 HTTP/3 导出和池统计行为移除，需 major 迁移。
+- 修复 WS 实际消息分发、外部 HTTP 所有权、限流/Origin/背压路径；TLS 校验复用既有配置。
+- 多应用停机逐一清理资源；显式停止释放本服务器的信号注册。主入口与 internal 入口共用协调器。
+
+本轮尚未发布；验收边界见根目录 `docs/audits/phase-ad-completion-2026-09-28.md`。
+
+## Unreleased (Phase A–D remediation)
+
+- HTTPS/HTTP2 文件证书支持热更新；先验证完整 TLS context，非法证书保留当前有效 context，停止服务器时解除文件监听。证书轮询支持原子替换，不依赖原生目录监听额度。
+- 删除服务端仅获取并丢弃统计快照、仅打印空闲日志的 30 秒定时器；按需统计接口保留。
+- HTTPS secureConnection 不再把 authorized=false（未使用客户端证书）误判为握手未完成；握手等待在关闭/失败时释放 timer/listeners，避免停机后的 10 秒超时残留；握手成功/失败计数与客户端证书授权分开。
+- 上述历史修复之后，本轮补齐了 D-5 连接追踪器、HTTP/3 拆分与总行数目标，详见顶部记录。
+- 迁移说明：`docs/migration/phase-d-router-hotpath.md`。
+
 ## 3.5.0
 
 ### Minor Changes

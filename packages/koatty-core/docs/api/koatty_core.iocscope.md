@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-export type IOCScope = 'Singleton' | 'Prototype';
+export type IOCScope = 'Singleton' | 'Prototype' | 'Request';
 ```

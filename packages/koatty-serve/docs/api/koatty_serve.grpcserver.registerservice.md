@@ -4,12 +4,10 @@
 
 ## GrpcServer.RegisterService() method
 
-Register Service with enhanced logging and monitoring
-
 **Signature:**
 
 ```typescript
-RegisterService(impl: ServiceImplementation): void;
+RegisterService(service: ServiceImplementation): void;
 ```
 
 ## Parameters
@@ -32,7 +30,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-impl
+service
 
 
 </td><td>

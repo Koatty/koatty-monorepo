@@ -10,6 +10,7 @@ import { Server } from "http";
 import { Http2SecureServer } from "http2";
 import { Server as SecureServer } from "https";
 import Koa from "koa";
+import { IContainer } from "koatty_container";
 import { WebSocketServer } from "ws";
 import { KoattyContext, KoattyNext, RequestType, ResponseType } from "./IContext";
 
@@ -63,6 +64,23 @@ export interface KoattyApplication extends Koa {
   rootPath: string;
   koattyPath: string;
   logsPath: string;
+
+  /**
+   * The IOC container this application resolves beans from (ARCH-01 / D-1).
+   * Defaults to the global `IOC`; assign an isolated container before bootstrap
+   * to run an independent application in the same process.
+   */
+  container: IContainer;
+  getCurrentContext?(): KoattyContext | undefined;
+
+  /**
+   * Canonical application path record (ARCH-01 / D-1).
+   *
+   * Populated during `Loader.initialize`. New code should read
+   * `app.paths.rootPath` etc. instead of the deprecated `process.env.ROOT_PATH`
+   * family; the individual `app.*Path` fields above remain supported.
+   */
+  paths?: { rootPath: string; appPath: string; koattyPath: string; };
 
   appDebug: boolean;
   
@@ -166,7 +184,8 @@ export interface KoattyApplication extends Koa {
    * @param {Function} [callback] Optional callback function to be executed after all servers stop
    * @returns {void}
    */
-  readonly stop: (callback?: () => void) => void;
+  readonly stop: (callback?: () => void) => void | Promise<void>;
+  readonly stopResources?: () => Promise<void>;
 
   /**
    * Create a callback function for handling requests.
@@ -377,7 +396,7 @@ export const AppEventArr = [
   "loadRouter",     // RouterComponent.initRouter() initializes router here
   "loadServe",      // ServeComponent.initServer() creates server using router
   "appReady",
-  "appStart",
+  // appStart is emitted by listen() after every transport is listening.
   // Note: "appStop" is NOT in startup sequence - it's triggered only on process termination
 ];
 

@@ -17,7 +17,8 @@ import { RequestMethod } from "../params/mapping";
 import { injectParamMetaData, injectRouter } from "../utils/inject";
 import { parsePath } from "../utils/path";
 import { RouterOptions } from "./router";
-import { Handler } from "../utils/handler";
+import { createRouteHandler } from "../utils/handler";
+import { errorNegotiation } from "../negotiation";
 
 
 /**
@@ -79,7 +80,7 @@ export class HttpRouter implements KoattyRouter {
   async LoadRouter(app: Koatty, list: any[]) {
     try {
       for (const n of list) {
-        const ctlClass = IOC.getClass(n, "CONTROLLER");
+        const ctlClass = (app.container ?? IOC).getClass(n, "CONTROLLER");
         // inject router
         const ctlRouters = await injectRouter(app, ctlClass, this.options.protocol);
         if (!ctlRouters) {
@@ -94,14 +95,19 @@ export class HttpRouter implements KoattyRouter {
           const requestMethod = <RequestMethod>router.requestMethod;
           const params = ctlParams[method];
 
-          Logger.Debug(`Register request mapping: ["${path}" => ${n}.${method}]`);
+          if (Logger.isDebugEnabled) {
+            Logger.Debug(`Register request mapping: ["${path}" => ${n}.${method}]`);
+          }
+          // PERF-01: build the invoker once, at registration time. The request
+          // hot path no longer allocates arrays/closures nor calls koa-compose.
+          const invoke = createRouteHandler(
+            app, method, params, undefined, router.composedMiddleware, ctlClass
+          );
           this.SetRouter(path, {
             path,
             method: requestMethod,
-            implementation: (ctx: KoattyContext): Promise<any> => {
-              const ctl = IOC.getInsByClass(ctlClass, [ctx]);
-              return Handler(app, ctx, ctl, method, params, undefined, router.composedMiddleware);
-            },
+            implementation: (ctx: KoattyContext): Promise<any> =>
+              invoke(ctx, (app.container ?? IOC).getInsByClass(ctlClass, [ctx])),
           });
         }
       }
@@ -114,6 +120,11 @@ export class HttpRouter implements KoattyRouter {
       const httpProtocols = new Set(['http', 'https', 'http2', 'http3']);
       const routerMiddleware = this.router.routes();
       const allowedMethodsMiddleware = this.router.allowedMethods();
+
+      // ARCH-06 / D-6: Accept-aware error output. Registered ahead of the router
+      // chain so downstream errors can be written as JSON when the client
+      // explicitly asks for it; other callers keep the framework's text output.
+      app.use(errorNegotiation());
       
       // Merged middleware: protocol check + routes + allowedMethods
       app.use(async (ctx: KoattyContext, next: any) => {

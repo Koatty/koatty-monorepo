@@ -1,6 +1,6 @@
 {
   "name": "koatty_testing",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Testing utilities for Koatty applications.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:cp",

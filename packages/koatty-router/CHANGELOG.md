@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — Phase A–D completion
+
+- WS 每条消息直接进入现有路由处理器并保留实际 socket/请求信息，避免等待下一条消息与监听器积累。
+- 修正运行期依赖声明与 ESM 中仅用于类型的导入。
+
+本轮尚未发布；验收边界见根目录 `docs/audits/phase-ad-completion-2026-09-28.md`。
+
+## Unreleased (Phase A–D remediation)
+
+- 注册期构造路由 handler；控制器、参数元数据、中间件和 RouterFactory 使用应用容器。关闭一个应用不会清理另一应用的路由。
+- 复用 Controller/GetMapping 等已有 middleware 选项与 IMiddleware.run；方法包装复用 Around/IAspect.run。移除本工作区未发布的 UseGuard/UseInterceptor/IGuard/IInterceptor。
+- SSE 使用普通路由中的 `streamSSE(ctx, signal => source)`，不新增 SSE 装饰器。支持 AsyncIterable、Web/Node Readable、编码、心跳、背压与断连取消；生产者必须配合 AbortSignal。
+- 错误协商处理 Accept 权重、q=0 和 vendor JSON。只对 HTTP 协议协商，保留 gRPC/WS 响应语义。
+- 控制器返回值仅在 ctx.body 为 undefined 时填入，保留中间件已设置的 0、false、空字符串。真实 HTTP RPS/p99 尚未通过发布验收，撤回旧微基准的过度承诺。
+
+- 空闲 WS 清理定时器不再阻止进程退出；gRPC 旧流处理入口的 deadline 在初始化失败、流关闭与 Router cleanup 时释放。
+
+迁移说明：`docs/migration/phase-d-router-hotpath.md`。尚未发布。
+
 ## 2.4.1
 
 ### Patch Changes

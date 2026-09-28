@@ -4,7 +4,10 @@
 
 ## registerConnectionPoolMetrics() function
 
-Register connection pool metrics callback with Application instance
+> Warning: This API is now obsolete.
+>
+> Exposes only this application's connection counts; use trace for request metrics.
+>
 
 **Signature:**
 
@@ -42,8 +45,6 @@ KoattyApplication
 
 </td><td>
 
-Application instance
-
 
 </td></tr>
 </tbody></table>
@@ -51,6 +52,4 @@ Application instance
 **Returns:**
 
 void
-
-{<!-- -->void<!-- -->}
 

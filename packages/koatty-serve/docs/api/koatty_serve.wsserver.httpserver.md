@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-readonly httpServer: HttpServer | HttpsServer;
+httpServer: HttpServer;
 ```

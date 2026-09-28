@@ -21,7 +21,7 @@ describe("Graceful Shutdown", () => {
   beforeEach(() => {
     app = new TestKoatty();
     // Reset factory before each test and clear active routers
-    factory = RouterFactory.getInstance();
+    factory = RouterFactory.getInstance(app);
     // Clear active routers from previous tests
     factory['activeRouters'] = [];
     // Reset shutdown flags

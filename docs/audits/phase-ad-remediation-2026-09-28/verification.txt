@@ -1,0 +1,66 @@
+Environment: macOS / Node v22.23.1 / pnpm 9.15.4
+HEAD: cb7807fb1f71ccc6ba31f4813b4b64ee5d4a674c with uncommitted changes
+
+koatty_lib:test: Test Suites: 2 passed, 2 total
+koatty_lib:test: Tests:       91 passed, 91 total
+koatty_cli:test: Test Suites: 34 passed, 34 total
+koatty_cli:test: Tests:       172 passed, 172 total
+koatty_graphql:test: No tests found, exiting with code 0
+koatty_logger:test: Test Suites: 2 passed, 2 total
+koatty_logger:test: Tests:       30 passed, 30 total
+koatty_proto:test: Test Suites: 2 passed, 2 total
+koatty_proto:test: Tests:       9 passed, 9 total
+koatty_loader:test: Test Suites: 3 passed, 3 total
+koatty_loader:test: Tests:       17 passed, 17 total
+koatty_store:test: Test Suites: 13 passed, 13 total
+koatty_store:test: Tests:       69 passed, 69 total
+koatty_container:test: Test Suites: 26 passed, 26 total
+koatty_container:test: Tests:       386 passed, 386 total
+koatty_exception:test: Test Suites: 4 passed, 4 total
+koatty_exception:test: Tests:       80 passed, 80 total
+koatty_validation:test: Test Suites: 15 passed, 15 total
+koatty_validation:test: Tests:       210 passed, 210 total
+koatty_core:test: Test Suites: 19 passed, 19 total
+koatty_core:test: Tests:       4 skipped, 315 passed, 319 total
+koatty_serve:test: Test Suites: 34 passed, 34 total
+koatty_serve:test: Tests:       24 skipped, 824 passed, 848 total
+koatty_serve:test: Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+koatty_router:test: Test Suites: 38 passed, 38 total
+koatty_router:test: Tests:       414 passed, 414 total
+koatty_config:test: Test Suites: 4 passed, 4 total
+koatty_config:test: Tests:       15 passed, 15 total
+koatty_cacheable:test: Test Suites: 3 passed, 3 total
+koatty_cacheable:test: Tests:       32 passed, 32 total
+koatty_schedule:test: Test Suites: 12 passed, 12 total
+koatty_schedule:test: Tests:       152 passed, 152 total
+koatty_typeorm:test: Test Suites: 2 skipped, 8 passed, 8 of 10 total
+koatty_typeorm:test: Tests:       20 skipped, 93 passed, 113 total
+koatty_serverless:test: Test Suites: 6 passed, 6 total
+koatty_serverless:test: Tests:       41 passed, 41 total
+koatty_trace:test: Test Suites: 18 passed, 18 total
+koatty_trace:test: Tests:       133 passed, 133 total
+koatty:test: Test Suites: 5 passed, 5 total
+koatty:test: Tests:       11 passed, 11 total
+koatty_swagger:test: Test Suites: 9 passed, 9 total
+koatty_swagger:test: Tests:       52 passed, 52 total
+koatty_testing:test: No tests found, exiting with code 0
+ Tasks:    46 successful, 46 total
+Cached:    37 cached, 46 total
+
+Lint: 24/24 tasks passed (21 cached); warnings retained, zero errors.
+Project doctor: pnpm run doctor, 5/5 checks passed.
+TLS watcher stop regression additionally rerun after extending wait beyond polling/debounce interval: passed.
+
+Final build: pnpm build, exit 0; base packages built in order, turbo 23/23 successful (19 cached).
+Real integration: pnpm test:phase-c:integration, exit 0.
+PHASE_C_NETWORK_PASS
+DECORATOR_MATRIX_PASS legacy
+DECORATOR_MATRIX_PASS tc39
+OS_SIGTERM_SHUTDOWN_PASS
+Existing APIs: node scripts/regression/phase-ad-decorators.cjs, exit 0.
+AD_EXISTING_DECORATORS_PASS legacy
+AD_EXISTING_DECORATORS_PASS tc39
+Security baseline: pnpm security:baseline, exit 0, PASS 14 / FAIL 0 / SKIP 0.
+No extra TLS handshake timeout after the final baseline.
+Source/test diff whitespace checks passed. Source fingerprint mismatch count: 0.
+No version, publication, commit or push performed.

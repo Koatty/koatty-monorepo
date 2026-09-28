@@ -58,7 +58,16 @@ Indicates that an decorated configuration as a property.
 </td></tr>
 <tr><td>
 
-[LoadConfigs(loadPath, baseDir, pattern, ignore, schema)](./koatty_config.loadconfigs.md)
+[isJsonSchema(schema)](./koatty_config.isjsonschema.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[LoadConfigs(loadPath, baseDir, pattern, ignore, schema, runtime)](./koatty_config.loadconfigs.md)
 
 
 </td><td>
@@ -104,6 +113,30 @@ Description
 <tr><td>
 
 [ValidationSchema](./koatty_config.validationschema.md)
+
+
+</td><td>
+
+
+</td></tr>
+</tbody></table>
+
+## Type Aliases
+
+<table><thead><tr><th>
+
+Type Alias
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[ConfigSchema](./koatty_config.configschema.md)
 
 
 </td><td>

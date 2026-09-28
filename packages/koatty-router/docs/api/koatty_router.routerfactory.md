@@ -9,7 +9,7 @@ Router factory implementation
 **Signature:**
 
 ```typescript
-export declare class RouterFactory implements IRouterFactory 
+export declare class RouterFactory implements IRouterFactory
 ```
 **Implements:** [IRouterFactory](./koatty_router.irouterfactory.md)
 
@@ -89,7 +89,7 @@ Get active routers list
 </td></tr>
 <tr><td>
 
-[getInstance()](./koatty_router.routerfactory.getinstance.md)
+[getInstance(app)](./koatty_router.routerfactory.getinstance.md)
 
 
 </td><td>

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Phase A–D completion
+
+- 配置加载可复用 runtime 清单；Config 通过现有容器适配器支持 Legacy/TC39，并保持实例所属应用的配置隔离。
+
+本轮尚未发布；验收边界见根目录 `docs/audits/phase-ad-completion-2026-09-28.md`。
+
+## Unreleased (Phase A–D remediation)
+
+- Config 注入以实例 app 为配置来源，修复多应用读取默认 IOC 配置；新增独立应用配置回归。
+- 迁移：`docs/migration/phase-d-router-hotpath.md`。
+
 ## 1.4.3
 
 ### Patch Changes

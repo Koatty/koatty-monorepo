@@ -76,11 +76,16 @@ export const RequestMapping = (
     routerName?: string;
     middleware?: Function[] | MiddlewareDecoratorConfig[];
   } = {}
-): MethodDecorator => {
+): ((...args: any[]) => any) => {
   const routerName = routerOptions.routerName ?? "";
-  return (target: any, key: string, descriptor: PropertyDescriptor) => {
+  return (target: any, key: any, descriptor?: PropertyDescriptor) => {
+    const context = key && typeof key === 'object' && key.kind === 'method' ? key : undefined;
+    if (context) {
+      if (context.static || context.private) throw new Error('Route methods must be public instance methods');
+      key = String(context.name);
+    }
     const targetType = IOC.getType(target);
-    if (targetType !== "CONTROLLER") {
+    if (!context && targetType !== "CONTROLLER") {
       throw Error("RequestMapping decorator is only used in controllers class.");
     }
 
@@ -118,14 +123,19 @@ export const RequestMapping = (
     }
 
     // tslint:disable-next-line: no-object-literal-type-assertion
-    IOC.attachPropertyData(MAPPING_KEY, {
+    const metadata = {
       path,
       requestMethod: reqMethod,
       routerName,
       method: key,
       middlewareConfigs // 存储完整的中间件配置
-    }, target, key);
-
+    };
+    if (context) {
+      const tag = Symbol.for('koatty.router.methodMappings');
+      Reflect.defineMetadata(tag, [...(Reflect.getOwnMetadata(tag, target) ?? []), metadata], target);
+      return target;
+    }
+    IOC.attachPropertyData(MAPPING_KEY, metadata, target, key);
     return descriptor;
   };
 };
@@ -133,48 +143,48 @@ export const RequestMapping = (
 /**
  * Routes HTTP POST requests to the specified path.
  */
-export const PostMapping = (path = "/", routerOptions?: RouterOption) => {
+export const PostMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.POST, routerOptions);
 };
 
 /**
  * Routes HTTP GET requests to the specified path.
  */
-export const GetMapping = (path = "/", routerOptions?: RouterOption) => {
+export const GetMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.GET, routerOptions);
 };
 
 /**
  * Routes HTTP DELETE requests to the specified path.
  */
-export const DeleteMapping = (path = "/", routerOptions?: RouterOption) => {
+export const DeleteMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.DELETE, routerOptions);
 };
 /**
  * Routes HTTP PUT requests to the specified path.
  */
-export const PutMapping = (path = "/", routerOptions?: RouterOption) => {
+export const PutMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.PUT, routerOptions);
 };
 
 /**
  * Routes HTTP PATCH requests to the specified path.
  */
-export const PatchMapping = (path = "/", routerOptions?: RouterOption) => {
+export const PatchMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.PATCH, routerOptions);
 };
 
 /**
  * Routes HTTP OPTIONS requests to the specified path.
  */
-export const OptionsMapping = (path = "/", routerOptions?: RouterOption) => {
+export const OptionsMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.OPTIONS, routerOptions);
 };
 
 /**
  * Routes HTTP HEAD requests to the specified path.
  */
-export const HeadMapping = (path = "/", routerOptions?: RouterOption) => {
+export const HeadMapping = (path = "/", routerOptions?: Partial<RouterOption>) => {
   return RequestMapping(path, RequestMethod.HEAD, routerOptions);
 };
 

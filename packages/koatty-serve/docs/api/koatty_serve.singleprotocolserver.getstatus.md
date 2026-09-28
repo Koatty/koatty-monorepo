@@ -4,8 +4,6 @@
 
 ## SingleProtocolServer.getStatus() method
 
-Get server status
-
 **Signature:**
 
 ```typescript
@@ -14,5 +12,4 @@ getStatus(): number;
 **Returns:**
 
 number
-
 

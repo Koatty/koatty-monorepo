@@ -11,7 +11,7 @@ listening options
 **Signature:**
 
 ```typescript
-export interface ListeningOptions 
+export interface ListeningOptions
 ```
 
 ## Properties
@@ -141,7 +141,7 @@ string
 
 </td><td>
 
-_(Optional)_ COR-03 (C-1) graceful-shutdown budget. `preStopDelay`<!-- -->: how long /ready reports 503 before sockets close (default 5000ms); `drainTimeout`<!-- -->: how long in-flight requests may finish (default 25000ms). preStopDelay + drainTimeout must stay below terminationGracePeriodSeconds.
+_(Optional)_ COR-03 (C-1) graceful-shutdown budget. `preStopDelay`<!-- -->: how long /ready reports 503 before sockets close (default 5000ms); `drainTimeout`<!-- -->: how long in-flight requests may finish (default 19000ms). preStopDelay + drainTimeout must stay below terminationGracePeriodSeconds.
 
 
 </td></tr>

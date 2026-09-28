@@ -4,8 +4,6 @@
 
 ## SingleProtocolServer.getNativeServer() method
 
-Get native server
-
 **Signature:**
 
 ```typescript
@@ -14,5 +12,4 @@ getNativeServer(): NativeServer;
 **Returns:**
 
 NativeServer
-
 

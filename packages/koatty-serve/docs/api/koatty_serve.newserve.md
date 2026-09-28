@@ -4,9 +4,6 @@
 
 ## NewServe() function
 
-Create Server
-
-
 **Signature:**
 
 ```typescript
@@ -66,6 +63,4 @@ _(Optional)_
 **Returns:**
 
 KoattyServer
-
-{<!-- -->\*<!-- -->} {<!-- -->KoattyServer<!-- -->}
 

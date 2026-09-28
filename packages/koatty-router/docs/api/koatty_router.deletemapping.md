@@ -9,7 +9,7 @@ Routes HTTP DELETE requests to the specified path.
 **Signature:**
 
 ```typescript
-DeleteMapping: (path?: string, routerOptions?: RouterOption) => MethodDecorator
+DeleteMapping: (path?: string, routerOptions?: Partial<RouterOption>) => (...args: any[]) => any
 ```
 
 ## Parameters
@@ -53,7 +53,7 @@ routerOptions
 
 </td><td>
 
-[RouterOption](./koatty_router.routeroption.md)
+Partial&lt;[RouterOption](./koatty_router.routeroption.md)<!-- -->&gt;
 
 
 </td><td>
@@ -66,5 +66,5 @@ _(Optional)_
 
 **Returns:**
 
-MethodDecorator
+(...args: any\[\]) =&gt; any
 

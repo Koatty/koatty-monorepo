@@ -165,13 +165,24 @@ export interface RouterMetadataObject {
  * Now supports advanced middleware features like priority, conditions, and metadata.
  */
 export async function injectRouter(app: Koatty, target: any, protocol = 'http'): Promise<RouterMetadataObject | null> {
-  const ctlName = IOC.getIdentifier(target);
-  const options = IOC.getPropertyData(CONTROLLER_ROUTER, target, ctlName) ||
+  const container = app.container ?? IOC;
+  const ctlName = container.getIdentifier(target);
+  const options = container.getPropertyData(CONTROLLER_ROUTER, target, ctlName) ||
     { path: "", protocol: 'http' };
   options.path = options.path.startsWith("/") || options.path === "" ? options.path : `/${options.path}`;
   if (options.protocol !== protocol) return null;
 
-  const rmetaData = recursiveGetMetadata(IOC, MAPPING_KEY, target);
+  const rmetaData = recursiveGetMetadata(container, MAPPING_KEY, target);
+  for (let proto = target.prototype; proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+    for (const name of Object.getOwnPropertyNames(proto)) {
+      if (rmetaData[name]) continue;
+      const method = Object.getOwnPropertyDescriptor(proto, name)?.value;
+      if (typeof method === 'function') {
+        const mappings = Reflect.getOwnMetadata(Symbol.for('koatty.router.methodMappings'), method);
+        if (mappings) rmetaData[name] = mappings;
+      }
+    }
+  }
   const router: RouterMetadataObject = {};
   const methods: string[] = [];
   const middlewareManager = RouterMiddlewareManager.getInstance(app);
@@ -198,7 +209,9 @@ export async function injectRouter(app: Koatty, target: any, protocol = 'http'):
 
       // 处理控制器级别的中间件（如果有的话）
       if (options.middleware) {
-        for (const middlewareItem of options.middleware) {
+        for (const configured of options.middleware) {
+          const middlewareItem = typeof configured === 'string' ? container.getClass(configured, 'MIDDLEWARE') : configured;
+          if (!middlewareItem) throw new Error(`Middleware ${configured} is not registered`);
           let config: MiddlewareDecoratorConfig;
           if (typeof middlewareItem === 'function') {
             config = {
@@ -468,9 +481,10 @@ interface ParamMetadataMap {
  */
 export function injectParamMetaData(app: Koatty, target: any,
   options?: PayloadOptions): ParamMetadataMap {
-  const metaDatas = recursiveGetMetadata(IOC, TAGGED_PARAM, target);
-  const validMetaDatas = recursiveGetMetadata(IOC, PARAM_RULE_KEY, target);
-  const validatedMetaDatas = recursiveGetMetadata(IOC, PARAM_CHECK_KEY, target);
+  const container = app.container ?? IOC;
+  const metaDatas = recursiveGetMetadata(container, TAGGED_PARAM, target);
+  const validMetaDatas = recursiveGetMetadata(container, PARAM_RULE_KEY, target);
+  const validatedMetaDatas = recursiveGetMetadata(container, PARAM_CHECK_KEY, target);
   const argsMetaObj: ParamMetadataMap = {};
 
   for (const meta in metaDatas) {
@@ -515,7 +529,7 @@ export function injectParamMetaData(app: Koatty, target: any,
       v.dtoCheck = !!(validatedMetaDatas[meta]?.dtoCheck);
       v.partial = validatedMetaDatas[meta]?.partial;
       if (v.isDto) {
-        v.clazz = IOC.getClass(v.type, "COMPONENT");
+        v.clazz = container.getClass(v.type, "COMPONENT");
         if (!v.clazz) {
           throw Error(`Failed to obtain the class ${v.type},
             because the class is not registered in the container.`);

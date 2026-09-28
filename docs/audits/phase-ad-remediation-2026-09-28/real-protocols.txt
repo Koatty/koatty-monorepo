@@ -1,0 +1,611 @@
+
+> koatty-monorepo@1.0.0 test:phase-c:integration /Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo
+> node scripts/regression/phase-c-network.cjs && node scripts/regression/phase-c-decorators.cjs && node scripts/regression/phase-c-shutdown.cjs
+
+[2026-09-28 17:45:07.255 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:07.257 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:45:07.257 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.257 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.257 +08:00]  DEBUG [HTTP] http server constructed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.257 +08:00]  INFO [HTTP] Initializing server
+[2026-09-28 17:45:07.257 +08:00]  INFO [CONNECTION_POOL] [HTTP] Connection pool manager initialized | Data: {"config":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"warmup":{"enabled":true,"initialConnections":5,"timeout":5000,"retryCount":3},"protocolSpecific":{}}}
+[2026-09-28 17:45:07.258 +08:00]  INFO [HTTP] HTTP connection pool configured successfully | Data: {"maxConnections":1000,"keepAliveTimeout":5000,"headersTimeout":10000,"requestTimeout":30000}
+[2026-09-28 17:45:07.258 +08:00]  INFO [HTTP] HTTP server initialization completed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.258 +08:00]  DEBUG [HTTP] Server initialized successfully
+[2026-09-28 17:45:07.258 +08:00]  INFO Server registered in TerminusManager: http_server_8f902fefb23c
+[2026-09-28 17:45:07.258 +08:00]  INFO Global signal handlers registered
+[2026-09-28 17:45:07.258 +08:00]  INFO [HTTP] Server starting | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.258 +08:00]  INFO [HTTP] Server: HTTP running at http://127.0.0.1:0/
+[2026-09-28 17:45:07.258 +08:00]  INFO [HTTP] Server started | Data: {"address":"127.0.0.1:0","hostname":"127.0.0.1","port":0,"connectionPoolEnabled":true}
+[2026-09-28 17:45:07.259 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection added to pool | Data: {"connectionId":"http_1790588707259_agopamfv"}
+[2026-09-28 17:45:07.274 +08:00]  INFO {
+  action: 'GET',
+  status: '200',
+  startTime: '1790588707260',
+  duration: '13',
+  requestId: '430d8a8f-0677-4123-ab45-2bbf230f981e',
+  endTime: '1790588707273',
+  path: '/'
+}
+HTTP_BEFORE_DRAIN { status: 200, connection: 'keep-alive' }
+[2026-09-28 17:45:07.279 +08:00]  ERROR {   "timestamp": "2026-09-28T09:45:07.278Z",   "level": "ERROR",   "type": "Exception",   "message": "audit failure",   "code": 1,   "status": 500,   "context": {     "requestId": "cdeb5ad7-677f-4dc6-b3e5-f49540c047fd",     "path": "/",     "method": "GET",     "userAgent": "",     "startTime": 1790588707275,     "endTime": 1790588707278,     "duration": 3   },   "stack": "Error: audit failure\n    at /Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/scripts/regression/phase-c-network.cjs:10:193\n    at dispatch (/Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/node_modules/.pnpm/koa-compose@4.1.0/node_modules/koa-compose/index.js:42:32)\n    at HttpHandler.handleWithTimeout (/Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/packages/koatty-trace/src/handler/base.ts:64:27)\n    at HttpHandler.handle (/Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/packages/koatty-trace/src/handler/http.ts:58:18)\n    at respWarper (/Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/packages/koatty-trace/src/trace/trace.ts:530:18)\n    at handleRequest (/Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/packages/koatty-trace/src/trace/trace.ts:433:22)\n    at /Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo/packages/koatty-trace/src/trace/trace.ts:377:12\n    a...[truncated]" }
+HTTP_ERROR_CONTROL { status: 500, connection: 'keep-alive' }
+HTTP_REPORTS_FOR_TWO_REQUESTS 2
+[2026-09-28 17:45:07.279 +08:00]  WARN [HTTP] Server draining: /ready now returns 503 | Data: {"preStopDelay":0,"drainTimeout":100}
+HTTP_READY_DRAIN { status: 503, connection: 'keep-alive' }
+HTTP_WORK_DRAIN { status: 503, connection: 'close' }
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [HTTP] HTTP connection removed from pool | Data: {"connectionId":"http_1790588707259_agopamfv","reason":"Connection closed"}
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection removed from pool | Data: {"connectionId":"http_1790588707259_agopamfv","reason":"Connection closed"}
+[2026-09-28 17:45:07.745 +08:00]  INFO [HTTP] [trace:trace_43976af50f57] Server stopping
+[2026-09-28 17:45:07.745 +08:00]  INFO [HTTP] [trace:trace_c9de5c926ba0] Destroying HTTP server
+[2026-09-28 17:45:07.745 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Starting graceful shutdown
+[2026-09-28 17:45:07.745 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Step 1: Stopping acceptance of new HTTP connections
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] New HTTP connection acceptance stopped
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Stopped accepting new connections
+[2026-09-28 17:45:07.745 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Step 3: Waiting for existing HTTP connections to complete | Data: {"activeConnections":0,"timeout":100}
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Waited for connections completion
+[2026-09-28 17:45:07.745 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Step 4: No remaining HTTP connections to close
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Force closed remaining connections
+[2026-09-28 17:45:07.746 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Step 5: Stopping monitoring and cleanup
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroying | Data: {"activeTimers":0,"totalTasks":0,"executedTasks":0,"activeConsolidatedTimers":0}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [TIMER_MANAGER] Clearing all timers | Data: {"logicalTimers":0,"physicalTimers":0}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [TIMER_MANAGER] All timers cleared successfully | Data: {"clearedLogicalTimers":0,"clearedPhysicalTimers":0}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroyed successfully
+[2026-09-28 17:45:07.746 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Final connection statistics | Data: {"activeConnections":0,"totalConnections":1,"connectionsPerSecond":27.77777777777778,"averageLatency":0,"errorRate":0,"poolConfig":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"warmup":{"enabled":true,"initialConnections":5,"timeout":5000,"retryCount":3},"protocolSpecific":{}},"health":{"status":"healthy","utilizationRatio":0,"activeConnections":0,"maxConnections":1000,"rejectedConnections":0,"averageResponseTime":0,"errorRate":0,"message":"Connection pool is healthy","lastUpdated":1790588707281},"performance":{"throughput":27.77777777777778,"latency":{"p50":0,"p95":0,"p99":0},"memoryUsage":0,"cpuUsage":0},"uptime":36}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Monitoring stopped and cleanup completed
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [HTTP] [trace:trace_8779ab109969] Stopped monitoring and cleanup
+[2026-09-28 17:45:07.746 +08:00]  INFO [HTTP] [trace:trace_8779ab109969] Graceful shutdown completed | Data: {"status":"completed","totalTime":0,"completedSteps":4,"failedSteps":0}
+[2026-09-28 17:45:07.746 +08:00]  INFO [HTTP] [trace:trace_c9de5c926ba0] HTTP server destroyed successfully
+[2026-09-28 17:45:07.746 +08:00]  INFO [HTTP] [trace:trace_43976af50f57] Server stopped | Data: {"gracefulShutdown":true,"finalConnectionCount":0}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC] grpc server constructed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.746 +08:00]  INFO [GRPC] Initializing server
+[2026-09-28 17:45:07.746 +08:00]  INFO [CONNECTION_POOL] [GRPC] Connection pool manager initialized | Data: {"config":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"protocolSpecific":{"maxReceiveMessageLength":4194304,"maxSendMessageLength":4194304,"keepAliveTime":30000}}}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC] gRPC server initialization completed | Data: {"hostname":"127.0.0.1","port":0,"sslEnabled":false,"maxConnections":1000}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC] Server initialized successfully
+[2026-09-28 17:45:07.746 +08:00]  INFO Server registered in TerminusManager: grpc_server_b2391c39ced3
+[2026-09-28 17:45:07.746 +08:00]  INFO Global signal handlers registered
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Processing controller: PhaseCController
+[2026-09-28 17:45:07.746 +08:00]  DEBUG RouterMiddlewareManager instance created with ID: kvmc2k9ee
+[2026-09-28 17:45:07.746 +08:00]  DEBUG injectRouter: RouterMiddlewareManager instance ID: kvmc2k9ee
+[2026-09-28 17:45:07.746 +08:00]  DEBUG injectRouter: Final middleware instance IDs for route /Unary: []
+[2026-09-28 17:45:07.746 +08:00]  DEBUG injectRouter: Final middleware instance IDs for route /ClientStream: []
+[2026-09-28 17:45:07.746 +08:00]  DEBUG injectRouter: Final middleware instance IDs for route /ServerStream: []
+[2026-09-28 17:45:07.746 +08:00]  DEBUG injectRouter: Final middleware instance IDs for route /BidiStream: []
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Controller PhaseCController routers: 4
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Registered controller route: "/audit.Probe/Unary" => PhaseCController.Unary
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Registered controller route: "/audit.Probe/ClientStream" => PhaseCController.ClientStream
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Registered controller route: "/audit.Probe/ServerStream" => PhaseCController.ServerStream
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Registered controller route: "/audit.Probe/BidiStream" => PhaseCController.BidiStream
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Processing gRPC service: Probe with 4 handlers
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Looking for handler: "/audit.Probe/Unary" (parsed: "/audit.Probe/Unary") => handler name: "Unary"
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] ✅ Register request mapping: ["/audit.Probe/Unary" => PhaseCController.Unary]
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Looking for handler: "/audit.Probe/ClientStream" (parsed: "/audit.Probe/ClientStream") => handler name: "ClientStream"
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] ✅ Register request mapping: ["/audit.Probe/ClientStream" => PhaseCController.ClientStream]
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Looking for handler: "/audit.Probe/ServerStream" (parsed: "/audit.Probe/ServerStream") => handler name: "ServerStream"
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] ✅ Register request mapping: ["/audit.Probe/ServerStream" => PhaseCController.ServerStream]
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] Looking for handler: "/audit.Probe/BidiStream" (parsed: "/audit.Probe/BidiStream") => handler name: "BidiStream"
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC_ROUTER] ✅ Register request mapping: ["/audit.Probe/BidiStream" => PhaseCController.BidiStream]
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC] [trace:trace_d80215b81f64] Registering gRPC service | Data: {"serviceName":"Unknown","methods":["Unary","ClientStream","ServerStream","BidiStream"]}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG [GRPC] [trace:trace_d80215b81f64] gRPC service registered successfully | Data: {"serviceName":"Unknown"}
+[2026-09-28 17:45:07.746 +08:00]  DEBUG gRPC router middleware registered (integrated with middleware chain)
+[2026-09-28 17:45:07.759 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588707758_693hz8i5"}
+[2026-09-28 17:45:07.759 +08:00]  DEBUG [GRPC] [conn:grpc_41221e14-6e23-4267-93a1-4547922f81ee] [trace:trace_55da4d1135c5] gRPC method call started | Data: {"methodName":"Unary","peer":"127.0.0.1:65521"}
+[2026-09-28 17:45:07.759 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerWritableStreamImpl {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      path: '/audit.Probe/Unary',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      request: [Object],
+      pendingStatus: [Object],
+      cancelled: false,
+      trailingMetadata: [Metadata],
+      _eventsCount: '2',
+      koattyMethodKind: 'unary',
+      koattyDeadlineMs: '992'
+    },
+    callback: '(err, response) => {\n' +
+      '                    if (callbackCalled) {\n' +
+      "                        this.logger.warn('Callback called multiple times (ignored)', {\n" +
+      '                            traceId: methodTraceId,\n' +
+      '                            connectionId\n' +
+      '                        }, {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName\n' +
+      '                        });\n' +
+      '                        return;\n' +
+      '                    }\n' +
+      '                    callbackCalled = true;\n' +
+      '                    // Clear timeout if exists\n' +
+      '                    if (timeoutId) {\n' +
+      '                        clearTimeout(timeoutId);\n' +
+      '                        timeoutId = null;\n' +
+      '                    }\n' +
+      '                    const duration = Date.now() - startTime;\n' +
+      '                    if (err) {\n' +
+      "                        this.logger.error('gRPC method error', { traceId: methodTraceId, connectionId }, {\n" +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            errorCode: err.code,\n' +
+      '                            errorMessage: err.message || String(err),\n' +
+      '                            error: err\n' +
+      '                        });\n' +
+      '                        // Ensure error follows gRPC format\n' +
+      "                        const grpcError = typeof err === 'object' && err !== null && 'code' in err\n" +
+      '                            ? err\n' +
+      '                            : {\n' +
+      '                                code: 13, // INTERNAL\n' +
+      '                                message: err instanceof Error ? err.message : String(err),\n' +
+      '                                details: err\n' +
+      '                            };\n' +
+      '                        if (callback)\n' +
+      '                            callback(grpcError, null);\n' +
+      '                    }\n' +
+      '                    else {\n' +
+      '                        // Validate response\n' +
+      '                        const hasResponse = response !== undefined && response !== null;\n' +
+      '                        const responseInfo = {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            hasResponse,\n' +
+      '                            responseType: typeof response\n' +
+      '                        };\n' +
+      "                        if (hasResponse && typeof response === 'object') {\n" +
+      '                            responseInfo.responseKeys = Object.keys(response);\n' +
+      '                        }\n' +
+      "                        this.logger.debug('gRPC method success', { traceId: methodTraceId, connectionId }, responseInfo);\n" +
+      '                        // Note: Connection cleanup is handled automatically by the pool\n' +
+      '                        if (callback)\n' +
+      '                            callback(null, response);\n' +
+      '                    }\n' +
+      '                }',
+    path: '/audit.Probe/Unary',
+    kind: 'unary'
+  }
+}
+[2026-09-28 17:45:07.760 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/Unary
+[2026-09-28 17:45:07.760 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.Unary
+[2026-09-28 17:45:07.760 +08:00]  DEBUG Handler: [Unary] predefinedParams=false middleware=false
+[2026-09-28 17:45:07.761 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/Unary', hasResult: 'true' }
+[2026-09-28 17:45:07.761 +08:00]  DEBUG [GRPC] [conn:grpc_41221e14-6e23-4267-93a1-4547922f81ee] [trace:trace_55da4d1135c5] gRPC method success | Data: {"methodName":"Unary","duration":2,"hasResponse":true,"responseType":"object","responseKeys":["value"]}
+[2026-09-28 17:45:07.761 +08:00]  INFO {
+  action: 'POST',
+  status: 0,
+  startTime: '1790588707758',
+  duration: '3',
+  requestId: '8661b2cc-8059-4fc1-84e0-1f83c62b712c',
+  endTime: '1790588707761',
+  path: '/audit.Probe/Unary'
+}
+GRPC_UNARY_CONTROL { value: 'unary' }
+[2026-09-28 17:45:07.763 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588707763_d4wrr86k"}
+[2026-09-28 17:45:07.764 +08:00]  DEBUG [GRPC] [conn:grpc_f35a2eb9-859e-48fc-b319-f35261d8ada2] [trace:trace_253f35a88fb6] gRPC method call started | Data: {"methodName":"Unary","peer":"127.0.0.1:65521"}
+[2026-09-28 17:45:07.764 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerWritableStreamImpl {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      path: '/audit.Probe/Unary',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      request: [Object],
+      pendingStatus: [Object],
+      cancelled: false,
+      trailingMetadata: [Metadata],
+      _eventsCount: '2',
+      koattyMethodKind: 'unary',
+      koattyDeadlineMs: '1000'
+    },
+    callback: '(err, response) => {\n' +
+      '                    if (callbackCalled) {\n' +
+      "                        this.logger.warn('Callback called multiple times (ignored)', {\n" +
+      '                            traceId: methodTraceId,\n' +
+      '                            connectionId\n' +
+      '                        }, {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName\n' +
+      '                        });\n' +
+      '                        return;\n' +
+      '                    }\n' +
+      '                    callbackCalled = true;\n' +
+      '                    // Clear timeout if exists\n' +
+      '                    if (timeoutId) {\n' +
+      '                        clearTimeout(timeoutId);\n' +
+      '                        timeoutId = null;\n' +
+      '                    }\n' +
+      '                    const duration = Date.now() - startTime;\n' +
+      '                    if (err) {\n' +
+      "                        this.logger.error('gRPC method error', { traceId: methodTraceId, connectionId }, {\n" +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            errorCode: err.code,\n' +
+      '                            errorMessage: err.message || String(err),\n' +
+      '                            error: err\n' +
+      '                        });\n' +
+      '                        // Ensure error follows gRPC format\n' +
+      "                        const grpcError = typeof err === 'object' && err !== null && 'code' in err\n" +
+      '                            ? err\n' +
+      '                            : {\n' +
+      '                                code: 13, // INTERNAL\n' +
+      '                                message: err instanceof Error ? err.message : String(err),\n' +
+      '                                details: err\n' +
+      '                            };\n' +
+      '                        if (callback)\n' +
+      '                            callback(grpcError, null);\n' +
+      '                    }\n' +
+      '                    else {\n' +
+      '                        // Validate response\n' +
+      '                        const hasResponse = response !== undefined && response !== null;\n' +
+      '                        const responseInfo = {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            hasResponse,\n' +
+      '                            responseType: typeof response\n' +
+      '                        };\n' +
+      "                        if (hasResponse && typeof response === 'object') {\n" +
+      '                            responseInfo.responseKeys = Object.keys(response);\n' +
+      '                        }\n' +
+      "                        this.logger.debug('gRPC method success', { traceId: methodTraceId, connectionId }, responseInfo);\n" +
+      '                        // Note: Connection cleanup is handled automatically by the pool\n' +
+      '                        if (callback)\n' +
+      '                            callback(null, response);\n' +
+      '                    }\n' +
+      '                }',
+    path: '/audit.Probe/Unary',
+    kind: 'unary'
+  }
+}
+[2026-09-28 17:45:07.764 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/Unary
+[2026-09-28 17:45:07.764 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.Unary
+[2026-09-28 17:45:07.764 +08:00]  DEBUG Handler: [Unary] predefinedParams=false middleware=false
+[2026-09-28 17:45:08.266 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/Unary', hasResult: 'true' }
+[2026-09-28 17:45:08.267 +08:00]  DEBUG [GRPC] [conn:grpc_f35a2eb9-859e-48fc-b319-f35261d8ada2] [trace:trace_253f35a88fb6] gRPC method success | Data: {"methodName":"Unary","duration":502,"hasResponse":true,"responseType":"object","responseKeys":["value"]}
+[2026-09-28 17:45:08.267 +08:00]  INFO {
+  action: 'POST',
+  status: 0,
+  startTime: '1790588707763',
+  duration: '503',
+  requestId: '39d29b05-d95b-48c9-a876-846adf26244a',
+  endTime: '1790588708266',
+  path: '/audit.Probe/Unary'
+}
+GRPC_DEADLINE_LONGER_THAN_TRACE { value: 'unary' }
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588708273_82w4i60q"}
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC] [conn:grpc_fe2139c2-d989-4b8c-8d56-9a2ac91c5364] [trace:trace_9f2d41862d5e] gRPC method call started | Data: {"methodName":"ClientStream","peer":"127.0.0.1:65521"}
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerDuplexStreamImpl {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: 'true',
+      _maxListeners: undefined,
+      path: '/audit.Probe/ClientStream',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      pendingStatus: [Object],
+      cancelled: 'true',
+      trailingMetadata: [Metadata],
+      _eventsCount: '3',
+      koattyMethodKind: 'client_stream',
+      koattyDeadlineMs: '998'
+    },
+    callback: '(err, response) => {\n' +
+      '                    if (callbackCalled) {\n' +
+      "                        this.logger.warn('Callback called multiple times (ignored)', {\n" +
+      '                            traceId: methodTraceId,\n' +
+      '                            connectionId\n' +
+      '                        }, {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName\n' +
+      '                        });\n' +
+      '                        return;\n' +
+      '                    }\n' +
+      '                    callbackCalled = true;\n' +
+      '                    // Clear timeout if exists\n' +
+      '                    if (timeoutId) {\n' +
+      '                        clearTimeout(timeoutId);\n' +
+      '                        timeoutId = null;\n' +
+      '                    }\n' +
+      '                    const duration = Date.now() - startTime;\n' +
+      '                    if (err) {\n' +
+      "                        this.logger.error('gRPC method error', { traceId: methodTraceId, connectionId }, {\n" +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            errorCode: err.code,\n' +
+      '                            errorMessage: err.message || String(err),\n' +
+      '                            error: err\n' +
+      '                        });\n' +
+      '                        // Ensure error follows gRPC format\n' +
+      "                        const grpcError = typeof err === 'object' && err !== null && 'code' in err\n" +
+      '                            ? err\n' +
+      '                            : {\n' +
+      '                                code: 13, // INTERNAL\n' +
+      '                                message: err instanceof Error ? err.message : String(err),\n' +
+      '                                details: err\n' +
+      '                            };\n' +
+      '                        if (callback)\n' +
+      '                            callback(grpcError, null);\n' +
+      '                    }\n' +
+      '                    else {\n' +
+      '                        // Validate response\n' +
+      '                        const hasResponse = response !== undefined && response !== null;\n' +
+      '                        const responseInfo = {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            hasResponse,\n' +
+      '                            responseType: typeof response\n' +
+      '                        };\n' +
+      "                        if (hasResponse && typeof response === 'object') {\n" +
+      '                            responseInfo.responseKeys = Object.keys(response);\n' +
+      '                        }\n' +
+      "                        this.logger.debug('gRPC method success', { traceId: methodTraceId, connectionId }, responseInfo);\n" +
+      '                        // Note: Connection cleanup is handled automatically by the pool\n' +
+      '                        if (callback)\n' +
+      '                            callback(null, response);\n' +
+      '                    }\n' +
+      '                }',
+    path: '/audit.Probe/ClientStream',
+    kind: 'client_stream'
+  }
+}
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/ClientStream
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.ClientStream
+[2026-09-28 17:45:08.276 +08:00]  DEBUG Handler: [ClientStream] predefinedParams=false middleware=false
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/ClientStream', hasResult: 'true' }
+[2026-09-28 17:45:08.276 +08:00]  DEBUG [GRPC] [conn:grpc_fe2139c2-d989-4b8c-8d56-9a2ac91c5364] [trace:trace_9f2d41862d5e] gRPC method success | Data: {"methodName":"ClientStream","duration":2,"hasResponse":true,"responseType":"object","responseKeys":["value"]}
+[2026-09-28 17:45:08.277 +08:00]  INFO {
+  action: 'POST',
+  status: 0,
+  startTime: '1790588708274',
+  duration: '1',
+  requestId: '00cead57-cb9a-4363-8911-560aa3d612c9',
+  endTime: '1790588708275',
+  path: '/audit.Probe/ClientStream'
+}
+GRPC_CLIENT_STREAM { value: '1' }
+[2026-09-28 17:45:08.280 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588708279_l82kbegt"}
+[2026-09-28 17:45:08.280 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerWritableStreamImpl {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      path: '/audit.Probe/ServerStream',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      request: [Object],
+      pendingStatus: [Object],
+      cancelled: false,
+      trailingMetadata: [Metadata],
+      _eventsCount: '4',
+      koattyMethodKind: 'server_stream',
+      koattyDeadlineMs: '1200',
+      write: '(chunk, ...rest) => {\n' +
+        '                    if (cancelled || closed)\n' +
+        '                        return false;\n' +
+        '                    return originalWrite(chunk, ...rest);\n' +
+        '                }'
+    },
+    callback: undefined,
+    path: '/audit.Probe/ServerStream',
+    kind: 'server_stream'
+  }
+}
+[2026-09-28 17:45:08.280 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/ServerStream
+[2026-09-28 17:45:08.280 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.ServerStream
+[2026-09-28 17:45:08.280 +08:00]  DEBUG Handler: [ServerStream] predefinedParams=false middleware=false
+STREAM_ACCOUNTING {"streamFinished":true}
+[2026-09-28 17:45:08.783 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/ServerStream', hasResult: false }
+[2026-09-28 17:45:08.783 +08:00]  WARN [GRPC] [conn:grpc_14c9aef5-3dff-47f7-a0fd-4bca6944eb9b] [trace:trace_e988341d889f] gRPC streaming call ended | Data: {"methodName":"ServerStream","streamType":"server_stream","duration":503,"reason":"client cancelled","cancelled":true}
+[2026-09-28 17:45:08.783 +08:00]  INFO {
+  action: 'POST',
+  status: '2',
+  startTime: '1790588708279',
+  duration: '503',
+  requestId: 'c3845b79-d2c8-4845-ad89-6c5f93344dc8',
+  endTime: '1790588708782',
+  path: '/audit.Probe/ServerStream'
+}
+GRPC_SERVER_STREAM { values: [ { value: 'stream' } ] }
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588708785_spz8dxyf"}
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerDuplexStreamImpl {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: 'true',
+      _maxListeners: undefined,
+      path: '/audit.Probe/BidiStream',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      pendingStatus: [Object],
+      cancelled: 'true',
+      trailingMetadata: [Metadata],
+      _eventsCount: '5',
+      koattyMethodKind: 'bidi_stream',
+      koattyDeadlineMs: '1200',
+      write: '(chunk, ...rest) => {\n' +
+        '                    if (cancelled || closed)\n' +
+        '                        return false;\n' +
+        '                    return originalWrite(chunk, ...rest);\n' +
+        '                }'
+    },
+    callback: undefined,
+    path: '/audit.Probe/BidiStream',
+    kind: 'bidi_stream'
+  }
+}
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/BidiStream
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.BidiStream
+[2026-09-28 17:45:08.787 +08:00]  DEBUG Handler: [BidiStream] predefinedParams=false middleware=false
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/BidiStream', hasResult: false }
+[2026-09-28 17:45:08.787 +08:00]  DEBUG [GRPC] [conn:grpc_8fa43b7c-bd68-42d7-a6f1-203972287724] [trace:trace_c1b3aaa3478b] gRPC streaming call completed | Data: {"methodName":"BidiStream","streamType":"bidi_stream","duration":2,"reason":"closed","cancelled":false}
+[2026-09-28 17:45:08.787 +08:00]  INFO {
+  action: 'POST',
+  status: '2',
+  startTime: '1790588708785',
+  duration: '2',
+  requestId: '033bb266-6cde-44d7-a685-82021751663d',
+  endTime: '1790588708787',
+  path: '/audit.Probe/BidiStream'
+}
+GRPC_BIDI_STREAM { values: [ { value: 'b' } ] }
+GRPC_REPORTS_FOR_FIVE_CALLS 5
+[2026-09-28 17:45:08.799 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection added to pool | Data: {"connectionId":"grpc_1790588708798_95efouhy"}
+[2026-09-28 17:45:08.799 +08:00]  DEBUG [GRPC] [conn:grpc_2b4dc84d-2151-4a8a-a72e-be5a84defdcd] [trace:trace_96124715d8f4] gRPC method call started | Data: {"methodName":"Unary","peer":"127.0.0.1:65521"}
+[2026-09-28 17:45:08.799 +08:00]  DEBUG [GRPC_ROUTER] gRPC router middleware executing {
+  protocol: 'grpc',
+  rpc: {
+    call: ServerWritableStreamImpl {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      path: '/audit.Probe/Unary',
+      call: [BaseServerInterceptingCall],
+      metadata: [Metadata],
+      request: [Object],
+      pendingStatus: [Object],
+      cancelled: false,
+      trailingMetadata: [Metadata],
+      _eventsCount: '2',
+      koattyMethodKind: 'unary',
+      koattyDeadlineMs: '30'
+    },
+    callback: '(err, response) => {\n' +
+      '                    if (callbackCalled) {\n' +
+      "                        this.logger.warn('Callback called multiple times (ignored)', {\n" +
+      '                            traceId: methodTraceId,\n' +
+      '                            connectionId\n' +
+      '                        }, {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName\n' +
+      '                        });\n' +
+      '                        return;\n' +
+      '                    }\n' +
+      '                    callbackCalled = true;\n' +
+      '                    // Clear timeout if exists\n' +
+      '                    if (timeoutId) {\n' +
+      '                        clearTimeout(timeoutId);\n' +
+      '                        timeoutId = null;\n' +
+      '                    }\n' +
+      '                    const duration = Date.now() - startTime;\n' +
+      '                    if (err) {\n' +
+      "                        this.logger.error('gRPC method error', { traceId: methodTraceId, connectionId }, {\n" +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            errorCode: err.code,\n' +
+      '                            errorMessage: err.message || String(err),\n' +
+      '                            error: err\n' +
+      '                        });\n' +
+      '                        // Ensure error follows gRPC format\n' +
+      "                        const grpcError = typeof err === 'object' && err !== null && 'code' in err\n" +
+      '                            ? err\n' +
+      '                            : {\n' +
+      '                                code: 13, // INTERNAL\n' +
+      '                                message: err instanceof Error ? err.message : String(err),\n' +
+      '                                details: err\n' +
+      '                            };\n' +
+      '                        if (callback)\n' +
+      '                            callback(grpcError, null);\n' +
+      '                    }\n' +
+      '                    else {\n' +
+      '                        // Validate response\n' +
+      '                        const hasResponse = response !== undefined && response !== null;\n' +
+      '                        const responseInfo = {\n' +
+      '                            serviceName: impl.service.serviceName,\n' +
+      '                            methodName,\n' +
+      '                            duration,\n' +
+      '                            hasResponse,\n' +
+      '                            responseType: typeof response\n' +
+      '                        };\n' +
+      "                        if (hasResponse && typeof response === 'object') {\n" +
+      '                            responseInfo.responseKeys = Object.keys(response);\n' +
+      '                        }\n' +
+      "                        this.logger.debug('gRPC method success', { traceId: methodTraceId, connectionId }, responseInfo);\n" +
+      '                        // Note: Connection cleanup is handled automatically by the pool\n' +
+      '                        if (callback)\n' +
+      '                            callback(null, response);\n' +
+      '                    }\n' +
+      '                }',
+    path: '/audit.Probe/Unary',
+    kind: 'unary'
+  }
+}
+[2026-09-28 17:45:08.799 +08:00]  DEBUG [GRPC_ROUTER] Looking up controller for method: /audit.Probe/Unary
+[2026-09-28 17:45:08.799 +08:00]  DEBUG [GRPC_ROUTER] Found controller: PhaseCController.Unary
+[2026-09-28 17:45:08.800 +08:00]  DEBUG Handler: [Unary] predefinedParams=false middleware=false
+[2026-09-28 17:45:08.835 +08:00]  ERROR {
+  action: 'POST',
+  status: '2',
+  startTime: '1790588708799',
+  duration: '36',
+  requestId: '1f1b46ab-9856-4700-a465-2cd15e662b55',
+  endTime: '1790588708835',
+  path: '/audit.Probe/Unary'
+}
+PHASE_C_NETWORK_PASS
+[2026-09-28 17:45:08.889 +08:00]  INFO [CONNECTION_POOL] [GRPC] [trace:trace_619f314333e9] Destroying connection pool manager
+[2026-09-28 17:45:08.889 +08:00]  INFO [CONNECTION_POOL] [GRPC] [trace:trace_e9aad99d0f9d] Closing all connections | Data: {"activeConnections":6}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588707758_693hz8i5","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588707758_693hz8i5","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588707763_d4wrr86k","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588707763_d4wrr86k","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588708273_82w4i60q","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588708273_82w4i60q","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588708279_l82kbegt","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588708279_l82kbegt","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588708785_spz8dxyf","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588708785_spz8dxyf","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [GRPC] GRPC connection removed from pool | Data: {"connectionId":"grpc_1790588708798_95efouhy","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [CONNECTION_POOL] [GRPC] Connection removed from pool | Data: {"connectionId":"grpc_1790588708798_95efouhy","reason":"Pool shutdown"}
+[2026-09-28 17:45:08.889 +08:00]  INFO [CONNECTION_POOL] [GRPC] [trace:trace_e9aad99d0f9d] All connections closed
+[2026-09-28 17:45:08.889 +08:00]  INFO [CONNECTION_POOL] [GRPC] [trace:trace_619f314333e9] Connection pool manager destroyed successfully
+[2026-09-28 17:45:08.889 +08:00]  INFO [CONNECTION_POOL] [GRPC] gRPC connection pool destroyed
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroying | Data: {"activeTimers":0,"totalTasks":0,"executedTasks":0,"activeConsolidatedTimers":0}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [TIMER_MANAGER] Clearing all timers | Data: {"logicalTimers":0,"physicalTimers":0}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [TIMER_MANAGER] All timers cleared successfully | Data: {"clearedLogicalTimers":0,"clearedPhysicalTimers":0}
+[2026-09-28 17:45:08.889 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroyed successfully
+[2026-09-28 17:45:09.001 +08:00]  DEBUG [GRPC_ROUTER] Controller execution completed { method: '/audit.Probe/Unary', hasResult: 'true' }
+[2026-09-28 17:45:14.384 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:14.385 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:45:14.385 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:14.385 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:14.385 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:45:14.385 +08:00]  DEBUG Register component dependencies: MatrixService -> []
+[2026-09-28 17:45:14.385 +08:00]  DEBUG Register component dependencies: MatrixService -> []
+[2026-09-28 17:45:14.386 +08:00]  DEBUG Finish resolving component: MatrixService, remaining path: []
+[2026-09-28 17:45:14.389 +08:00]  DEBUG Acquiring lock for method: work, ttl: 1000ms, maxHoldTime: 10ms
+[2026-09-28 17:45:14.400 +08:00]  ERROR RedLock operation failed for method: work Method work exceeded maxHoldTime (10ms)
+DECORATOR_MATRIX_PASS legacy
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:45:14.406 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Container cleared including performance optimization components
+[2026-09-28 17:45:14.406 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Register component dependencies: MatrixService -> []
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Register component dependencies: MatrixService -> []
+[2026-09-28 17:45:14.406 +08:00]  DEBUG Finish resolving component: MatrixService, remaining path: []
+DECORATOR_MATRIX_PASS tc39
+[2026-09-28 17:45:14.422 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:45:14.422 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:45:14.422 +08:00]  DEBUG Container cleared including performance optimization components
+OS_SIGTERM_SHUTDOWN_PASS

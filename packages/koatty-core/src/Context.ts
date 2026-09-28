@@ -146,7 +146,13 @@ class GrpcContextFactory implements IContextFactory {
     context.status = 200;
 
     if (call) {
-      Helper.define(context, "rpc", { call, callback });
+      const path = (call as any).getPath?.() || (call as any).path || (call as any).handler?.path || '';
+      Helper.define(context, "rpc", { call, callback, path, kind: (call as any).koattyMethodKind });
+      // grpc-js calls are not IncomingMessage objects. Never use Koa's URL/header getters.
+      for (const [key, value] of Object.entries({ path, url: path, originalUrl: path,
+        originalPath: path, method: 'POST', headers: call.metadata.getMap?.() || call.metadata.toJSON?.() || {} })) {
+        Object.defineProperty(context, key, { configurable: true, writable: true, value });
+      }
       Helper.define(context, "metadata", KoattyMetadata.from(call.metadata.toJSON()));
       
       // Define methods using cached references
@@ -163,7 +169,7 @@ class GrpcContextFactory implements IContextFactory {
       }
       
       // Set initial metadata
-      context.setMetaData("originalPath", handler.path || '');
+      context.setMetaData("originalPath", (call as any).getPath?.() || handler.path || '');
       context.setMetaData("_body", (<ServerUnaryCall<any, any>>call).request || {});
       
       // Define sendMetadata for gRPC using cached reference

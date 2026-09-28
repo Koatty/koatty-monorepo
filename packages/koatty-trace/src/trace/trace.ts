@@ -312,8 +312,17 @@ export function Trace(options: TraceOptions, app: Koatty) {
     
     if (targetServer?.status === 503) {
       ctx.status = 503;
-      ctx.set('Connection', 'close');
-      ctx.body = 'Server is in the process of shutting down';
+      if (requestProtocol === 'grpc') {
+        const error = Object.assign(new Error('Server is shutting down'), { code: 14 });
+        if (typeof ctx.rpc?.callback === 'function') ctx.rpc.callback(error, null);
+        else (ctx.rpc?.call as any)?.destroy?.(error);
+      } else if (requestProtocol === 'ws' || requestProtocol === 'wss') {
+        (ctx as any).websocket?.close?.(1012, 'Server is shutting down');
+      } else {
+        ctx.set('Connection', 'close');
+        ctx.body = 'Server is in the process of shutting down';
+        ctx.res.end(ctx.body);
+      }
       return;
     }
 
@@ -437,7 +446,7 @@ async function handleRequest(
         metricsConf.reporter({
           duration,
           status: ctx.status || 200,
-          path: ctx.path,
+          path: ctx.protocol === 'grpc' ? ((ctx.rpc?.call as any)?.getPath?.() || ctx.originalPath || '/') : ctx.path,
           attributes: {
             ...(metricsConf.defaultAttributes || {}),
             requestId: ctx.requestId,

@@ -22,25 +22,29 @@ describe('AB-13: health details require token even inside trusted networks',()=>
   });
 });
 
-test('AB-08: configured handshake rate limit rejects before handleUpgrade', () => {
-  const server:any=Object.create(WsServer.prototype);
-  server.upgradeRateLimit={enabled:true,max:1,windowMs:60000};
-  server.upgradeAttempts=new Map(); server.checkOriginEnabled=false; server.maxConnections=0;
-  server.server={handleUpgrade:jest.fn()}; server.logger={warn:jest.fn()};
-  server.setupUpgradeHandling();
-  const socket={remoteAddress:'203.0.113.5',write:jest.fn(),destroy:jest.fn()};
-  server.upgradeHandler({headers:{}},socket,Buffer.alloc(0));
-  server.upgradeHandler({headers:{}},socket,Buffer.alloc(0));
-  expect(server.server.handleUpgrade).toHaveBeenCalledTimes(1);
-  expect(socket.write).toHaveBeenCalledWith(expect.stringContaining('503'));
-  expect(socket.destroy).toHaveBeenCalledTimes(1);
+function serverForUpgrade(): any {
+  const {EventEmitter} = require('events');
+  const app = Object.assign(new EventEmitter(), {
+    config: (key: string) => key === 'ws' ? {rateLimit:{enabled:true,max:1,windowMs:60000}} : {},
+    callback: () => () => {},
+  });
+  return new WsServer(app, {protocol:'ws', hostname:'127.0.0.1', port:0});
+}
+test('AB-08: configured handshake rate limit rejects before handleUpgrade', async () => {
+  const server=serverForUpgrade();
+  try {
+    server.server.handleUpgrade=jest.fn();
+    const socket={remoteAddress:'203.0.113.5',end:jest.fn()};
+    server.httpServer.emit('upgrade',{headers:{}},socket,Buffer.alloc(0));
+    server.httpServer.emit('upgrade',{headers:{}},socket,Buffer.alloc(0));
+    expect(server.server.handleUpgrade).toHaveBeenCalledTimes(1);
+    expect(socket.end).toHaveBeenCalledWith(expect.stringContaining('503'));
+  } finally { await server.destroy(); }
 });
-
-test('AB-08: constructor and Start bind each upgrade handler only once', () => {
-  const { EventEmitter } = require('events');
-  const server:any=Object.create(WsServer.prototype);
-  server.httpServer=new EventEmitter(); server.upgradeHandler=jest.fn(); server.clientErrorHandler=jest.fn();
-  server.ensureUpgradeHandlersAreBound(); server.ensureUpgradeHandlersAreBound();
-  server.httpServer.emit('upgrade', {}, {}, Buffer.alloc(0));
-  expect(server.upgradeHandler).toHaveBeenCalledTimes(1);
+test('AB-08: constructor and Start bind each upgrade handler only once', async () => {
+  const server=serverForUpgrade();
+  try {
+    await new Promise<void>(resolve => server.Start(resolve));
+    expect(server.httpServer.listenerCount('upgrade')).toBe(1);
+  } finally { await server.destroy(); }
 });

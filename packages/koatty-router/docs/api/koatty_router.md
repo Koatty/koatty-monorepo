@@ -143,6 +143,32 @@ Routes HTTP DELETE requests to the specified path.
 </td></tr>
 <tr><td>
 
+[encodeSSE(event)](./koatty_router.encodesse.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[errorNegotiation()](./koatty_router.errornegotiation.md)
+
+
+</td><td>
+
+HTTP error-negotiation middleware.
+
+Registered ahead of the router chain so that an error raised anywhere downstream is written in the representation the client asked for:
+
+- client explicitly accepts JSON → `application/json` body (`{ error: { status, code, message } }`<!-- -->); - anything else → the framework's existing `text/plain` behaviour is kept by re-throwing, so Koa's `ctx.onerror` produces the response as before.
+
+Non-HTTP protocols (gRPC, WebSocket) never set an explicit JSON `Accept` in a way this middleware reacts to, so their error handling is unchanged.
+
+
+</td></tr>
+<tr><td>
+
 [File\_2(name, defaultValue)](./koatty_router.file_2.md)
 
 
@@ -207,6 +233,19 @@ Get request header.
 </td><td>
 
 Routes HTTP HEAD requests to the specified path.
+
+
+</td></tr>
+<tr><td>
+
+[negotiateError(ctx, err)](./koatty_router.negotiateerror.md)
+
+
+</td><td>
+
+The status/content-type/body an error should produce for this client.
+
+5xx messages are never leaked (they become `Internal Server Error`<!-- -->), matching Koa's `err.expose` contract.
 
 
 </td></tr>
@@ -287,6 +326,17 @@ Get parsed POST/PUT... body.
 </td><td>
 
 Routes HTTP POST requests to the specified path.
+
+
+</td></tr>
+<tr><td>
+
+[prefersJson(ctx)](./koatty_router.prefersjson.md)
+
+
+</td><td>
+
+Whether the request explicitly prefers JSON over plain text.
 
 
 </td></tr>
@@ -377,6 +427,17 @@ Get parsed query-string and path variable(koa ctx.query and ctx.params), and set
 </td><td>
 
 Sanitize an attacker-controlled filename (SEC-05): strip directory components and path separators so the value can never traverse outside the intended upload directory. `originalFilename` from multipart requests must always pass through this helper before being used for storage.
+
+
+</td></tr>
+<tr><td>
+
+[streamSSE(ctx, source, options)](./koatty_router.streamsse.md)
+
+
+</td><td>
+
+Stream with backpressure. Prefer a factory so the producer receives the abort signal before starting work. Arbitrary producers must cooperate with cancellation.
 
 
 </td></tr>
@@ -566,6 +627,24 @@ RouterOptions
 </td></tr>
 <tr><td>
 
+[SSEEvent](./koatty_router.sseevent.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[SSEOptions](./koatty_router.sseoptions.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [StreamConfig](./koatty_router.streamconfig.md)
 
 
@@ -619,7 +698,7 @@ Description
 
 </td><td>
 
-Alias of 
+Alias of
 
 
 </td></tr>
@@ -650,7 +729,7 @@ Symbol key for uploaded files in parsed multipart body. Use this key to access f
 
 </td><td>
 
-Alias of 
+Alias of
 
 
 </td></tr>
@@ -699,6 +778,15 @@ Middleware function type
 </td><td>
 
 Router constructor type
+
+
+</td></tr>
+<tr><td>
+
+[SSESource](./koatty_router.ssesource.md)
+
+
+</td><td>
 
 
 </td></tr>

@@ -12,49 +12,50 @@
  * @ license: BSD (3-Clause)
  */
 import { WsServer } from "../../src/server/ws";
-import { WebSocketConnectionPoolManager } from "../../src/pools/ws";
+import { EventEmitter } from "events";
+const servers: WsServer[] = [];
+afterEach(async () => { for (const server of servers.splice(0)) await server.destroy(); });
 
 function makeApp(options: { wsProfile?: any; wsConfig?: any } = {}): any {
-  return {
+  return Object.assign(new EventEmitter(), {
+    callback: () => (_req: any, res: any) => res.send("response"),
     security: { ws: options.wsProfile ?? {} },
     config: (key: string) => (key === "ws" ? (options.wsConfig ?? {}) : {}),
-  };
+  });
 }
 
-function makeWsServer(appOptions: Parameters<typeof makeApp>[0] = {}): WsServer {
+function makeWsServer(appOptions: Parameters<typeof makeApp>[0] = {}, wsOptions: any = {}): WsServer {
   const app = makeApp(appOptions);
-  return new WsServer(app, {
+  const server = new WsServer(app, {
+    wsOptions,
     hostname: "127.0.0.1",
     port: 0,
     protocol: "ws",
   } as any);
+  servers.push(server);
+  return server;
 }
 
 describe("SEC-08: WebSocket server defaults", () => {
   test("perMessageDeflate defaults to off and maxPayload comes from the profile", () => {
     const server = makeWsServer({ wsProfile: { maxPayload: 1024 * 1024, checkOrigin: true } });
-    server.createProtocolServer();
     expect((server.options.wsOptions as any).perMessageDeflate).toBe(false);
     expect((server.options.wsOptions as any).maxPayload).toBe(1024 * 1024);
   });
 
   test("without a profile maxPayload fails closed to 1MiB", () => {
     const server = makeWsServer();
-    server.createProtocolServer();
     expect((server.options.wsOptions as any).maxPayload).toBe(1024 * 1024);
     expect((server.options.wsOptions as any).perMessageDeflate).toBe(false);
   });
 
   test("explicit wsOptions win over the profile", () => {
-    const server = makeWsServer({ wsProfile: { maxPayload: 1024 * 1024 } });
-    server.options.wsOptions = { maxPayload: 4096 } as any;
-    server.createProtocolServer();
+    const server = makeWsServer({ wsProfile: { maxPayload: 1024 * 1024 } }, {maxPayload:4096});
     expect((server.options.wsOptions as any).maxPayload).toBe(4096);
   });
 
   test("checkOrigin without allowedOrigins rejects every origin", () => {
     const server = makeWsServer({ wsProfile: { checkOrigin: true } });
-    server.createProtocolServer();
     expect((server as any).isOriginAllowed("https://anything.example.com")).toBe(false);
     expect((server as any).isOriginAllowed(undefined)).toBe(false);
   });
@@ -64,7 +65,6 @@ describe("SEC-08: WebSocket server defaults", () => {
       wsProfile: { checkOrigin: true },
       wsConfig: { allowedOrigins: ["https://app.example.com", "*.other.org"] },
     });
-    server.createProtocolServer();
     const check = (o: string) => (server as any).isOriginAllowed(o);
 
     expect(check("https://app.example.com")).toBe(true);
@@ -82,7 +82,6 @@ describe("SEC-08: WebSocket server defaults", () => {
       wsProfile: { checkOrigin: true },
       wsConfig: { allowedOrigins: ["*"] },
     });
-    server.createProtocolServer();
     expect((server as any).isOriginAllowed("https://anything.net")).toBe(true);
   });
 
@@ -91,11 +90,10 @@ describe("SEC-08: WebSocket server defaults", () => {
       wsProfile: { checkOrigin: true },
       wsConfig: { allowedOrigins: ["https://app.example.com"] },
     });
-    server.createProtocolServer();
 
     const writes: string[] = [];
     const socket: any = {
-      write: (data: string) => { writes.push(data); return true; },
+      end: (data: string) => { writes.push(data); socket.destroyed = true; },
       destroy: () => { (socket as any).destroyed = true; },
       destroyed: false,
       remoteAddress: "203.0.113.5",
@@ -120,14 +118,11 @@ describe("SEC-08: WebSocket server defaults", () => {
     const server = makeWsServer({
       wsConfig: { maxConnections: 1 },
     });
-    server.createProtocolServer();
-    (server as any).connectionPool = {
-      getActiveConnectionCount: () => 1,
-    };
+    (server as any).tracker.add(Object.assign(new EventEmitter(), {close: jest.fn()}));
 
     const writes: string[] = [];
     const socket: any = {
-      write: (data: string) => { writes.push(data); return true; },
+      end: (data: string) => { writes.push(data); socket.destroyed = true; },
       destroy: () => { (socket as any).destroyed = true; },
       destroyed: false,
     };
@@ -140,38 +135,21 @@ describe("SEC-08: WebSocket server defaults", () => {
 describe("SEC-08: slow consumer guard", () => {
   test("pseudoRes.end closes the connection past maxBufferedAmount", async () => {
     const server = makeWsServer({ wsConfig: { maxBufferedAmount: 100 } });
-    server.createProtocolServer();
 
-    let closed = false;
-    const ws: any = {
-      bufferedAmount: 101,
-      send: () => { throw new Error("should not send"); },
-      close: () => { closed = true; },
-    };
-
-    // reach into the onConnection send path through the captured pseudoRes:
-    // simulate what end() does by invoking the handler internals is complex,
-    // so verify the guard constant is wired and ws.close semantics apply
-    expect((server as any).maxBufferedAmount).toBe(100);
-    // direct guard behaviour
-    if ((ws as any).bufferedAmount > (server as any).maxBufferedAmount) {
-      ws.close(1008, "Slow consumer");
-    }
-    expect(closed).toBe(true);
+    const ws: any = Object.assign(new EventEmitter(), {
+      readyState: 1, bufferedAmount: 101, send: jest.fn(), close: jest.fn(), terminate: jest.fn(),
+    });
+    (server.getNativeServer() as any).emit('connection', ws, {headers:{},url:'/'});
+    await (server as any).onMessage(ws, Buffer.from('hello'));
+    expect(ws.close).toHaveBeenCalledWith(1008, 'Slow consumer');
   });
 });
 
-describe("COR-14: ws pool timer cleanup", () => {
-  test("destroy() clears ping and heartbeat intervals", async () => {
-    const pool = new WebSocketConnectionPoolManager({ protocolSpecific: { pingInterval: 10, heartbeatInterval: 10 } });
-    // timers are unref'd but must still be cleared on destroy
-    const poolAny = pool as any;
-    expect(poolAny.pingInterval).toBeDefined();
-    expect(poolAny.heartbeatInterval).toBeDefined();
-
-    await pool.destroy();
-
-    expect(poolAny.pingInterval).toBeUndefined();
-    expect(poolAny.heartbeatInterval).toBeUndefined();
+describe("COR-14: ws heartbeat cleanup", () => {
+  test("destroy clears its owned heartbeat", async () => {
+    const server = makeWsServer();
+    expect((server as any).heartbeat).toBeDefined();
+    await server.destroy();
+    expect((server as any).heartbeat).toBeUndefined();
   });
 });

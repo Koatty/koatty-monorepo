@@ -200,3 +200,15 @@ describe("COR-03: graceful shutdown closed loop", () => {
     expect(listeningAtAppStop).toBe(false);
   });
 });
+
+test('one signal cleans every application once and propagates failures after all cleanup', async () => {
+  const manager = TerminusManager.getInstance();manager.setExitOnShutdown(false);manager.setPreStopDelay(0);
+  const calls:string[]=[];
+  const a:any=Object.assign(new EventEmitter(),{stopResources:async()=>{calls.push('a');throw Error('a cleanup failed')}});
+  const b:any=Object.assign(new EventEmitter(),{stopResources:async()=>{calls.push('b')}});
+  manager.registerServer(a,{Stop:(cb:any)=>cb(Error('transport failed'))} as any,'a');
+  manager.registerServer(b,{Stop:(cb:any)=>cb()} as any,'b');
+  manager.registerServer(b,{Stop:(cb:any)=>cb()} as any,'b2');
+  await expect(manager.shutdown()).rejects.toThrow('shutdowns failed');expect(calls).toEqual(['a','b']);
+  TerminusManager.resetInstance();
+});

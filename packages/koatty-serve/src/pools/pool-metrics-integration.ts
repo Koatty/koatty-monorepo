@@ -1,33 +1,21 @@
-/**
- * Connection Pool Metrics Integration
- * Provides integration between koatty-serve connection pools and Application performance metrics
- */
-
 import { KoattyApplication } from "koatty_core";
-import { ConnectionPoolFactory } from "./factory";
 
-/**
- * Register connection pool metrics callback with Application instance
- *
- * @param {KoattyApplication} app - Application instance
- * @returns {void}
- */
+/** @deprecated Exposes only this application's connection counts; use trace for request metrics. */
 export function registerConnectionPoolMetrics(app: KoattyApplication): void {
-  if (typeof (app as any).setConnectionPoolMetricsCallback === 'function') {
-    (app as any).setConnectionPoolMetricsCallback(() => {
-      return ConnectionPoolFactory.getAllMetrics();
-    });
-  }
+  (app as any).setConnectionPoolMetricsCallback?.(() => {
+    const servers = Array.isArray(app.server) ? app.server : [app.server];
+    return Object.fromEntries(
+      servers
+        .filter(Boolean)
+        .map((server: any, index) => [
+          `${server.protocol ?? "server"}:${index}`,
+          server.getConnectionStats?.() ??
+            server.getHealthStatus?.().checks.connectionPool ??
+            {},
+        ]),
+    );
+  });
 }
-
-/**
- * Unregister connection pool metrics callback from Application instance
- *
- * @param {KoattyApplication} app - Application instance
- * @returns {void}
- */
 export function unregisterConnectionPoolMetrics(app: KoattyApplication): void {
-  if (typeof (app as any).setConnectionPoolMetricsCallback === 'function') {
-    (app as any).setConnectionPoolMetricsCallback(() => ({}));
-  }
+  (app as any).setConnectionPoolMetricsCallback?.(() => ({}));
 }

@@ -9,5 +9,5 @@ Stop all servers gracefully. - For single protocol: stops the single server - Fo
 **Signature:**
 
 ```typescript
-readonly stop: (callback?: () => void) => void;
+readonly stop: (callback?: () => void) => void | Promise<void>;
 ```

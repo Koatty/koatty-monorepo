@@ -198,36 +198,27 @@ describe('Concurrency Safety and Performance Tests', () => {
       expect(createdSpans.length).toBeGreaterThan(0);
     });
 
-    it('should handle span timeout and cleanup', (done) => {
+    it('should handle span timeout and cleanup', async () => {
+      jest.useFakeTimers();
+      // ts-jest's heap can exceed the production eviction threshold. This test
+      // exercises timeout accounting; memory-pressure eviction has its own test.
+      const memory = process.memoryUsage();
+      const memorySpy = jest.spyOn(process, 'memoryUsage').mockReturnValue({ ...memory, heapUsed: 64 * 1024 * 1024 });
       const shortTimeoutManager = new SpanManager({
         enableTrace: true,
-        opentelemetryConf: {
-          spanTimeout: 100, // Very short timeout for testing
-          maxActiveSpans: 10
-        }
+        opentelemetryConf: { spanTimeout: 100, maxActiveSpans: 10 }
       });
-
-      const mockCtx = {
-        requestId: 'timeout-test',
-        method: 'GET',
-        path: '/api/timeout',
-        set: jest.fn()
-      } as any;
-
-      // Create span
-      const span = shortTimeoutManager.createSpan(mockTracer as any, mockCtx, 'timeout-service');
-      expect(span).toBeDefined();
-
-      // Check that span is cleaned up after timeout.
-      // CI runners can starve the event loop for hundreds of ms; give the
-      // 100ms span-timeout a generous observation window to stay stable.
-      setTimeout(() => {
-        const stats = shortTimeoutManager.getStats();
-        expect(stats.spansTimedOut).toBeGreaterThan(0);
-        shortTimeoutManager.destroy();
-        done();
-      }, 1200);
-    }, 10000);
+      try {
+        const mockCtx = { requestId: 'timeout-test', method: 'GET', path: '/api/timeout', set: jest.fn() } as any;
+        expect(shortTimeoutManager.createSpan(mockTracer as any, mockCtx, 'timeout-service')).toBeDefined();
+        await jest.advanceTimersByTimeAsync(101);
+        expect(shortTimeoutManager.getStats().spansTimedOut).toBe(1);
+        await jest.advanceTimersByTimeAsync(1000);
+        expect(shortTimeoutManager.getStats().spansTimedOut).toBe(1);
+      } finally {
+        shortTimeoutManager.destroy(); memorySpy.mockRestore(); jest.useRealTimers();
+      }
+    });
 
     it('should handle memory pressure and eviction', async () => {
       const spanManager = new SpanManager({

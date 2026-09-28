@@ -9,7 +9,7 @@ Component metadata structure Contains all information about a registered compone
 **Signature:**
 
 ```typescript
-export interface ComponentMeta 
+export interface ComponentMeta
 ```
 
 ## Properties
@@ -64,7 +64,7 @@ Event bindings from  decorators
 
 </td><td>
 
-[IPlugin](./koatty_core.iplugin.md) \| null
+[IPlugin](./koatty_core.iplugin.md) \| [KoattyApplication](./koatty_core.koattyapplication.md) \| null
 
 
 </td><td>

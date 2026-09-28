@@ -8,7 +8,6 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node', // 测试用例运行环境
-  forceExit: true, // 强制退出挂起的测试
   maxWorkers: '50%', // 限制并发 worker 数量,避免资源竞争
   workerIdleMemoryLimit: '512MB', // 设置 worker 内存限制
   moduleDirectories: ["node_modules", "src"],
@@ -37,7 +36,6 @@ module.exports = {
     'text-summary',
   ], // 收集测试时的覆盖率信息
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'], // 测试环境设置
-  globalTeardown: '<rootDir>/test/teardown.ts', // 全局清理
   testTimeout: 30000, // 增加测试超时时间到 30 秒
   bail: false, // 不要在第一个失败时停止
 };

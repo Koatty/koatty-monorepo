@@ -4,12 +4,10 @@
 
 ## SingleProtocolServer.RegisterService() method
 
-Register Service for gRPC server
-
 **Signature:**
 
 ```typescript
-RegisterService(impl: (...args: any[]) => any): any;
+RegisterService(impl: any): any;
 ```
 
 ## Parameters
@@ -37,7 +35,7 @@ impl
 
 </td><td>
 
-(...args: any\[\]) =&gt; any
+any
 
 
 </td><td>

@@ -8,7 +8,7 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, watchFile, unwatchFile } from 'fs';
 import * as path from 'path';
 import { createLogger } from './logger';
 
@@ -158,3 +158,36 @@ export function loadCertificates(
   return loaded;
 }
 
+
+/** Poll certificate paths so atomic replacement and constrained watcher limits are supported. */
+export function watchCertificates(
+  config: CertificateConfig,
+  reload: () => void,
+  onError: (error: unknown) => void,
+): () => void {
+  const files = new Set([config.key, config.cert, config.ca]
+    .filter(value => value && !isCertificateContent(value)).map(sanitizeCertPath));
+  let timer: NodeJS.Timeout | undefined;
+  let closed = false;
+  const changed = (current: import('fs').Stats, previous: import('fs').Stats) => {
+    if (closed || (current.mtimeMs === previous.mtimeMs && current.size === previous.size && current.ino === previous.ino)) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (closed) return;
+      try { reload(); } catch (error) { onError(error); }
+    }, 100);
+    timer.unref?.();
+  };
+  for (const file of files) watchFile(file, { persistent: false, interval: 500 }, changed);
+  return () => {
+    closed = true;
+    if (timer) clearTimeout(timer);
+    for (const file of files) unwatchFile(file, changed);
+  };
+}
+
+/** Never enable TLS 1.0/1.1, including untyped JavaScript configuration. */
+export function minimumTlsVersion(explicit: unknown, profile?: unknown): 'TLSv1.2' | 'TLSv1.3' {
+  if (explicit === 'TLSv1.2' || explicit === 'TLSv1.3') return explicit;
+  return profile === 'TLSv1.3' ? 'TLSv1.3' : 'TLSv1.2';
+}

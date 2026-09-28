@@ -11,7 +11,7 @@ Koatty Context.
 **Signature:**
 
 ```typescript
-export interface KoattyContext extends KoaContext 
+export interface KoattyContext extends KoaContext
 ```
 **Extends:** [KoaContext](./koatty_core.koacontext.md)
 
@@ -218,14 +218,14 @@ _(Optional)_ Get query-string parameter(s). When name is provided, returns the v
 
 </td><td>
 
-{ call: [IRpcServerCall](./koatty_core.irpcservercall.md)<!-- -->&lt;any, any&gt;; callback?: [IRpcServerCallback](./koatty_core.irpcservercallback.md)<!-- -->&lt;any&gt;; }
+{ call: [IRpcServerCall](./koatty_core.irpcservercall.md)<!-- -->&lt;any, any&gt;; callback?: [IRpcServerCallback](./koatty_core.irpcservercallback.md)<!-- -->&lt;any&gt;; path?: string; kind?: "unary" \| "client\_stream" \| "server\_stream" \| "bidi\_stream"; }
 
 
 </td><td>
 
 _(Optional)_ gRPC ServerImpl
 
- {<!-- -->{ call: IRpcServerCall<!-- -->&lt;<!-- -->any, any<!-- -->&gt;<!-- -->; callback?: IRpcServerCallback<any>; }<!-- -->}  KoattyContext
+ {<!-- -->{ call: IRpcServerCall<!-- -->&lt;<!-- -->any, any<!-- -->&gt;<!-- -->; callback?: IRpcServerCallback<any>; path?: string; kind?: "unary" \| "client\_stream" \| "server\_stream" \| "bidi\_stream"; }<!-- -->}  KoattyContext
 
 
 </td></tr>

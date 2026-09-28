@@ -28,7 +28,8 @@
     "release:dry-run": "node scripts/commit-submodule-changes.js --dry-run",
     "release:submodule": "cd packages/koatty && pnpm release",
     "security:baseline": "tsc --project scripts/tsconfig.json --noEmit && ts-node --project scripts/tsconfig.json --transpile-only scripts/security-baseline.ts",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "test:phase-c:integration": "node scripts/regression/phase-c-network.cjs && node scripts/regression/phase-c-decorators.cjs && node scripts/regression/phase-c-shutdown.cjs"
   },
   "keywords": [
     "koatty",

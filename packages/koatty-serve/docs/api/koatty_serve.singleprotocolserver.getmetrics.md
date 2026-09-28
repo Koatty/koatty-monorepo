@@ -4,7 +4,10 @@
 
 ## SingleProtocolServer.getMetrics() method
 
-Get server metrics in Prometheus format
+> Warning: This API is now obsolete.
+>
+> Application request metrics are exported by koatty\_trace.
+>
 
 **Signature:**
 
@@ -14,6 +17,4 @@ getMetrics(): string;
 **Returns:**
 
 string
-
-Prometheus-formatted metrics
 

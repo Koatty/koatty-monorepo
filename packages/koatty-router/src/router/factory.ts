@@ -35,6 +35,7 @@ export type RouterConstructor = new (app: KoattyApplication, options?: RouterOpt
  */
 export class RouterFactory implements IRouterFactory {
   private static instance: RouterFactory;
+  private static applications = new WeakMap<object, RouterFactory>();
   private routerRegistry = new Map<string, RouterConstructor>();
   private activeRouters: KoattyRouter[] = [];
   private isShuttingDown: boolean = false;
@@ -47,7 +48,12 @@ export class RouterFactory implements IRouterFactory {
   /**
    * Get singleton instance
    */
-  public static getInstance(): RouterFactory {
+  public static getInstance(app?: object): RouterFactory {
+    if (app) {
+      let factory = this.applications.get(app);
+      if (!factory) { factory = new RouterFactory(); this.applications.set(app, factory); }
+      return factory;
+    }
     if (!RouterFactory.instance) {
       RouterFactory.instance = new RouterFactory();
     }

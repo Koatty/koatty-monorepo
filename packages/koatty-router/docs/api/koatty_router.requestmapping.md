@@ -12,7 +12,7 @@ Routes HTTP requests to the specified path with enhanced middleware support.
 RequestMapping: (path?: string, reqMethod?: RequestMethod, routerOptions?: {
     routerName?: string;
     middleware?: Function[] | MiddlewareDecoratorConfig[];
-}) => MethodDecorator
+}) => ((...args: any[]) => any)
 ```
 
 ## Parameters
@@ -85,7 +85,7 @@ _(Optional)_
 
 **Returns:**
 
-MethodDecorator
+((...args: any\[\]) =&gt; any)
 
 {<!-- -->\*<!-- -->} {<!-- -->MethodDecorator<!-- -->}
 

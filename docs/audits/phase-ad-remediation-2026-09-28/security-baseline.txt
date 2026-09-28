@@ -1,0 +1,156 @@
+
+> koatty-monorepo@1.0.0 security:baseline /Volumes/ExternalSSD/Users/richen/Workspace/nodejs/koatty-monorepo
+> tsc --project scripts/tsconfig.json --noEmit && ts-node --project scripts/tsconfig.json --transpile-only scripts/security-baseline.ts
+
+[2026-09-28 17:45:07.819 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:45:07.820 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:45:07.820 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.820 +08:00]  DEBUG [HTTP3-MATRIXAI-ADAPTER] @matrixai/quic loaded successfully, HTTP/3 functionality is available
+[2026-09-28 17:45:07.820 +08:00]  WARN [GraphQLRouter] Consider setting depthLimit for production security
+[2026-09-28 17:45:07.820 +08:00]  WARN [GraphQLRouter] Consider setting complexityLimit for production security
+[2026-09-28 17:45:07.820 +08:00]  DEBUG GraphQL introspection disabled
+[2026-09-28 17:45:07.820 +08:00]  DEBUG GraphQL depth limit enabled: 10
+[2026-09-28 17:45:07.820 +08:00]  DEBUG GraphQL complexity limit enabled: 1000
+[2026-09-28 17:45:07.821 +08:00]  KOATTY  Application is ready
+[2026-09-28 17:45:07.821 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.821 +08:00]  DEBUG [HTTP] http server constructed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.821 +08:00]  INFO [HTTP] Initializing server
+[2026-09-28 17:45:07.821 +08:00]  INFO [CONNECTION_POOL] [HTTP] Connection pool manager initialized | Data: {"config":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"warmup":{"enabled":true,"initialConnections":5,"timeout":5000,"retryCount":3},"protocolSpecific":{}}}
+[2026-09-28 17:45:07.821 +08:00]  INFO [HTTP] HTTP connection pool configured successfully | Data: {"maxConnections":1000,"keepAliveTimeout":5000,"headersTimeout":10000,"requestTimeout":30000}
+[2026-09-28 17:45:07.821 +08:00]  INFO [HTTP] HTTP server initialization completed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.821 +08:00]  DEBUG [HTTP] Server initialized successfully
+[2026-09-28 17:45:07.821 +08:00]  INFO Server registered in TerminusManager: http_server_42b084ff13fe
+[2026-09-28 17:45:07.821 +08:00]  INFO Global signal handlers registered
+[2026-09-28 17:45:07.821 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.821 +08:00]  DEBUG [HTTPS] https server constructed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.821 +08:00]  INFO [HTTPS] Initializing server
+[2026-09-28 17:45:07.821 +08:00]  INFO [CONNECTION_POOL] [HTTPS] Connection pool manager initialized | Data: {"config":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"protocolSpecific":{}}}
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [CERT-LOADER] Loaded private key from file
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [CERT-LOADER] Loaded certificate from file
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTPS] HTTPS server initialization completed | Data: {"hostname":"127.0.0.1","port":0,"sslMode":"auto","maxConnections":1000}
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [HTTPS] Server initialized successfully
+[2026-09-28 17:45:07.822 +08:00]  INFO Server registered in TerminusManager: https_server_71aa18ee4d33
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [WS] ws server constructed | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.822 +08:00]  INFO [WS] Initializing server
+[2026-09-28 17:45:07.822 +08:00]  INFO [CONNECTION_POOL] [WEBSOCKET] Connection pool manager initialized | Data: {"config":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"protocolSpecific":{"pingInterval":30000,"pongTimeout":5000,"heartbeatInterval":60000},"warmup":{"enabled":false,"initialConnections":3,"timeout":10000,"retryCount":3}}}
+[2026-09-28 17:45:07.822 +08:00]  INFO [WS] WebSocket server initialization completed | Data: {"hostname":"127.0.0.1","port":0,"isSecure":false}
+[2026-09-28 17:45:07.822 +08:00]  DEBUG [WS] Server initialized successfully
+[2026-09-28 17:45:07.822 +08:00]  INFO Server registered in TerminusManager: ws_server_72c0a1368794
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTP] Server starting | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTP] Server: HTTP running at http://127.0.0.1:0/
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTP] Server started | Data: {"address":"127.0.0.1:0","hostname":"127.0.0.1","port":0,"connectionPoolEnabled":true}
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTPS] Server starting | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTPS] Server: HTTPS running at https://127.0.0.1:0/
+[2026-09-28 17:45:07.822 +08:00]  INFO [HTTPS] Server started | Data: {"address":"127.0.0.1:0","hostname":"127.0.0.1","port":0,"connectionPoolEnabled":true,"sslMode":"auto"}
+[2026-09-28 17:45:07.822 +08:00]  INFO [WS] Server starting | Data: {"hostname":"127.0.0.1","port":0}
+[2026-09-28 17:45:07.822 +08:00]  INFO [WS] Server: WS running at ws://127.0.0.1:0/
+[2026-09-28 17:45:07.822 +08:00]  INFO [WS] Server started | Data: {"address":"127.0.0.1:0","hostname":"127.0.0.1","port":0,"connectionPoolEnabled":true,"isSecure":false}
+[2026-09-28 17:45:07.824 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection added to pool | Data: {"connectionId":"http_1790588707823_0qs72ezi"}
+[2026-09-28 17:45:07.830 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection added to pool | Data: {"connectionId":"http_1790588707830_mrrmxnw9"}
+[PASS] wire: minimal /health and /healthz
+[PASS] wire: valid DTO reaches the real decorated method
+[PASS] wire: malformed JSON is 400 without reflection
+[2026-09-28 17:45:07.876 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection added to pool | Data: {"connectionId":"http_1790588707876_te34xelb"}
+[PASS] wire: fixed 2MiB request is 413
+[PASS] wire: strict DTO rejects undeclared fields and missing required fields
+[PASS] wire: invalid and oversized IDs are replaced; valid ID survives
+[PASS] wire: GraphQL enabled and normal query succeeds
+[PASS] wire: no GraphQL playground
+[PASS] wire: GraphQL introspection rejected by its security rule
+[PASS] wire: GraphQL depth and complexity enforced
+[PASS] wire: 11-file upload is 413 and temporary files are removed
+[2026-09-28 17:45:08.139 +08:00]  DEBUG [CONNECTION_POOL] [WEBSOCKET] Connection added to pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [WS] WS connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Explicitly destroyed"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [CONNECTION_POOL] [WEBSOCKET] Connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Explicitly destroyed"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [WS] WS connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Client disconnected"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [CONNECTION_POOL] [WEBSOCKET] Connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Client disconnected"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [WS] WS connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Client disconnected"}
+[2026-09-28 17:45:08.143 +08:00]  DEBUG [CONNECTION_POOL] [WEBSOCKET] Connection removed from pool | Data: {"connectionId":"websocket_1790588708139_kzs3k909","reason":"Client disconnected"}
+[2026-09-28 17:45:08.144 +08:00]  DEBUG [CONNECTION_POOL] [WEBSOCKET] [trace:trace_b283663c660c] Connection destroyed | Data: {"connectionId":"websocket_1790588708139_kzs3k909"}
+[2026-09-28 17:45:08.144 +08:00]  WARN [WS] WebSocket upgrade rejected: origin not allowed | Data: {"origin":"http://allowed.example","remoteAddress":"127.0.0.1"}
+[2026-09-28 17:45:08.146 +08:00]  WARN [WS] WebSocket upgrade rejected: origin not allowed | Data: {"origin":"https://evil.example","remoteAddress":"127.0.0.1"}
+[PASS] wire: WS origin checks and configured handshake rate limit
+[2026-09-28 17:45:08.155 +08:00]  DEBUG [CONNECTION_POOL] [HTTPS] Connection added to pool | Data: {"connectionId":"https_1790588708155_7fo6i4sb"}
+[2026-09-28 17:45:08.155 +08:00]  DEBUG [HTTPS] Secure connection established | Data: {"authorized":false,"cipher":"ECDHE-RSA-AES128-GCM-SHA256","remoteAddress":"127.0.0.1"}
+[2026-09-28 17:45:08.157 +08:00]  DEBUG [HTTPS] HTTPS connection removed from pool | Data: {"connectionId":"https_1790588708155_7fo6i4sb","reason":"Connection closed"}
+[2026-09-28 17:45:08.158 +08:00]  DEBUG [CONNECTION_POOL] [HTTPS] Connection removed from pool | Data: {"connectionId":"https_1790588708155_7fo6i4sb","reason":"Connection closed"}
+[2026-09-28 17:45:08.159 +08:00]  WARN [HTTPS] TLS client error | Data: {"error":"40E2DA0102000000:error:0A000102:SSL routines:tls_early_post_process_client_hello:unsupported protocol:../deps/openssl/openssl/ssl/statem/statem_srvr.c:1780:\n","remoteAddress":"127.0.0.1"}
+[PASS] wire: TLS1.2 succeeds and TLS1.1 handshake is rejected
+[PASS] component: external socket address denied despite forged XFF
+[2026-09-28 17:45:08.161 +08:00]  WARN [HTTP] Server draining: /ready now returns 503 | Data: {"preStopDelay":0,"drainTimeout":1000}
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTP] [trace:trace_21421cb907fc] Server stopping
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTP] [trace:trace_ee69ef8b9a85] Destroying HTTP server
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Starting graceful shutdown
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Step 1: Stopping acceptance of new HTTP connections
+[2026-09-28 17:45:08.161 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] New HTTP connection acceptance stopped
+[2026-09-28 17:45:08.161 +08:00]  WARN [HTTPS] Server draining: /ready now returns 503 | Data: {"preStopDelay":0,"drainTimeout":1000}
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTPS] [trace:trace_a91d3f4348bf] Server stopping
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTPS] [trace:trace_9466a6457e57] Destroying HTTPS server
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Starting graceful shutdown
+[2026-09-28 17:45:08.161 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Step 1: Stopping acceptance of new HTTPS connections
+[2026-09-28 17:45:08.161 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] New HTTPS connection acceptance stopped
+[2026-09-28 17:45:08.161 +08:00]  WARN [WS] Server draining: /ready now returns 503 | Data: {"preStopDelay":0,"drainTimeout":1000}
+[2026-09-28 17:45:08.161 +08:00]  INFO [WS] [trace:trace_6a360adaf26d] Server stopping
+[2026-09-28 17:45:08.161 +08:00]  INFO [WS] [trace:trace_df9efe1fe97d] Destroying WebSocket server
+[2026-09-28 17:45:08.161 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Starting graceful shutdown
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Step 1: Stopping acceptance of new WebSocket connections
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] WebSocket upgrade handler removed
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Stopped accepting new connections
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Step 3: Waiting for existing HTTP connections to complete | Data: {"activeConnections":3,"timeout":1000}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Stopped accepting new connections
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Step 3: Waiting for existing HTTPS connections to complete | Data: {"activeConnections":0,"timeout":1000}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] HTTPS connection completion wait finished | Data: {"remainingConnections":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Waited for connections completion
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Step 4: No remaining HTTPS connections to close
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Force closed remaining connections
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Step 5: Stopping monitoring and cleanup
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroying | Data: {"activeTimers":0,"totalTasks":0,"executedTasks":0,"activeConsolidatedTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] Clearing all timers | Data: {"logicalTimers":0,"physicalTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] All timers cleared successfully | Data: {"clearedLogicalTimers":0,"clearedPhysicalTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroyed successfully
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Final connection statistics | Data: {"activeConnections":0,"totalConnections":1,"connectionsPerSecond":2.8490028490028494,"averageLatency":0,"errorRate":0,"poolConfig":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"protocolSpecific":{}},"health":{"status":"healthy","utilizationRatio":0,"activeConnections":0,"maxConnections":1000,"rejectedConnections":0,"averageResponseTime":0,"errorRate":0,"message":"Connection pool is healthy","lastUpdated":1790588708161},"performance":{"throughput":2.8490028490028494,"latency":{"p50":0,"p95":0,"p99":0},"memoryUsage":0,"cpuUsage":0},"uptime":351}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Monitoring stopped and cleanup completed
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [HTTPS] [trace:trace_37869178eba6] Stopped monitoring and cleanup
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_37869178eba6] Graceful shutdown completed | Data: {"status":"completed","totalTime":1,"completedSteps":4,"failedSteps":0}
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_9466a6457e57] HTTPS server destroyed successfully
+[2026-09-28 17:45:08.162 +08:00]  INFO [HTTPS] [trace:trace_a91d3f4348bf] Server stopped | Data: {"gracefulShutdown":true,"finalConnectionCount":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] New WebSocket connection acceptance stopped
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Stopped accepting new connections
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Step 3: Waiting for existing WebSocket connections to complete | Data: {"activeConnections":0,"timeout":1000}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] WebSocket connection completion wait finished | Data: {"remainingConnections":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Waited for connections completion
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Step 4: No remaining WebSocket connections to close
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Force closed remaining connections
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Step 5: Stopping monitoring and cleanup
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroying | Data: {"activeTimers":0,"totalTasks":0,"executedTasks":0,"activeConsolidatedTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] Clearing all timers | Data: {"logicalTimers":0,"physicalTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] All timers cleared successfully | Data: {"clearedLogicalTimers":0,"clearedPhysicalTimers":0}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroyed successfully
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Final connection statistics | Data: {"activeConnections":0,"totalConnections":1,"connectionsPerSecond":2.857142857142857,"averageLatency":0,"errorRate":0,"poolConfig":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"protocolSpecific":{"pingInterval":30000,"pongTimeout":5000,"heartbeatInterval":60000},"warmup":{"enabled":false,"initialConnections":3,"timeout":10000,"retryCount":3}},"health":{"status":"healthy","utilizationRatio":0,"activeConnections":0,"maxConnections":1000,"rejectedConnections":0,"averageResponseTime":0,"errorRate":0,"message":"Connection pool is healthy","lastUpdated":1790588708161},"performance":{"throughput":2.857142857142857,"latency":{"p50":0,"p95":0,"p99":0},"memoryUsage":0,"cpuUsage":0},"uptime":350}
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Monitoring stopped and cleanup completed
+[2026-09-28 17:45:08.162 +08:00]  DEBUG [WS] [trace:trace_51727ec8cc0e] Stopped monitoring and cleanup
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_51727ec8cc0e] Graceful shutdown completed | Data: {"status":"completed","totalTime":1,"completedSteps":4,"failedSteps":0}
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_df9efe1fe97d] WebSocket server destroyed successfully
+[2026-09-28 17:45:08.162 +08:00]  INFO [WS] [trace:trace_6a360adaf26d] Server stopped | Data: {"gracefulShutdown":true,"finalConnectionCount":0}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [HTTP] HTTP connection removed from pool | Data: {"connectionId":"http_1790588707830_mrrmxnw9","reason":"Connection closed"}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection removed from pool | Data: {"connectionId":"http_1790588707830_mrrmxnw9","reason":"Connection closed"}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [HTTP] HTTP connection removed from pool | Data: {"connectionId":"http_1790588707823_0qs72ezi","reason":"Connection closed"}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection removed from pool | Data: {"connectionId":"http_1790588707823_0qs72ezi","reason":"Connection closed"}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [HTTP] HTTP connection removed from pool | Data: {"connectionId":"http_1790588707876_te34xelb","reason":"Connection closed"}
+[2026-09-28 17:45:08.165 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection removed from pool | Data: {"connectionId":"http_1790588707876_te34xelb","reason":"Connection closed"}
+[2026-09-28 17:45:08.262 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Waited for connections completion
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Step 4: No remaining HTTP connections to close
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Force closed remaining connections
+[2026-09-28 17:45:08.263 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Step 5: Stopping monitoring and cleanup
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroying | Data: {"activeTimers":0,"totalTasks":0,"executedTasks":0,"activeConsolidatedTimers":0}
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [TIMER_MANAGER] Clearing all timers | Data: {"logicalTimers":0,"physicalTimers":0}
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [TIMER_MANAGER] All timers cleared successfully | Data: {"clearedLogicalTimers":0,"clearedPhysicalTimers":0}
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [TIMER_MANAGER] TimerManager destroyed successfully
+[2026-09-28 17:45:08.263 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Final connection statistics | Data: {"activeConnections":0,"totalConnections":3,"connectionsPerSecond":6.622516556291391,"averageLatency":0,"errorRate":0,"poolConfig":{"maxConnections":1000,"connectionTimeout":30000,"keepAliveTimeout":5000,"requestTimeout":30000,"headersTimeout":10000,"warmup":{"enabled":true,"initialConnections":5,"timeout":5000,"retryCount":3},"protocolSpecific":{}},"health":{"status":"healthy","utilizationRatio":0,"activeConnections":0,"maxConnections":1000,"rejectedConnections":0,"averageResponseTime":0,"errorRate":0,"message":"Connection pool is healthy","lastUpdated":1790588708262},"performance":{"throughput":6.622516556291391,"latency":{"p50":0,"p95":0,"p99":0},"memoryUsage":0,"cpuUsage":0},"uptime":453}
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Monitoring stopped and cleanup completed
+[2026-09-28 17:45:08.263 +08:00]  DEBUG [HTTP] [trace:trace_343a4958e39c] Stopped monitoring and cleanup
+[2026-09-28 17:45:08.263 +08:00]  INFO [HTTP] [trace:trace_343a4958e39c] Graceful shutdown completed | Data: {"status":"completed","totalTime":102,"completedSteps":4,"failedSteps":0}
+[2026-09-28 17:45:08.263 +08:00]  INFO [HTTP] [trace:trace_ee69ef8b9a85] HTTP server destroyed successfully
+[2026-09-28 17:45:08.263 +08:00]  INFO [HTTP] [trace:trace_21421cb907fc] Server stopped | Data: {"gracefulShutdown":true,"finalConnectionCount":0}
+PASS 14 / FAIL 0 / SKIP 0

@@ -33,7 +33,7 @@ export interface ComponentMeta {
   /** Unique component name/identifier */
   name: string;
   /** Component instance (lazy-loaded) */
-  instance: IPlugin | null;
+  instance: IPlugin | KoattyApplication | null;
   /** Component class reference */
   target?: any;
   /** Component configuration options */
@@ -62,7 +62,7 @@ export class ComponentManager {
    * @param target The App class
    */
   registerAppEvents(target: any): void {
-    const instance = IOC.getInsByClass(target);
+    const instance = this.app;
     if (!instance) {
       Logger.Warn('App instance not found in IOC');
       return;
@@ -86,13 +86,13 @@ export class ComponentManager {
   }
 
   discoverComponents(): void {
-    const componentList = IOC.listClass("COMPONENT") || [];
+    const componentList = (this.app.container ?? IOC).listClass("COMPONENT") || [];
 
     for (const item of componentList) {
       const identifier = (item.id ?? "").replace("COMPONENT:", "");
 
       // Check if the class is marked as COMPONENT type instead of using suffix
-      const componentType = IOC.getType(item.target);
+      const componentType = (this.app.container ?? IOC).getType(item.target);
 
       if (componentType !== 'COMPONENT') {
         continue;
@@ -102,12 +102,12 @@ export class ComponentManager {
         continue;
       }
 
-      let options: IComponentOptions = IOC.getPropertyData(
+      let options: IComponentOptions = (this.app.container ?? IOC).getPropertyData(
         COMPONENT_OPTIONS, item.target, identifier
       );
 
       if (!options) {
-        options = IOC.getPropertyData(PLUGIN_OPTIONS, item.target, identifier);
+        options = (this.app.container ?? IOC).getPropertyData(PLUGIN_OPTIONS, item.target, identifier);
       }
 
       options = options || { enabled: true, priority: 0, scope: 'user' };
@@ -148,8 +148,7 @@ export class ComponentManager {
       if (!hasEventBindings) {
         // If no @OnEvent, check if it might have a run() method
         // We defer checking run() until instance is created during registration
-        const instance = IOC.getInsByClass(item.target);
-        const hasRunMethod = implementsPluginInterface(instance);
+        const hasRunMethod = implementsPluginInterface(item.target.prototype);
         // Component has neither run() method nor @OnEvent bindings, skipping
         if (!hasRunMethod) {
           continue;
@@ -236,7 +235,7 @@ export class ComponentManager {
 
     // Get or create instance if not already set
     if (!meta.instance && meta.target) {
-      meta.instance = IOC.getInsByClass(meta.target);
+      meta.instance = (this.app.container ?? IOC).getInsByClass(meta.target);
     }
     
     if (!meta.instance) {
@@ -245,7 +244,7 @@ export class ComponentManager {
     }
     
     const events = meta.events;
-    const hasRunMethod = Helper.isFunction(meta.instance.run);
+    const hasRunMethod = 'run' in meta.instance && Helper.isFunction(meta.instance.run);
     const hasEventBindings = Object.keys(events).length > 0;
 
     let registeredCount = 0;
@@ -310,7 +309,9 @@ export class ComponentManager {
     const wrappedHandler = async () => {
       try {
         Logger.Debug(`[${name}] Executing run() on ${eventName}`);
-        await meta.instance.run!(meta.options, this.app);
+        const instance = meta.instance;
+        if (instance && 'run' in instance && typeof instance.run === 'function')
+          await instance.run(meta.options, this.app);
       } catch (error) {
         Logger.Error(`[${name}] Error in run():`, error);
         throw error;

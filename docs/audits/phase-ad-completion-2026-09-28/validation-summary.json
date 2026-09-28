@@ -1,0 +1,197 @@
+{
+  "environment": {
+    "os": "macOS",
+    "node": "22.23.1",
+    "pnpm": "9.15.4"
+  },
+  "rootBuild": {
+    "tasks": 24,
+    "passed": 24,
+    "cached": 0,
+    "log": "/tmp/koatty-complete-build2.log",
+    "laterRebuilt": [
+      "koatty_lib",
+      "koatty_logger",
+      "koatty_core",
+      "koatty"
+    ]
+  },
+  "rootLint": {
+    "passed": 25,
+    "errors": 0,
+    "warningsRemain": true
+  },
+  "rootTestRun": {
+    "tasks": 48,
+    "passed": 48,
+    "cached": 4,
+    "log": "/tmp/koatty-complete-tests4.log"
+  },
+  "finalAffectedPackageRuns": {
+    "koatty_core": {
+      "suites": 20,
+      "passed": 316,
+      "skipped": 4
+    },
+    "koatty": {
+      "suites": 5,
+      "passed": 14
+    }
+  },
+  "jest": {
+    "passed": 2616,
+    "skipped": 30,
+    "packages": [
+      {
+        "package": "koatty_lib",
+        "passed": 91,
+        "total": 91
+      },
+      {
+        "package": "koatty_cli",
+        "passed": 174,
+        "total": 174
+      },
+      {
+        "package": "koatty_loader",
+        "passed": 21,
+        "total": 21
+      },
+      {
+        "package": "koatty_proto",
+        "passed": 9,
+        "total": 9
+      },
+      {
+        "package": "koatty_logger",
+        "passed": 31,
+        "total": 31
+      },
+      {
+        "package": "koatty_store",
+        "passed": 69,
+        "total": 69
+      },
+      {
+        "package": "koatty_container",
+        "passed": 386,
+        "total": 386
+      },
+      {
+        "package": "koatty_exception",
+        "passed": 80,
+        "total": 80
+      },
+      {
+        "package": "koatty_validation",
+        "passed": 210,
+        "total": 210
+      },
+      {
+        "package": "koatty_core",
+        "skipped": 4,
+        "passed": 316,
+        "total": 320
+      },
+      {
+        "package": "koatty_router",
+        "passed": 414,
+        "total": 414
+      },
+      {
+        "package": "koatty_typeorm",
+        "skipped": 20,
+        "passed": 93,
+        "total": 113
+      },
+      {
+        "package": "koatty_schedule",
+        "passed": 152,
+        "total": 152
+      },
+      {
+        "package": "koatty_serve",
+        "skipped": 6,
+        "passed": 211,
+        "total": 217
+      },
+      {
+        "package": "koatty_trace",
+        "passed": 133,
+        "total": 133
+      },
+      {
+        "package": "koatty_config",
+        "passed": 17,
+        "total": 17
+      },
+      {
+        "package": "koatty_serverless",
+        "passed": 41,
+        "total": 41
+      },
+      {
+        "package": "koatty_cacheable",
+        "passed": 32,
+        "total": 32
+      },
+      {
+        "package": "koatty_http3",
+        "passed": 70,
+        "total": 70
+      },
+      {
+        "package": "koatty",
+        "passed": 14,
+        "total": 14
+      },
+      {
+        "package": "koatty_swagger",
+        "passed": 52,
+        "total": 52
+      }
+    ]
+  },
+  "serve": {
+    "files": 23,
+    "physicalLines": 4692
+  },
+  "security": {
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0
+  },
+  "realRedis": {
+    "version": "7.4.2",
+    "passed": true
+  },
+  "osSigtermRuns": 20,
+  "isolatedTarballs": {
+    "packages": 23,
+    "passed": true,
+    "fixture": "/var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/koatty-tarball-acceptance-9oS1ha",
+    "nativeQuicTested": false,
+    "installScripts": "disabled",
+    "esmScope": "entry-point loading, shared BaseServer identity and natural process exit",
+    "productionScope": "generated CJS app, real GET /, /ready and SIGTERM"
+  },
+  "remoteLinuxCi": "not run",
+  "deploymentAcceptance": "not run",
+  "diffCoverage": {
+    "covered": 2113,
+    "total": 2618,
+    "percent": 80.71046600458365,
+    "missing": []
+  },
+  "performance": {
+    "requestMicroseconds": 0.9687295,
+    "httpImprovementPercent": 5.560929971988782,
+    "httpP99msBefore": 3.4255,
+    "httpP99msAfter": 3.253458,
+    "scanStartupMs": 451.0755,
+    "manifestStartupMs": 468.605,
+    "startupImprovementPercent": -3.8861565303370593,
+    "httpGatePassed": false,
+    "startupGatePassed": false
+  }
+}

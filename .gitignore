@@ -28,6 +28,11 @@ Thumbs.db
 .changeset/*.md
 !.changeset/README.md
 
+# Local scratch and generated runtime state
+.tmp/
+.pnpm-store/
+.koatty/
+
 # Reports
 reports/
 

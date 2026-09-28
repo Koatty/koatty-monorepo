@@ -21,7 +21,8 @@ import { AtomicCounter } from './atomicCounter';
  */
 interface ActiveSpanEntry {
   span: Span;
-  timer: NodeJS.Timeout;
+  timer: NodeJS.Timeout | null;
+  expiresAt: number;
   createdAt: number;
   requestId?: string;
 }
@@ -80,6 +81,7 @@ export class SpanManager {
     this.cleanupInterval = setInterval(() => {
       this.performPeriodicCleanup();
     }, Math.min(this.options.spanTimeout || 30000, 60000)); // Cleanup every minute or span timeout, whichever is smaller
+    this.cleanupInterval.unref?.();
 
     // COR-03 (C-1): SpanManager must NOT register its own SIGTERM/SIGINT
     // handlers anymore — shutdown is coordinated by koatty-serve's
@@ -100,8 +102,7 @@ export class SpanManager {
       
       // Find expired spans
       for (const [traceId, entry] of this.activeSpans) {
-        const age = now - entry.createdAt;
-        if (age > (this.options.spanTimeout || 30000)) {
+        if (now >= entry.expiresAt) {
           expiredSpans.push(traceId);
         }
       }
@@ -297,14 +298,20 @@ export class SpanManager {
     let timer: NodeJS.Timeout | null = null;
     
     try {
-      timer = setTimeout(() => {
+      const call = ctx.rpc?.call as any;
+      const deadline = typeof call?.getDeadline === 'function' ? Number(call.getDeadline()) : Infinity;
+      const streaming = call?.koattyMethodKind === 'server_stream' || call?.koattyMethodKind === 'bidi_stream';
+      const timeout = ctx.protocol === 'grpc' && Number.isFinite(deadline)
+        ? Math.max(0, deadline - Date.now()) : streaming ? Infinity : this.options.spanTimeout;
+      if (Number.isFinite(timeout)) timer = setTimeout(() => {
         this.forceEndSpan(traceId, 'timeout');
-      }, this.options.spanTimeout);
+      }, timeout);
 
       // Add to active spans with atomic operation
       this.activeSpans.set(traceId, { 
         span,
         timer,
+        expiresAt: Number.isFinite(timeout) ? Date.now() + timeout : Infinity,
         createdAt: Date.now(),
         requestId: ctx.requestId
       });
@@ -510,4 +517,3 @@ export class SpanManager {
     }
   }
 }
-

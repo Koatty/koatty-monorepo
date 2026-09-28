@@ -205,6 +205,9 @@ class MetricsBatchProcessor {
         this.flush();
       }
     }, this.flushInterval);
+    // Application shutdown explicitly flushes the queue; an idle collector
+    // must not become the owner of the process lifetime.
+    this.flushTimer.unref?.();
   }
 
   private async flush() {
@@ -485,6 +488,7 @@ export class MetricsCollector {
         logger.error('Memory monitoring error:', error);
       }
     }, monitorInterval);
+    this.memoryMonitorTimer.unref?.();
   }
 
   /**
@@ -696,5 +700,4 @@ export function collectRequestMetrics(ctx: KoattyContext, duration: number) {
     collector.collectRequestMetrics(ctx, duration);
   }
 }
-
 

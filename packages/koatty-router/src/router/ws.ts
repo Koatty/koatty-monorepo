@@ -108,6 +108,7 @@ export class WebsocketRouter implements KoattyRouter {
     this.cleanupTimer = setInterval(() => {
       this.cleanupStaleConnections();
     }, this.options.cleanupInterval);
+    this.cleanupTimer.unref?.();
   }
 
   /**
@@ -229,7 +230,7 @@ export class WebsocketRouter implements KoattyRouter {
   async LoadRouter(app: Koatty, list: any[]) {
     try {
       for (const n of list) {
-        const ctlClass = IOC.getClass(n, "CONTROLLER");
+        const ctlClass = (app.container ?? IOC).getClass(n, "CONTROLLER");
         // inject router
         const ctlRouters = await injectRouter(app, ctlClass, this.options.protocol);
         if (!ctlRouters) {
@@ -249,7 +250,7 @@ export class WebsocketRouter implements KoattyRouter {
             path,
             method: requestMethod,
             implementation: (ctx: KoattyContext): Promise<any> => {
-              const ctl = IOC.getInsByClass(ctlClass, [ctx]);
+              const ctl = (app.container ?? IOC).getInsByClass(ctlClass, [ctx]);
               return this.websocketHandler(app, ctx, ctl, method, params, undefined, router.composedMiddleware);
             },
           });
@@ -288,6 +289,17 @@ export class WebsocketRouter implements KoattyRouter {
   }
 
   private websocketHandler(app: Koatty, ctx: KoattyContext, ctl: Function, method: string, params?: any, ctlParamsValue?: any, composedMiddleware?: Function): Promise<any> {
+    // Serve has already assembled this message. Do not wait for the next message
+    // or attach another set of per-connection listeners for each dispatch.
+    if ((ctx.req as any).data !== undefined) {
+      const data = (ctx.req as any).data;
+      const message = Buffer.isBuffer(data) ? data : Buffer.from(String(data));
+      if (message.length > this.options.maxBufferSize!) {
+        return Promise.reject(new Error('Message too large'));
+      }
+      ctx.message = message.toString('utf8');
+      return Promise.resolve(Handler(app, ctx, ctl, method, params, ctlParamsValue, composedMiddleware));
+    }
     return new Promise((resolve, reject) => {
       const socketId = ctx.socketId || ctx.requestId;
       

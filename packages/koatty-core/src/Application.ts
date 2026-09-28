@@ -10,6 +10,7 @@ import Koa from "koa";
 import koaCompose from "koa-compose";
 import { Helper } from "koatty_lib";
 import { DefaultLogger as Logger } from "koatty_logger";
+import { IContainer, IOC } from "koatty_container";
 import onFinished from "on-finished";
 import { createKoattyContext } from "./Context";
 import {
@@ -20,7 +21,7 @@ import {
 import { KoattyContext, RequestType, ResponseType } from "./IContext";
 import { KoattyMetadata } from "./Metadata";
 import { profileSummary, resolveProfile, SecurityConfigOptions, SecurityProfile } from "./security/profile";
-import { isPrevent, isPrototypePollution, parseExp } from "./Utils";
+import { asyncEvent, isPrevent, isPrototypePollution, parseExp } from "./Utils";
 
 /**
  * Koatty Application 
@@ -58,6 +59,15 @@ export class Koatty extends Koa implements KoattyApplication {
   koattyPath: string;
   logsPath: string;
   appDebug: boolean;
+
+  /**
+   * The IOC container this application resolves beans from (ARCH-01 / D-1).
+   *
+   * Defaults to the process-wide `IOC` so existing code keeps working. Assign
+   * an isolated container (`new Container()`) before bootstrap to run
+   * a fully independent application inside the same process.
+   */
+  container: IContainer;
   
   /**
    * Silent mode flag - when true, suppresses startup logs and console output
@@ -68,6 +78,16 @@ export class Koatty extends Koa implements KoattyApplication {
   declare context: KoattyContext;
   private handledResponse: boolean = false;
   private _errorCaptured = false;
+  private stopPromise?: Promise<void>;
+  private stopEventsPromise?: Promise<void>;
+
+  /**
+   * Process-level error listeners registered by `captureError()`.
+   * Retained so `stop()` can unregister them (ARCH-01 / D-1 step 6) — without
+   * this, every captured application would leak handlers onto the process and
+   * keep logging after shutdown.
+   */
+  private _processErrorListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
   private metadata: KoattyMetadata;
   ctxStorage: AsyncLocalStorage<unknown>;
 
@@ -145,6 +165,11 @@ export class Koatty extends Koa implements KoattyApplication {
     this.appPath = appPath;
     this.rootPath = rootPath;
     this.koattyPath = koattyPath;
+
+    // D-1 step 4: each application exposes the container it resolves through.
+    // Defaults to the global IOC (backward compatible); callers may swap in an
+    // isolated container before bootstrap.
+    this.container = IOC;
 
     this.metadata = new KoattyMetadata();
     this.ctxStorage = new AsyncLocalStorage();
@@ -451,31 +476,26 @@ export class Koatty extends Koa implements KoattyApplication {
    * @param {Function} [listenCallback] Optional callback function to be executed after server starts
    * @returns {NativeServer} The native server instance
    */
-  listen(listenCallback?: any) {//:NativeServer {
+  listen(listenCallback?: any): any {
     // COR-03: no `bindProcessEvent(this, 'appStop')` here anymore.
     // It used to move every appStop listener onto process 'beforeExit', which
     // never fires when the process is terminated by a signal, so resource
     // cleanup (db/redis/trace/log flush) was skipped on SIGTERM. The ordered
     // shutdown is now coordinated by TerminusManager (drain -> stop -> appStop).
     
-    // Wrap callback to pass app instance
-    // listenCallback expects (app: KoattyApplication) but Server.Start calls callback with no args
-    const wrappedCallback = listenCallback ? () => listenCallback(this) : undefined;
-    
-    // Start server(s)
-    if (Array.isArray(this.server)) {
-      // Multi-protocol: start all servers
-      const serverArray = this.server;
-      const servers = serverArray.map((srv, index) => {
-        const isLast = index === serverArray.length - 1;
-        return srv.Start(isLast ? wrappedCallback : undefined);
-      });
-      return servers as any;
-    } else {
-      // Single protocol: start single server
-      const server = this.server.Start(wrappedCallback);
-      return server as any;
-    }
+    const servers = Array.isArray(this.server) ? this.server : [this.server];
+    let remaining = servers.length;
+    const started = () => {
+      if (--remaining !== 0) return;
+      // appReady means initialized; appStart means all listeners are bound.
+      void asyncEvent(this, 'appStart').catch(error => this.emit('error', error));
+      listenCallback?.(this);
+    };
+    const result = servers.map(server => {
+      let notified = false;
+      return server.Start(() => { if (!notified) { notified = true; started(); } });
+    });
+    return Array.isArray(this.server) ? result : result[0];
   }
 
   /**
@@ -588,37 +608,37 @@ export class Koatty extends Koa implements KoattyApplication {
    * @returns {void}
    */
   async stop(callback?: () => void): Promise<void> {
-    const servers: any[] = Array.isArray(this.server) ? this.server : [this.server];
-    const totalServers = servers.length;
-
-    // COR-03: drain first (503 on /ready so load balancers stop routing new
-    // traffic) and only then close the listeners / force-close leftovers.
-    await Promise.all(servers.map((srv: any, index: number) => new Promise<void>((resolve) => {
-      if (srv && typeof srv.beginDrain === 'function') {
-        srv.beginDrain();
-      }
-      if (!srv || typeof srv.Stop !== 'function') {
-        resolve();
-        return;
-      }
-      srv.Stop(() => {
-        Logger.Log('Koatty', '', `Server ${index + 1}/${totalServers} stopped`);
-        resolve();
-      });
-    })));
-
-    Logger.Log('Koatty', '', 'All servers stopped');
-
-    // Resource cleanup happens after the servers are down; listeners may be async.
-    for (const listener of this.listeners('appStop')) {
-      try {
-        await (listener as any).call(this, this);
-      } catch (err) {
-        Logger.Error('Error while handling appStop event:', err as Error);
-      }
-    }
-
+    if (!this.stopPromise) this.stopPromise = this.stopServers();
+    await this.stopPromise;
     callback?.();
+  }
+
+  private async stopServers(): Promise<void> {
+    const servers: any[] = Array.isArray(this.server) ? this.server : [this.server];
+    const results = await Promise.allSettled(servers.map((srv: any) => new Promise<void>((resolve, reject) => {
+      srv?.beginDrain?.();
+      if (!srv || typeof srv.Stop !== 'function') return resolve();
+      srv.Stop((error?: Error) => error ? reject(error) : resolve());
+    })));
+    await this.stopResources();
+    const failed = results.find(result => result.status === 'rejected') as PromiseRejectedResult;
+    if (failed) throw failed.reason;
+  }
+
+  /** Shared by manual stop and the signal coordinator; once listeners retain their semantics. */
+  stopResources(): Promise<void> {
+    if (!this.stopEventsPromise) {
+      this.stopEventsPromise = Promise.resolve().then(async () => {
+        this.releaseErrorListeners();
+        const errors: unknown[] = [];
+        for (const listener of this.rawListeners('appStop')) {
+          try { await listener.call(this, this); } catch (error) { errors.push(error); }
+        }
+        try { await this.container?.clear(); } catch (error) { errors.push(error); }
+        if (errors.length) throw errors[0];
+      });
+    }
+    return this.stopEventsPromise;
   }
 
   /**
@@ -661,7 +681,8 @@ export class Koatty extends Koa implements KoattyApplication {
         return this.handleRequest(ctx, fn as any);
       }
       return this.ctxStorage.run(ctx, async () => {
-        return this.handleRequest(ctx, fn as any);
+        try { return await this.handleRequest(ctx, fn as any); }
+        finally { await (this.container as any)?.releaseRequestScope?.(ctx); }
       });
     };
 
@@ -671,6 +692,17 @@ export class Koatty extends Koa implements KoattyApplication {
     }
 
     return handler;
+  }
+
+  /**
+   * Get the KoattyContext of the currently executing request (ARCH-02 / D-2).
+   *
+   * Reads from the AsyncLocalStorage store populated by `callback()`, so it is
+   * safe to call from anywhere inside a request's async call tree — including
+   * from container scope resolution. Returns `undefined` outside a request.
+   */
+  public getCurrentContext(): KoattyContext | undefined {
+    return this.ctxStorage?.getStore() as KoattyContext | undefined;
   }
 
   /**
@@ -715,19 +747,45 @@ export class Koatty extends Koa implements KoattyApplication {
       if (!isPrevent(err)) Logger.Error(err);
     });
     // warning
-    process.on('warning', Logger.Warn);
+    const onWarning = Logger.Warn as (...args: any[]) => void;
+    process.on('warning', onWarning);
     // promise reject error
-    process.on('unhandledRejection', (reason: Error) => {
+    const onUnhandledRejection = (reason: Error) => {
       if (!isPrevent(reason)) Logger.Error(reason);
-    });
+    };
+    process.on('unhandledRejection', onUnhandledRejection);
     // uncaught exception
-    process.on('uncaughtException', (err) => {
+    const onUncaughtException = (err: Error) => {
       if (err.message.includes('EADDRINUSE')) {
         Logger.Fatal(Helper.toString(err));
         process.exit(-1);
       }
       if (!isPrevent(err)) Logger.Error(err);
-    });
+    };
+    process.on('uncaughtException', onUncaughtException);
+
+    // Retain references so stop() can detach them (D-1 step 6).
+    this._processErrorListeners = [
+      { event: 'warning', handler: onWarning },
+      { event: 'unhandledRejection', handler: onUnhandledRejection },
+      { event: 'uncaughtException', handler: onUncaughtException },
+    ];
+  }
+
+  /**
+   * Detach the process-level error listeners registered by `captureError()`.
+   * Called from `stop()` so a captured application does not keep observing
+   * process events after shutdown (ARCH-01 / D-1 step 6).
+   *
+   * @private
+   */
+  private releaseErrorListeners(): void {
+    if (this._processErrorListeners.length === 0) return;
+    for (const { event, handler } of this._processErrorListeners) {
+      process.removeListener(event, handler as (...args: any[]) => void);
+    }
+    this._processErrorListeners = [];
+    this._errorCaptured = false;
   }
 }
 

@@ -9,7 +9,7 @@ import { IOCContainer, TAGGED_ARGS } from "koatty_container";
 import * as Helper from "koatty_lib";
 import { resolveProfileName } from "koatty_core";
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
-import { ValidationSchema, validateConfig } from "./validator";
+import { ConfigSchema, isJsonSchema, validateConfig } from "./validator";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -71,6 +71,7 @@ function decryptConfigValues(conf: any, parentPath = ""): void {
   }
 }
 import { Load } from "koatty_loader";
+import * as path from "path";
 const rc = require("run-con");
 /**
  * LoadConfigs
@@ -86,11 +87,13 @@ const rc = require("run-con");
  *        with one line per offending field path (COR-08).
  * @returns {*}
  */
-export function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[], schema?: ValidationSchema) {
+export function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: string[], ignore?: string[], schema?: ConfigSchema,
+  runtime?: {manifestFile: string; baseDir: string}) {
   const conf: Record<string, any> = {};
   const env = process.env.KOATTY_ENV || process.env.NODE_ENV || "";
 
-  Load(loadPath, baseDir, (name: string, path: string, exp: any) => {
+  const directories = runtime ? loadPath.map(dir => path.resolve(baseDir ?? process.cwd(), dir)) : loadPath;
+  Load(directories, runtime?.baseDir ?? baseDir, (name: string, path: string, exp: any) => {
     let tempConf: any = {};
     // deep-clone: parseEnv must never mutate the required module's exports,
     // otherwise a second LoadConfigs call sees pre-interpolated values (COR-08)
@@ -99,19 +102,24 @@ export function LoadConfigs(loadPath: string[], baseDir?: string, pattern?: stri
       const t = name.slice(name.lastIndexOf("_") + 1);
       if (t && env.startsWith(t)) {
         name = name.replace(`_${t}`, "");
-        tempConf = rc(name, { [name]: parseEnv(loaded) });
+        tempConf = rc(name, { [name]: loaded });
       }
     } else {
-      tempConf = rc(name, { [name]: parseEnv(loaded) });
+      tempConf = rc(name, { [name]: loaded });
     }
     conf[name] = tempConf[name];
-  }, pattern, ignore);
+  }, pattern, ignore, runtime ? {manifestFile: runtime.manifestFile} : undefined);
 
+  // Resolve the profile after all environment overlays have been merged, before interpolation.
+  const explicit = conf.security?.profile ?? conf.config?.security?.profile;
+  const profile = explicit === undefined ? resolveProfileName() : parseEnv({ profile: explicit }, true).profile;
+  if (!['strict', 'standard', 'development'].includes(profile)) throw new Error(`Unknown security profile: ${profile}`);
+  parseEnv(conf, profile === 'strict');
   decryptConfigValues(conf);
 
-  if (schema && Helper.isObject(schema)) {
+  if (schema !== undefined) {
     // apply schema defaults before validation
-    for (const [key, rule] of Object.entries(schema)) {
+    for (const [key, rule] of Object.entries(isJsonSchema(schema) ? {} : schema)) {
       if (rule && rule.default !== undefined && conf[key] === undefined) {
         conf[key] = rule.default;
       }
@@ -141,13 +149,12 @@ const ENV_VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g;
  * @param {*} conf
  * @returns {*}
  */
-function parseEnv(conf: any) {
-  if (!Helper.isObject(conf)) return conf;
-  const isStrict = resolveProfileName() === "strict";
+function parseEnv(conf: any, isStrict = resolveProfileName() === "strict") {
+  if (!conf || typeof conf !== "object") return conf;
   Object.keys(conf).forEach(key => {
     const element = conf[key];
-    if (Helper.isObject(element)) {
-      conf[key] = parseEnv(element);
+    if (element && typeof element === "object") {
+      conf[key] = parseEnv(element, isStrict);
     } else if (Helper.isString(element) && element.includes("${")) {
       conf[key] = element.replace(ENV_VAR_RE, (match: string, name: string, def?: string) => {
         const value = process.env[name];
@@ -174,20 +181,23 @@ function parseEnv(conf: any) {
  * @param {string} [type] configuration type
  * @returns {PropertyDecorator}
  */
-export function Config(key?: string, type?: string): PropertyDecorator {
-  return (target: object, propertyKey: string | symbol) => {
-    const propName = typeof propertyKey === 'symbol' ? propertyKey.toString() : propertyKey;
+export function Config(key?: string, type?: string) {
+  const register = (target: object, propertyKey: string | symbol) => {
+    const configKey = key || String(propertyKey);
     IOCContainer.savePropertyData(TAGGED_ARGS, {
       name: propertyKey,
-      method: () => {
-        const app = IOCContainer.getApp();
-        if (!app?.config) {
-          return null;
-        }
-        key = key || propName;
-        type = type || "config";
-        return app.config(key, type);
+      method: function (this: { app?: any } | undefined) {
+        const app = this?.app ?? IOCContainer.getApp();
+        return app?.config ? app.config(configKey, type || "config") : null;
       }
     }, target, propertyKey);
   };
+  return IOCContainer.createDecorator({
+    legacy: register,
+    tc39: (context: any) => {
+      context.addInitializer(function (this: object) {
+        register(Object.getPrototypeOf(this), context.name);
+      });
+    }
+  }, 'field');
 }

@@ -12,7 +12,6 @@
 export { GrpcServer } from "./server/grpc";
 export { HttpServer } from "./server/http";
 export { Http2Server } from "./server/http2";
-export { Http3Server } from "./server/http3";
 export { HttpsServer } from "./server/https";
 export { WsServer } from "./server/ws";
 

@@ -26,7 +26,7 @@ export const COMPONENT_OPTIONS = "COMPONENT_OPTIONS";
 export const PLUGIN_OPTIONS = "PLUGIN_OPTIONS";
 export const COMPONENT_EVENTS = "COMPONENT_EVENTS";
 
-export type IOCScope = 'Singleton' | 'Prototype';
+export type IOCScope = 'Singleton' | 'Prototype' | 'Request';
 
 /**
  * Component configuration options
@@ -205,11 +205,10 @@ function parseControllerDecorator(options?: IControllerOptions) {
       }
     }
     // Get middleware names from options.middleware array
-    const middlewareNames = options.middleware?.map(m => m.name) || [];
     IOC.savePropertyData(CONTROLLER_ROUTER, {
       path: options.path,
       protocol: options.protocol,
-      middleware: middlewareNames,
+      middleware: options.middleware ?? [],
     }, target, identifier);
   };
 }

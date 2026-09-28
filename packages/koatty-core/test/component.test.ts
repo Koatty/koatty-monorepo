@@ -104,7 +104,7 @@ describe("Component Decorators", () => {
         {
           path: "/api",
           protocol: ControllerProtocol.websocket,
-          middleware: ["TestMiddleware"]
+          middleware: [TestMiddleware]
         },
         CustomController,
         "TestClass"
@@ -185,7 +185,7 @@ describe("Component Decorators", () => {
         expect.objectContaining({
           path: "/grpc",
           protocol: ControllerProtocol.grpc,
-          middleware: ["GrpcMiddleware"]
+          middleware: [GrpcMiddleware]
         }),
         GrpcWithMiddleware,
         "TestClass"
@@ -246,7 +246,7 @@ describe("Component Decorators", () => {
         expect.objectContaining({
           path: "/ws",
           protocol: ControllerProtocol.websocket,
-          middleware: ["WsMiddleware"]
+          middleware: [WsMiddleware]
         }),
         WsWithMiddleware,
         "TestClass"
@@ -307,7 +307,7 @@ describe("Component Decorators", () => {
         expect.objectContaining({
           path: "/graphql",
           protocol: ControllerProtocol.graphql,
-          middleware: ["GraphQLMiddleware"]
+          middleware: [GraphQLMiddleware]
         }),
         GraphQLWithMiddleware,
         "TestClass"
@@ -658,7 +658,7 @@ describe("Edge Cases and Error Handling", () => {
     expect(mockIOC.savePropertyData).toHaveBeenCalledWith(
       CONTROLLER_ROUTER,
       expect.objectContaining({
-        middleware: ["Middleware1", "Middleware2"]
+        middleware: [Middleware1, Middleware2]
       }),
       MultipleMiddlewareController,
       "TestClass"

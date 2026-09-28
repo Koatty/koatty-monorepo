@@ -1,0 +1,51 @@
+Phase D audit, 2026-09-28
+Node v22.23.1, pnpm 9.15.4, macOS
+All commands run from repository root.
+HEAD cb7807fb1f71ccc6ba31f4813b4b64ee5d4a674c plus dirty workspace.
+
+focused container
+$ pnpm --filter koatty_container exec jest test/regression/ARCH-01 test/regression/ARCH-02 test/regression/ARCH-03 --runInBand --forceExit --coverage=false
+exit: 0
+result: 4 suites, 18 passed
+log: container-tests.log
+
+focused router
+$ pnpm --filter koatty_router exec jest test/regression/ARCH-06 test/regression/PERF-01 --runInBand --forceExit --coverage=false
+exit: 0
+result: 4 suites, 38 passed
+log: router-tests.log
+
+focused loader
+$ pnpm --filter koatty_loader exec jest test/regression/PERF-03 --runInBand --forceExit --coverage=false
+exit: 0
+result: 1 suite, 14 passed
+log: loader-tests.log
+
+focused core
+$ pnpm --filter koatty_core exec jest test/regression/ARCH-01 test/regression/ARCH-02 --runInBand --forceExit --coverage=false
+exit: 0
+result: 2 suites, 6 passed
+log: core-checks.log
+
+six package tests
+$ pnpm --filter koatty_router --filter koatty_container --filter koatty_core --filter koatty_loader --filter koatty_logger --filter koatty exec jest --runInBand --forceExit --coverage=false --silent
+exit: 0
+result: 86 suites, 1160 passed, 4 skipped
+log: full-package-tests.log
+
+six package typechecks
+$ pnpm --filter koatty_container --filter koatty_core --filter koatty_router --filter koatty_loader --filter koatty_logger --filter koatty exec tsc --project tsconfig.json --noEmit
+exit: 0
+result: no diagnostics
+log: types-checks.log
+
+audit reproduction
+$ node docs/audits/phase-d-audit-2026-09-28/probes.cjs
+exit: 0
+result: 13 defects/scenarios reproduced; exit 0 means reproduction succeeded, not release acceptance
+log: probes.log
+
+NOT RUN: whole monorepo test/build/lint, Linux CI, independent npm tarball consumption, real HTTP RPS/p99, 200-component cold start, real SSE slow-client/provider cancellation acceptance.
+Real HTTP probe used Koa + current HttpRouter and actual decorator metadata, not complete createApplication bootstrap.
+TC39/Legacy fixture used TypeScript transpileModule emit and execution; it is not a fixture typecheck.
+Source probes used TS transpileModule require hook; package dependencies use installed workspace builds.

@@ -32,9 +32,7 @@ fi
 
 # 运行 tsc
 echo "📝 Running TypeScript compiler..."
-npx tsc --skipLibCheck || {
-  echo "⚠️  TypeScript compilation had errors, but continuing..."
-}
+npx tsc --skipLibCheck
 
 # 运行 api-extractor
 echo "📦 Running API Extractor..."

@@ -7,8 +7,8 @@
  * @License: BSD (3-Clause)
  * @Copyright (c): <richenlin(at)gmail.com>
  */
-import { Koatty, KoattyContext, KoattyNext } from "koatty_core";
-import compose, { Middleware } from "koa-compose";
+import { Koatty, KoattyContext } from "koatty_core";
+import { Middleware } from "koa-compose";
 import { Helper } from "koatty_lib";
 import { ParamMetadata } from "./inject";
 import { extractParameters } from "./strategy-extractor";
@@ -23,7 +23,86 @@ import { DefaultLogger as Logger } from "koatty_logger";
  */
 
 /**
- * Execute controller method with circuit breaker and parameter injection.
+ * A pre-built route invoker.
+ *
+ * PERF-01: the function returned by {@link createRouteHandler} is created once at
+ * route-registration time. Everything that used to happen on every request
+ * (allocating the middleware array, pushing closures and re-running `koa-compose`)
+ * now happens once per route, so the request hot path is a couple of plain calls.
+ */
+export type RouteInvoker = (ctx: KoattyContext, ctl: any) => Promise<any>;
+
+/**
+ * Build the request handler for a controller method at registration time.
+ *
+ * Behavioural note (intentional, plan D-4): the handler assigns `ctx.body` only
+ * when it is still `undefined`. The legacy implementation used
+ * `ctx.body = ctx.body || res`, which silently discarded falsy controller results
+ * (`0`, `''`, `false`). Falsy results are now preserved - see
+ * docs/migration/phase-d-router-hotpath.md for the migration note.
+ *
+ * @param {Koatty} app - The Koatty application instance
+ * @param {string} method - The method name to execute
+ * @param {ParamMetadata[]} [ctlParams] - Parameter metadata for injection
+ * @param {any} [ctlParamsValue] - Parameter values for injection (deprecated, kept for compatibility)
+ * @param {Function} [composedMiddleware] - Pre-composed middleware function
+ * @param {Function} [ctlClass] - The controller class (used for registration-time
+ *   legacy call compatibility (unused))
+ * @returns {RouteInvoker} handler ready to be mounted on the router
+ */
+export function createRouteHandler(app: Koatty, method: string,
+  ctlParams?: ParamMetadata[], ctlParamsValue?: any,
+  composedMiddleware?: Function, _ctlClass?: Function): RouteInvoker {
+
+  // ------------------------------------------------------------------
+  // registration-time work (once per route)
+  // ------------------------------------------------------------------
+  const usePredefinedParams = ctlParamsValue !== undefined && ctlParamsValue !== null;
+  const hasMiddleware = !!composedMiddleware && typeof composedMiddleware === 'function';
+  if (Logger.isDebugEnabled) Logger.Debug(`Handler: [${method}] predefinedParams=${usePredefinedParams} middleware=${hasMiddleware}`);
+
+  const invokeRoute = async (ctx: KoattyContext, ctl: any): Promise<any> => {
+    if (!ctx || !ctl) return ctx.throw(404, `Controller not found.`);
+    ctl.ctx ??= ctx;
+    const args: unknown[] | undefined = usePredefinedParams
+      ? ctlParamsValue
+      : (ctlParams ? await extractParameters(app, ctx, ctlParams) : undefined);
+    const ready = (app.container as any)?.readyRequestScope?.(ctx);
+    if (ready) await ready;
+    const res = await (args ? ctl[method](...args) : ctl[method]());
+    if (Helper.isError(res)) throw res;
+    if ((ctx as any).respond === false && ['http', 'https', 'http2', 'http3'].includes(ctx.protocol)) return ctx.body;
+    if (ctx.body === undefined) ctx.body = res;
+    return ctx.body;
+  };
+
+  // ------------------------------------------------------------------
+  // request-time work: no array allocation, no koa-compose() call.
+  // `composedMiddleware` is already composed by the router, so passing the
+  // controller execution as its `next` is equivalent to the old
+  // compose([composedMiddleware, finalHandler]) chain.
+  // ------------------------------------------------------------------
+  if (hasMiddleware) {
+    const mw = composedMiddleware as Middleware<KoattyContext>;
+    return async (ctx: KoattyContext, ctl: any): Promise<any> => {
+      if (!ctx || !ctl) {
+        return ctx.throw(404, `Controller not found.`);
+      }
+      ctl.ctx ??= ctx;
+      await mw(ctx, () => invokeRoute(ctx, ctl));
+      return ctx.body;
+    };
+  }
+
+  return invokeRoute;
+}
+
+/**
+ * Execute controller method with parameter injection.
+ *
+ * Kept for backward compatibility: it builds a route handler for a single
+ * invocation. New code (router registration) should call
+ * {@link createRouteHandler} once and reuse the returned invoker.
  *
  * @param {Koatty} app - The Koatty application instance
  * @param {KoattyContext} ctx - The Koatty context object
@@ -38,47 +117,6 @@ import { DefaultLogger as Logger } from "koatty_logger";
 export async function Handler(app: Koatty, ctx: KoattyContext, ctl: any,
   method: string, ctlParams?: ParamMetadata[], ctlParamsValue?: any, composedMiddleware?: Function) {
 
-  if (!ctx || !ctl) {
-    return ctx.throw(404, `Controller not found.`);
-  }
-  ctl.ctx ??= ctx;
-
-  // 创建中间件链
-  const middlewareFns: Middleware<KoattyContext>[] = [];
-
-  // 如果有预组合的中间件，直接使用
-  if (composedMiddleware && typeof composedMiddleware === 'function') {
-    Logger.Debug(`Handler: Using pre-composed middleware`);
-    middlewareFns.push(composedMiddleware as Middleware<KoattyContext>);
-  } else {
-    Logger.Debug('Handler: No middleware to execute');
-  }
-
-  // 添加Handler作为最后一个中间件
-  middlewareFns.push(async (ctx: KoattyContext, next: KoattyNext) => {
-    // 使用预定义值或优化的策略提取器
-    let args: unknown[];
-    if (ctlParamsValue !== undefined && ctlParamsValue !== null) {
-      // 使用预定义的参数值（遗留功能，保持兼容性）
-      Logger.Debug(`Handler: Using predefined parameter values`);
-      args = ctlParamsValue;
-    } else {
-      // 使用优化的策略提取器
-      args = ctlParams ? await extractParameters(app, ctx, ctlParams) : [];
-    }
-    // 执行方法
-    const res = await ctl[method](...args);
-    if (Helper.isError(res)) {
-      throw res;
-    }
-    ctx.body = ctx.body || res;
-    await next();
-  });
-
-  // 执行中间件链
-  if (middlewareFns.length > 0) {
-    await compose(middlewareFns)(ctx, async () => {});
-  }
-
-  return ctx.body;
+  const invoke = createRouteHandler(app, method, ctlParams, ctlParamsValue, composedMiddleware);
+  return invoke(ctx, ctl);
 }

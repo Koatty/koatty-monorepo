@@ -4,10 +4,6 @@
 
 ## SingleProtocolServer.beginDrain() method
 
-COR-03 (C-1): drain this instance before closing sockets.
-
-Delegates to the protocol server so its health middleware flips `/ready` to 503 (load balancer stops routing here) while in-flight requests are still served until `Stop()` runs.
-
 **Signature:**
 
 ```typescript

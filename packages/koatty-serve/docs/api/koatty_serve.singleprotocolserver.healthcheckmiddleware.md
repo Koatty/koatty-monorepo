@@ -4,8 +4,6 @@
 
 ## SingleProtocolServer.healthCheckMiddleware() method
 
-Create health check middleware for Express/Koa
-
 **Signature:**
 
 ```typescript
@@ -14,6 +12,4 @@ healthCheckMiddleware(): (ctx: any, next: () => Promise<void>) => Promise<void>;
 **Returns:**
 
 (ctx: any, next: () =&gt; Promise&lt;void&gt;) =&gt; Promise&lt;void&gt;
-
-Middleware function
 

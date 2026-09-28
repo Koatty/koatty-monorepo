@@ -9,7 +9,7 @@ Koatty Application   Koatty  {<!-- -->Koa<!-- -->}  {<!-- -->BaseApp<!-- -->}
 **Signature:**
 
 ```typescript
-export declare class Koatty extends Koa implements KoattyApplication 
+export declare class Koatty extends Koa implements KoattyApplication
 ```
 **Extends:** Koa
 
@@ -105,6 +105,27 @@ string
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[container](./koatty_core.koatty.container.md)
+
+
+</td><td>
+
+
+</td><td>
+
+IContainer
+
+
+</td><td>
+
+The IOC container this application resolves beans from (ARCH-01 / D-1).
+
+Defaults to the process-wide `IOC` so existing code keeps working. Assign an isolated container (`new Container()`<!-- -->) before bootstrap to run a fully independent application inside the same process.
 
 
 </td></tr>
@@ -436,6 +457,22 @@ Thread safety: - Context creation is synchronous and occurs within the Node.js e
 </td></tr>
 <tr><td>
 
+[getCurrentContext()](./koatty_core.koatty.getcurrentcontext.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Get the KoattyContext of the currently executing request (ARCH-02 / D-2).
+
+Reads from the AsyncLocalStorage store populated by `callback()`<!-- -->, so it is safe to call from anywhere inside a request's async call tree — including from container scope resolution. Returns `undefined` outside a request.
+
+
+</td></tr>
+<tr><td>
+
 [getMetaData(key)](./koatty_core.koatty.getmetadata.md)
 
 
@@ -561,6 +598,20 @@ Set metadata value by key.
 </td><td>
 
 Stop all servers gracefully. - For single protocol: stops the single server - For multi-protocol: stops all servers sequentially
+
+
+</td></tr>
+<tr><td>
+
+[stopResources()](./koatty_core.koatty.stopresources.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Shared by manual stop and the signal coordinator; once listeners retain their semantics.
 
 
 </td></tr>

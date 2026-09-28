@@ -1,0 +1,101 @@
+{
+  "base": "HEAD",
+  "threshold": 80,
+  "rows": [
+    {
+      "package": "koatty",
+      "covered": 49,
+      "total": 52,
+      "percent": 94.23076923076923
+    },
+    {
+      "package": "koatty_cli",
+      "covered": 400,
+      "total": 503,
+      "percent": 79.52286282306163
+    },
+    {
+      "package": "koatty_cacheable",
+      "covered": 20,
+      "total": 22,
+      "percent": 90.9090909090909
+    },
+    {
+      "package": "koatty_config",
+      "covered": 35,
+      "total": 37,
+      "percent": 94.5945945945946
+    },
+    {
+      "package": "koatty_container",
+      "covered": 258,
+      "total": 285,
+      "percent": 90.52631578947368
+    },
+    {
+      "package": "koatty_core",
+      "covered": 63,
+      "total": 65,
+      "percent": 96.92307692307692
+    },
+    {
+      "package": "koatty_http3",
+      "covered": 366,
+      "total": 564,
+      "percent": 64.8936170212766
+    },
+    {
+      "package": "koatty_lib",
+      "covered": 2,
+      "total": 2,
+      "percent": 100
+    },
+    {
+      "package": "koatty_loader",
+      "covered": 113,
+      "total": 119,
+      "percent": 94.95798319327731
+    },
+    {
+      "package": "koatty_logger",
+      "covered": 1,
+      "total": 1,
+      "percent": 100
+    },
+    {
+      "package": "koatty_router",
+      "covered": 227,
+      "total": 283,
+      "percent": 80.21201413427562
+    },
+    {
+      "package": "koatty_schedule",
+      "covered": 30,
+      "total": 30,
+      "percent": 100
+    },
+    {
+      "package": "koatty_serve",
+      "covered": 456,
+      "total": 530,
+      "percent": 86.0377358490566
+    },
+    {
+      "package": "koatty_store",
+      "covered": 35,
+      "total": 62,
+      "percent": 56.45161290322581
+    },
+    {
+      "package": "koatty_trace",
+      "covered": 58,
+      "total": 63,
+      "percent": 92.06349206349206
+    }
+  ],
+  "covered": 2113,
+  "total": 2618,
+  "percent": 80.71046600458365,
+  "missing": [],
+  "passed": true
+}

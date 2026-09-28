@@ -4,14 +4,14 @@
 
 ## HttpServer class
 
-HTTP Server implementation using template method pattern 继承BaseServer，只实现HTTP特定的逻辑
+HTTP-family transports share one request, TLS, timeout and shutdown implementation.
 
 **Signature:**
 
 ```typescript
-export declare class HttpServer extends BaseServer<HttpServerOptions, Server> 
+export declare class HttpServer extends BaseServer<HttpServerOptions>
 ```
-**Extends:** BaseServer&lt;HttpServerOptions, Server&gt;
+**Extends:** BaseServer&lt;HttpServerOptions&gt;
 
 ## Constructors
 
@@ -33,7 +33,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[(constructor)(app, options)](./koatty_serve.httpserver._constructor_.md)
+[(constructor)(app, options, transport)](./koatty_serve.httpserver._constructor_.md)
 
 
 </td><td>
@@ -72,7 +72,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[connectionPool](./koatty_serve.httpserver.connectionpool.md)
+[transport](./koatty_serve.httpserver.transport.md)
 
 
 </td><td>
@@ -82,7 +82,7 @@ Description
 
 </td><td>
 
-HttpConnectionPoolManager
+"http" \| "https" \| "http2"
 
 
 </td><td>
@@ -111,7 +111,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[analyzeConfigChanges(changedKeys, oldConfig, newConfig)](./koatty_serve.httpserver.analyzeconfigchanges.md)
+[cleanup()](./koatty_serve.httpserver.cleanup.md)
 
 
 </td><td>
@@ -125,53 +125,7 @@ Description
 </td></tr>
 <tr><td>
 
-[configureServerOptions()](./koatty_serve.httpserver.configureserveroptions.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-配置HTTP服务器选项
-
-
-</td></tr>
-<tr><td>
-
-[createProtocolServer()](./koatty_serve.httpserver.createprotocolserver.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-创建HTTP服务器实例
-
-
-</td></tr>
-<tr><td>
-
-[destroy()](./koatty_serve.httpserver.destroy.md)
-
-
-</td><td>
-
-
-</td><td>
-
-销毁服务器
-
-
-</td></tr>
-<tr><td>
-
-[extractRelevantConfig(config)](./koatty_serve.httpserver.extractrelevantconfig.md)
+[closeTransport()](./koatty_serve.httpserver.closetransport.md)
 
 
 </td><td>
@@ -185,7 +139,7 @@ Description
 </td></tr>
 <tr><td>
 
-[forceCloseRemainingConnections(traceId)](./koatty_serve.httpserver.forcecloseremainingconnections.md)
+[forceTransport()](./koatty_serve.httpserver.forcetransport.md)
 
 
 </td><td>
@@ -199,7 +153,19 @@ Description
 </td></tr>
 <tr><td>
 
-[forceShutdown(traceId)](./koatty_serve.httpserver.forceshutdown.md)
+[getDetailedConnectionStats()](./koatty_serve.httpserver.getdetailedconnectionstats.md)
+
+
+</td><td>
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[recreate()](./koatty_serve.httpserver.recreate.md)
 
 
 </td><td>
@@ -213,61 +179,7 @@ Description
 </td></tr>
 <tr><td>
 
-[getHttpConnectionStats()](./koatty_serve.httpserver.gethttpconnectionstats.md)
-
-
-</td><td>
-
-
-</td><td>
-
-获取HTTP连接统计信息
-
-
-</td></tr>
-<tr><td>
-
-[getNativeServer()](./koatty_serve.httpserver.getnativeserver.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[getStatus()](./koatty_serve.httpserver.getstatus.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[initializeConnectionPool()](./koatty_serve.httpserver.initializeconnectionpool.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-初始化HTTP连接池
-
-
-</td></tr>
-<tr><td>
-
-[onRuntimeConfigChange(analysis, newConfig, traceId)](./koatty_serve.httpserver.onruntimeconfigchange.md)
+[resolveMinVersion(ssl)](./koatty_serve.httpserver.resolveminversion.md)
 
 
 </td><td>
@@ -281,23 +193,7 @@ Description
 </td></tr>
 <tr><td>
 
-[performProtocolSpecificInitialization()](./koatty_serve.httpserver.performprotocolspecificinitialization.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-HTTP特定的额外初始化
-
-
-</td></tr>
-<tr><td>
-
-[Start(listenCallback)](./koatty_serve.httpserver.start.md)
+[Start(callback)](./koatty_serve.httpserver.start.md)
 
 
 </td><td>
@@ -309,21 +205,7 @@ HTTP特定的额外初始化
 </td></tr>
 <tr><td>
 
-[stopAcceptingNewConnections(traceId)](./koatty_serve.httpserver.stopacceptingnewconnections.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[waitForConnectionCompletion(timeout, traceId)](./koatty_serve.httpserver.waitforconnectioncompletion.md)
+[tlsOptions()](./koatty_serve.httpserver.tlsoptions.md)
 
 
 </td><td>

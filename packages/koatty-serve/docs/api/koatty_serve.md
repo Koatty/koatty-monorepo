@@ -57,19 +57,6 @@ Use cases: - High-frequency metrics collection - Adaptive performance monitoring
 
 </td><td>
 
-HTTP/2 Server implementation using template method pattern 继承BaseServer，只实现HTTP/2特定的逻辑
-
-
-</td></tr>
-<tr><td>
-
-[Http3Server](./koatty_serve.http3server.md)
-
-
-</td><td>
-
-HTTP/3 Server implementation using template method pattern 继承BaseServer，只实现HTTP/3特定的逻辑
-
 
 </td></tr>
 <tr><td>
@@ -79,7 +66,7 @@ HTTP/3 Server implementation using template method pattern 继承BaseServer，�
 
 </td><td>
 
-HTTP Server implementation using template method pattern 继承BaseServer，只实现HTTP特定的逻辑
+HTTP-family transports share one request, TLS, timeout and shutdown implementation.
 
 
 </td></tr>
@@ -89,8 +76,6 @@ HTTP Server implementation using template method pattern 继承BaseServer，只�
 
 
 </td><td>
-
-HTTPS Server implementation using template method pattern 继承BaseServer，只实现HTTPS特定的逻辑
 
 
 </td></tr>
@@ -129,7 +114,7 @@ Event bindings: - loadServe: Initialize server - appStop: Gracefully shutdown se
 
 </td><td>
 
-Single protocol server
+The wrapper preserves the existing KoattyServer contract; the transport owns resources.
 
 
 </td></tr>
@@ -139,8 +124,6 @@ Single protocol server
 
 
 </td><td>
-
-WebSocket Server implementation using template method pattern 继承BaseServer，只实现WebSocket特定的逻辑
 
 
 </td></tr>
@@ -184,9 +167,6 @@ Description
 
 </td><td>
 
-Create Server
-
-
 
 </td></tr>
 <tr><td>
@@ -196,8 +176,6 @@ Create Server
 
 </td><td>
 
-Register connection pool metrics callback with Application instance
-
 
 </td></tr>
 <tr><td>
@@ -206,8 +184,6 @@ Register connection pool metrics callback with Application instance
 
 
 </td><td>
-
-Unregister connection pool metrics callback from Application instance
 
 
 </td></tr>

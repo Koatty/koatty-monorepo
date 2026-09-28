@@ -54,6 +54,14 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,7 +109,36 @@ jobs:
         # assertions) fail only when the machine is oversubscribed by
         # max-concurrency jest workers. Raise it again once the remaining
         # timing assertions have moved to the §12.3 benchmarks.
-        run: pnpm turbo run test --force --concurrency=2
+        run: pnpm turbo run test --force --concurrency=2 -- --runInBand --coverage --coverageReporters=json
+
+      - name: Changed executable source coverage (at least 80 percent)
+        env:
+          KOATTY_COVERAGE_BASE: ${{ github.event.pull_request.base.sha || 'HEAD' }}
+        run: node scripts/check-diff-coverage.cjs > diff-coverage.json
+
+      - name: Negative submodule failure propagation
+        run: node scripts/regression/phase-a-negative-test.cjs
+
+      - name: Production inventory and real WebSocket dispatch
+        run: |
+          node scripts/regression/phase-d-manifest.cjs
+          node scripts/regression/phase-d-serve-size.cjs
+          node scripts/regression/phase-d-ws.cjs
+
+      - name: Real process SIGTERM drain (20x)
+        run: |
+          for i in $(seq 1 20); do
+            node scripts/regression/phase-c-shutdown.cjs || exit 1
+          done
+
+      - name: Retain coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-coverage
+          path: |
+            diff-coverage.json
+            packages/*/coverage/coverage-final.json
 
       # Phase C acceptance gate (plan §6): the graceful-shutdown integration test
       # is timing sensitive, so run it 20 times in a row and fail on the first
@@ -114,6 +151,16 @@ jobs:
             echo "COR-03 graceful shutdown run $i/20"
             pnpm exec jest test/regression/COR-03.graceful-shutdown.test.ts --silent || exit 1
           done
+
+      - name: Phase C real protocol and decorator gates
+        run: |
+          pnpm test:phase-c:integration
+          node scripts/regression/phase-ad-decorators.cjs
+
+      - name: Phase C real Redis isolation and lease gates
+        env:
+          KOATTY_TEST_REDIS_PORT: '6379'
+        run: node scripts/regression/phase-c-redis.cjs
 
       - name: Security baseline checks (plan §12.2)
         run: pnpm security:baseline
@@ -158,3 +205,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Isolated tarball generated project acceptance
+        run: pnpm exec node scripts/regression/phase-ad-package-consumer.cjs

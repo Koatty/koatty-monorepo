@@ -1,6 +1,6 @@
 # Koatty 加固治理与 AI 演进实施方案
 
-> 版本：v1.0  
+> 版本：v1.2（2026-09-28 Phase A–D 补齐与发布边界核验）
 > 日期：2026-09-27  
 > 关联文档：[`koatty-bun-tc39-integrated-plan.md`](./koatty-bun-tc39-integrated-plan.md) v1.1 · [`koatty-bun-plan.md`](./koatty-bun-plan.md) · [`tc39-decorator-migration-plan.md`](./tc39-decorator-migration-plan.md)  
 > 状态：草案（基于 2026-09-27 全仓库代码评审 + 关键问题逐条源码核实）
@@ -127,7 +127,7 @@
 | ARCH-03 | AOP 强制把同步方法包装成 `async` |
 | ARCH-04 | 启动过程修改 `process.env.*` 并注册全局错误监听器且不移除 |
 | ARCH-05 | `koatty-serve` 约 1.5 万行：约 4000 行入站"连接池"、约 2500 行实验性 HTTP/3 + QPACK |
-| ARCH-06 | 缺 Guard / Interceptor / SSE / 内容协商 / API 版本 |
+| ARCH-06 | SSE / 内容协商不足；鉴权与调用包装应复用已有中间件与 AOP，API 版本优先复用路由前缀 |
 | PERF-01 | `Handler` 每请求新建数组、闭包并重新 `compose` |
 | PERF-02 | 热路径 `Logger.Debug` 字符串拼接未做级别短路 |
 | PERF-03 | 启动 `globby.sync` + 同步 `require` 全目录树 |
@@ -254,8 +254,27 @@ export function resolveProfile(env = process.env.NODE_ENV): SecurityProfile;
 **协同约定**：
 
 - 本方案 Phase A（测试修绿）必须在 TC39 方案 Phase 0 结束前完成；
-- 本方案 Phase D 中的容器改造（ARCH-01/02、COR-07/11）与 TC39 方案 Phase 3 "构造注入完整迁移"合并排期，由同一负责人主导；
+- 本方案 Phase D 中的容器架构改造（ARCH-01/02）与 TC39 方案 Phase 3 "构造注入完整迁移"合并排期，由同一负责人主导；COR-07/11 的正确性与生命周期修复仍属于 Phase C，并在 C 阶段验证双模式；
 - 所有新增回归测试须在 Legacy 与 TC39 两种模式下各跑一遍（复用 TC39 方案的测试矩阵）。
+
+### ADR-108：先复用已有 API，新增能力不等于新增装饰器
+
+**决策**：开发者只需沿用已有的组件、路由、中间件、切面、校验和配置模型。每个新导出必须说明现有 API 无法表达的语义；仅换名、语法糖或性能分支不构成新增理由。
+
+| 需求 | 统一入口 | 不再新增或推广 |
+|---|---|---|
+| HTTP 鉴权、限流、请求前后处理 | `@Controller(..., { middleware })` / `@GetMapping(..., { middleware })` 等既有选项，组件仍实现 `IMiddleware.run(options, app)` | `@UseGuard`、`IGuard.canActivate`、独立 Guard 注册体系 |
+| 方法调用包装、输入输出处理、审计 | `@Aspect` + `@Before` / `@After` / `@Around`，切面只实现 `run` | `@UseInterceptor`、`IInterceptor.intercept`、`IAspect.runSync` |
+| SSE | 既有路由装饰器 + `streamSSE` 响应工具；工具承担编码、心跳、取消和背压 | `@SSE` 及专用装饰器元数据体系 |
+| 容器实例与请求上下文 | `new Container()`、`app.container`、Core 已有 AsyncLocalStorage | 再创建等价工厂；独立的可变全局请求上下文 |
+| 生命周期 | 优先使用已有 `initMethod` / `destroyMethod`；已实现的 `@PostConstruct` / `@PreDestroy` 保持兼容 | 再增加同义钩子；不为本次设计收敛移除 Phase C 已实现接口 |
+| 清单与启动 | 静态清单采集；实际运行仍用 `createApplication()` | 第二套 `bootstrapApplication` / 干跑生命周期 |
+| MCP | 可选包中保留协议必需的 `@Tool` / `@Resource` / `@Prompt`；复用 `@Service`、DTO 校验与请求上下文 | `@McpServer`、`@Payload`、重复上下文容器 |
+| AI 安全处理 | 现有切面与中间件 + 配置，审批规则统一读取工具元数据 | `@RedactPII`、`@PromptShield`、`@RequireApproval`、`@ToolRateLimit`、`@AuditLog` |
+
+`@Tool` / `@Resource` / `@Prompt` 表达 MCP 协议对象及发现元数据，现有 HTTP 映射不能无损代替，因此保留为可选包的最小新增集合。所有示例、生成器、manifest、导出和迁移文档必须使用同一套词汇。未发布的重复 API 应在发布前收敛；已发布接口需先核实版本，再按 ADR-103 兼容迁移，不能直接删除。
+
+**状态边界**：这是按本次用户要求修订的目标设计，不代表运行时代码已同步完成。工作区仍有上述 D 阶段重复实现，待按审计报告整改和验证。
 
 ---
 
@@ -270,7 +289,7 @@ Phase C          ━━━━━━━━━━━━                 ← P1 功
 Phase E              ━━━━━━━━━━━━━━━━         ← AI-Ready DX（并行）
 Phase D                      ━━━━━━━━━━━━━━━━━━━━━━  ← P2 架构治理（与 TC39 Phase 3 协同）
 Phase F                                  ━━━━━━━━━━━━━━━━━━━━━  ← AI Runtime
-发布        4.3.0(W3)      4.4.0(W6)    cli 5.0(W8)     4.5.0(W12)    5.0.0(W16)
+发布        4.3.0(W3)      4.4.0(W6)    cli 5.0(W8)     major(W12)    5.0.0(W16)
 ```
 
 **关键依赖**：
@@ -335,7 +354,7 @@ pnpm -r --workspace-concurrency=1 exec -- npx jest --ci --silent 2>&1 | tee test
 ### Phase A 验收门
 
 - [ ] 所有包 `jest --ci` 全绿（允许显式 `skip`，但每个 skip 必须带 issue 链接）
-- [ ] 人为在任一子模块制造一个失败测试，CI 必须变红（**负向验证**，必须实际做一次）
+- [x] 人为在子模块注入失败测试，根 Turbo 测试命令退出 1；`phase-a-negative-test.cjs` 已本地实际验证并接入 CI（远端运行结果仍待取得）
 - [ ] `koatty-ai/src` 下不再有被跟踪的 `.js`
 
 ---
@@ -457,7 +476,7 @@ errors = convert
 
 `decorators.ts` 中的 `Object.assign` 改为走同一 `plainToClass` 路径，并使用 `excludeExtraneousValues` 语义（仅保留带校验装饰器或 `@Expose` 的字段）。
 
-**关于 `skipMissingProperties`**：保留该选项，但在文档中明确"非 convert 模式不校验缺失字段"的语义；新增 `@Validated({ partial: false })` 让用户显式要求全量校验。
+**关于 `skipMissingProperties`**：保留该选项，但在文档中明确"非 convert 模式不校验缺失字段"的语义；扩展已有 `@Validated` 的选项为 `{ partial: false }`（不新增装饰器） 让用户显式要求全量校验。
 
 **兼容性**：`whitelist: true` 会剥离 DTO 未声明的字段——这是**有意的**行为变更，写入迁移指南。
 
@@ -706,11 +725,11 @@ SIGTERM
   → 等待 preStopDelay（默认 5s，给负载均衡传播时间）
   → 停止接收新连接（server.close()）
   → 已有 keep-alive 连接：下一个请求返回 503 + Connection: close
-  → 等待在途请求完成（drainTimeout，默认 25s）
+  → 等待在途请求完成（drainTimeout，默认 19s）
   → 强制关闭剩余连接
   → emit appStop（资源清理：数据库、Redis、日志 flush）
   → exit(0)
-总时长须 < terminationGracePeriodSeconds（默认 30s）
+总时长上限 29s（包含 5s preStop、19s drain 和 5s 清理余量），须 < terminationGracePeriodSeconds（默认 30s）
 ```
 
 **改动**：
@@ -799,7 +818,7 @@ if (options.isAsync) {
 this._setInstance(target, options);
 ```
 
-**生命周期钩子**：
+**生命周期钩子**：优先落实已有 `options.initMethod` / `options.destroyMethod`；Phase C 已实现的 `@PostConstruct` / `@PreDestroy` 保持兼容，不再新增同义入口。
 
 - `LifecycleManager.setInstance` 完成构造和注入后，调用 `@PostConstruct` 标注的方法或 `options.initMethod`（支持 async，由容器 `await`）；
 - `Container.clear()` 与 `appStop` 时按**注册的逆序**调用 `@PreDestroy` 方法或 `options.destroyMethod`；
@@ -830,29 +849,25 @@ this._setInstance(target, options);
 
 ### Phase C 验收门
 
-- [x] COR-03～COR-15 回归测试全部通过
-      （2026-09-28 复跑：`COR-03`/`COR-04`+`SEC-*` serve 30 套件 806 通过、`COR-05`（含新增 TC39 分支回归 `COR-05.redlock-tc39.test.ts`）
-      +`COR-06` schedule 11 套件 150 通过、`COR-07`/`COR-11` container 18 套件 353 通过、`COR-08` config 2 套件 12 通过、
-      `COR-10` store 11 套件 66 通过、`COR-12`+`COR-01` core 15 套件 306 通过、`COR-13` cacheable 2 套件 29 通过、
-      `COR-15` trace 16 套件 135 通过 —— 全绿）
-- [x] 停机集成测试连续跑 20 次无偶发失败
-      （本机 20/20 通过（`for i in $(seq 1 20); do jest test/regression/COR-03.graceful-shutdown.test.ts; done`，
-      `packages/koatty-serve`）；Linux 侧由 CI 新增步骤 `Graceful shutdown loop (COR-03, 20x)`（`.github/workflows/ci.yml`）固化，
-      下次 CI 运行时生效）
-- [x] gRPC 四种调用类型端到端测试通过
-      （`packages/koatty-serve/test/regression/COR-04.grpc-streaming.test.ts`：一元/客户端流/服务端流/双向流分派、
-      客户端取消后停止写出、deadline 超时 `DEADLINE_EXCEEDED`、无 deadline 时回退配置超时）
+2026-09-28 独立审计撤销此前仅凭总体测试数量和 mock 分派测试作出的完成认定。原始发现见 [Phase C 审计](audits/phase-c-audit-2026-09-28.md)，逐项修复及最新运行证据见 [修复记录](audits/phase-c-remediation-2026-09-28.md)。
 
-**发布状态**：`koatty@4.4.0` 已发布（commit `81eb710`，含 `koatty-serverless` patch bump）；
-Phase C 的 `koatty_schedule` 修复随 `koatty_schedule@6.1.0` 发布（submodule commit `465a07c`）——
-此前 `6.0.0` 只做了依赖版本同步，C-3/C-4 的实现与回归测试并未包含在内。
+- [x] 本地真实 HTTP drain 请求返回 503 + Connection: close。
+- [x] 本地真实 gRPC 四类调用通过 Serve → Core → Trace → Router → IOC 控制器；长 deadline 不再被固定 timeout 截断，流结束后结算指标。
+- [x] 本地外部 OS SIGTERM 子进程验证：在途响应完成、等待异步清理、exit 0；修复后连续 20/20 通过。
+- [x] Legacy / TC39 实际 TypeScript 编译运行：RedLock、CacheAble、生命周期装饰器；锁 backend 和缓存存储使用测试适配器。
+- [ ] 修复后的 Linux / Node 20 CI 全量测试、停机 20 次门禁通过（已配置，尚未取得远端运行结果）。
+- [x] 本地实际 Redis 7.4.2：续期/占锁上限、阻塞连接与 WATCH 事务隔离通过；CI 已配置 Redis 服务。
+- [x] 23 个本地 tarball 独立安装，新项目严格编译、清单、CJS/ESM 导入、生产 HTTP/ready/SIGTERM 通过。
+- [ ] 目标部署环境与远端 Linux/Node 20 CI 验收。
+
+**发布状态**：先前 `koatty@4.4.0` / `koatty_schedule@6.1.0` 是历史发布记录，不能代表本次审计修复已发布。本次新增 Changeset，待上述发布门禁完成后由维护者手动发布；修复涉及子模块，须先提交子模块修改并更新主仓引用。详见 [迁移说明](migration/phase-c-audit-remediation.md)。
 
 ---
 
 ## 7. Phase D：P2 架构治理与性能
 
 **周期**：W6–W12（约 30 人天，其中容器部分与 TC39 方案 Phase 3 合并排期）  
-**发布**：`4.5.0`
+**发布**：原定 `4.5.0` 撤回；核心 HTTP/3 导出和旧连接池语义移除属于 breaking change，主框架与 serve 按 major changeset 准备，实际版本待手动发行。
 
 ### D-1 容器多实例（ARCH-01、ARCH-04）
 
@@ -860,10 +875,10 @@ Phase C 的 `koatty_schedule` 修复随 `koatty_schedule@6.1.0` 发布（submodu
 
 **方案**：
 
-1. `Container` 的构造函数改为公开；`getInstance()` 只返回默认容器；
+1. `Container` 的构造函数改为公开；`getInstance()` 只返回默认容器；隔离实例直接 `new Container()`，无需另建同义工厂；
 2. `MetadataCache.getShared()` 改为每个容器持有自己的缓存实例；
 3. 装饰器元数据仍然写在类上（这部分是全局的，不可避免），但**实例表、注册表**按容器隔离；
-4. `Application` 持有自己的 `container` 引用；框架内部代码逐步把 `IOC.get(...)` 替换为 `app.container.get(...)`；
+4. `Application` 持有自己的 `container` 引用；框架内部实例解析统一使用 `app.container`；Bootstrap、Loader、Router、组件管理器与注入处理器须全部贯通后才能宣告隔离完成；
 5. 启动过程不再写 `process.env.ROOT_PATH` 等变量，改为写入 `app.paths`；为兼容旧代码仍然写入 env，但标记 deprecated，并在 `5.0` 移除；
 6. `captureError` 中注册的进程级监听器，在 `app.stop()` 时移除。
 
@@ -875,11 +890,11 @@ Phase C 的 `koatty_schedule` 修复随 `koatty_schedule@6.1.0` 发布（submodu
 
 **方案**：
 
-- 新增 `Scope = 'Singleton' | 'Prototype' | 'Request'`；
+- 扩展已有 `ObjectDefinitionOptions.scope` 为 `'Singleton' | 'Prototype' | 'Request'`，不另造同义 Scope API；Core 的 IOCScope 类型和 Loader 注册选项必须贯通。不得把 `@Component` 原有的 `scope: 'core' | 'user'` 混用为实例生命周期；
 - `Request` 作用域的实例缓存在 `ctx` 上（`WeakMap<KoattyContext, Map<Class, Instance>>`），请求结束后随 `ctx` 一起被回收；
 - 解析 `Request` 作用域 Bean 时，从 `AsyncLocalStorage` 中取当前 `ctx`（`koatty-core` 已经有 ALS）；
-- **作用域规则校验**：`Singleton` 不能直接依赖 `Request` 作用域的 Bean（这属于作用域扩大，会造成跨请求的数据串用），启动期检测到时报错，并提示改用 `@Autowired({ lazy: true })` 获取代理；
-- `@Autowired` 注入从"写到类原型上"改为"实例构造后写到实例上"；`Singleton` 的行为不变，`Prototype`/`Request` 从此真正做到每个实例独立。
+- **作用域规则校验**：`Singleton` 不能直接依赖 `Request` 作用域的 Bean（这属于作用域扩大，会造成跨请求的数据串用），启动期检测到时报错；如需延迟解析，复用 `@Autowired` 既有参数入口并先完成按请求解析的代理语义，不能推荐当前并不存在的 `{ lazy: true }` 重载；
+- `@Autowired` 注入从"写到类原型上"改为"实例构造后写到实例上"；`Singleton` 仍按所属容器缓存，`Prototype`/`Request` 每个实例独立注入，不能把应用实例或依赖实例写回共享原型。
 
 **性能约束**：`Request` 作用域在每个请求中的解析开销 < 2µs（通过基准测试验证）；只有使用了 `Request` 作用域的请求才付出这部分成本。
 
@@ -887,15 +902,11 @@ Phase C 的 `koatty_schedule` 修复随 `koatty_schedule@6.1.0` 发布（submodu
 
 ### D-3 AOP 保持同步语义（ARCH-03）
 
-**方案**：在注册期（而不是调用期）判断：若原方法与所有相关切面都是同步函数，则生成同步包装器；否则生成 async 包装器。切面元数据在注册期就已确定，不需要在每次调用时判断。
+**方案**：注册期编译切面执行顺序，调用时先按同步执行；遇到 Promise/thenable 后将余下步骤接入同一 Promise 链。全部步骤同步时返回普通值，任何一步异步时返回 Promise，且绝不提前执行业务或丢弃失败。
 
-```ts
-const needsAsync = isAsyncFn(originalMethod) || aspects.some(a => isAsyncFn(a.run))
-                   || hasDefault__before__after(target);
-descriptor.value = needsAsync ? makeAsyncWrapper(...) : makeSyncWrapper(...);
-```
+**统一切面入口**：保留 `IAspect.run(args, proceed?, options?)`，类型允许同步值或 Promise；不新增 `runSync`，不要求切面维护两套实现。注册期只缓存元数据与执行顺序，不能仅凭 `AsyncFunction` 判断运行结果。运行时识别 thenable，一旦进入异步步骤，必须等待后再执行余下步骤；包括普通函数返回 Promise、异步 `__before` / `__after`。
 
-说明：`IAspect.run` 的类型签名返回 `Promise`，因此"同步切面"需要新增一个 `runSync?` 可选方法；只要有任何切面没有提供 `runSync`，就走 async 包装。这样对现有用户完全兼容。
+同步、异步分支必须保持相同的失败即拒绝与 `onError` 语义；`proceed` 同一调用至多执行一次业务，不因重复调用或异常恢复重跑。切面实例从当前应用/请求容器解析，不可在进程级缓存请求实例。
 
 同时把 `getAOPMethodMetadata` 从每次调用时查询改为注册期查一次并存入闭包（它当前在包装函数内部每次调用都执行）。
 
@@ -922,7 +933,7 @@ const handler = composedMiddleware
 ```
 
 - 热路径上的 `Logger.Debug` 改为 `if (Logger.isDebugEnabled) Logger.Debug(...)`；`koatty-logger` 需新增 `isDebugEnabled` getter；
-- 注意 `ctx.body === undefined` 的判断是一个**行为变更**：原逻辑下返回 `0`、`''`、`false` 时 body 会被覆盖；需要在迁移指南中说明。
+- 注意 `ctx.body === undefined` 的判断是一个**行为变更**：原逻辑会覆盖中间件已设置的 `0`、`''`、`false` body；需要在迁移指南中说明。
 
 **目标**：简单 GET 路由的 RPS 提升 ≥ 10%（以 §12 的基准为准）。
 
@@ -934,37 +945,99 @@ const handler = composedMiddleware
 |---|---|---|
 | 1 | 补齐行为测试：启动、停止、停机排空、超时配置、TLS、WS、gRPC。**这是删除代码的前提** | 3 |
 | 2 | 连接池替换为 `ConnectionTracker`（`Set<Socket>` + 计数 + `closeIdle()`），Node 18.2+ 可直接使用 `server.closeIdleConnections()` | 3 |
-| 3 | HTTP/3 拆分为 `koatty_http3`（experimental），核心包移除 `@matrixai/quic` 依赖；原生适配器中的模拟监听代码删除 | 2 |
+| 3 | HTTP/3 拆分为 `koatty_http3`（experimental），核心包移除 `@matrixai/quic` 依赖；原生适配器中的模拟监听代码删除（已完成；新包仍为实验性，真实 QUIC 互操作未验收） | 2 |
 | 4 | 删除 serve 自身的指标采集，统一由 trace 负责；删除只打日志的 30 秒周期"清理"定时器 | 1 |
 | 5 | HTTPS 证书热更新：监听证书文件变化，调用 `server.setSecureContext()`，不再需要重启 | 1 |
 
 **验收**：步骤 1 的测试在瘦身前后全部通过；`koatty-serve` 源码 < 5000 行；包的依赖数量减少。
 
-### D-6 缺失的 Web 能力（ARCH-06）
+### D-6 Web 能力补齐与既有 API 复用（ARCH-06）
 
-按照对 Phase F 的依赖程度排序：
+**优先级排序**（不创建另一套鉴权/调用包装体系）：
 
-| 能力 | 设计要点 | 人天 |
+| 能力 | 方案 | 工作量 |
 |---|---|---|
-| **SSE / 流式响应**（Phase F 前置） | `@SSE()` 方法装饰器，方法返回 `AsyncIterable<T>`，框架负责 `text/event-stream` 编码、心跳、客户端断开时通过 `AbortSignal` 通知业务方法；同时支持返回 `ReadableStream` 和 Node `Readable` | 3 |
-| Guard | `@UseGuard(AuthGuard)`：`canActivate(ctx): boolean \| Promise<boolean>`，返回 false 时 403；执行在参数解析之前 | 2 |
-| Interceptor | 本质上是可复用的 Around 切面，基于 D-3 的实现，提供 `@UseInterceptor` 语法糖 | 1 |
-| 内容协商 | 异常输出按 `Accept` 头返回 JSON 或纯文本；gRPC、WS 维持现有逻辑 | 1 |
+| **SSE / 流式响应**（Phase F 前置） | 保留 `@GetMapping` 等已有路由入口，在方法内调用 `streamSSE`。支持 AsyncIterable / Web ReadableStream / Node Readable；返回的流必须受客户端断开取消、背压与停机约束 | 3 |
+| 鉴权 | 复用 `middleware` 选项与 `IMiddleware.run(options, app)`，拒绝时抛 401/403；路由参数解析前执行。已挂在上游的全局 body parser 不会因此跳过，必须在完整调用链验证顺序 | 2 |
+| 请求与方法包装 | HTTP 请求前后处理复用中间件；方法返回值包装复用 `@Around(Aspect)` 与 `run(args, proceed, options)`，不得引入新的 Interceptor 接口或装饰器 | 1 |
+| 内容协商 | 复用 Koa `ctx.accepts` 等现有能力选择 JSON / text，处理 q 权重、q=0 与通配符；只作用于 HTTP，保持原有错误日志与脱敏策略 | 1 |
+| API 版本 | 路由前缀或现有 path 配置；没有独立需求前不新增 `@Version` | — |
+
+既有用法示意：
+
+```ts
+@Middleware()
+class AuthMiddleware implements IMiddleware {
+  run(options, app) {
+    return async (ctx, next) => {
+      // 调用项目已有鉴权服务验证凭据；不能只检查请求头存在。
+      if (!await app.auth.authenticate(ctx)) ctx.throw(401);
+      await next();
+    };
+  }
+}
+
+@GetMapping('/orders', { middleware: [AuthMiddleware] })
+@Around(ResponseAspect)
+list() { return this.orders.list(); }
+```
+
+`app.auth` 仅为应用鉴权服务示意，不是新增框架属性。SSE 的目标入口为 `streamSSE(ctx, signal => createSource(signal), options)`：取消信号在创建业务流前交给生产者，已有 source 重载可保留；source/factory 两种重载现已实现，并覆盖实际 HTTP 断连回归。不得声称 `Promise.race` 或生成器 `return()` 能强制取消不配合的异步业务。需要监听响应断开，取消 Web reader / 销毁 Node stream，并在 `write()` 返回 false 时等待 drain 或取消。
+
+**修复状态**：类级 Controller 与方法级 Mapping middleware 已贯通；真实 HTTP 及 Legacy/TC39 编译回归覆盖拒绝请求，详见 A–D 修复记录。
+
+**验收**：真实 HTTP 鉴权拒绝时参数解析与业务均不执行；Legacy/TC39 编译后的既有装饰器组合均有效；同步/异步 Around 返回值一致；SSE 断开后可取消生产者、慢客户端不会无界缓存，协议编码处理 CR/LF；MCP/LLM 示例沿用同一入口。
 
 ### D-7 启动性能（PERF-03）
 
-- 扫描结果缓存：以 `文件路径 + mtime` 为键，缓存在 `.koatty/scan-cache.json`；生产环境可使用 `koatty build` 预生成组件清单（与 Phase E 的 manifest 共用同一数据结构），启动时跳过 glob 扫描；
+- 扫描结果缓存：记录扫描选项、规范化路径、文件指纹和目录成员变化，缓存在 `.koatty/scan-cache.json`；新增/删除/重命名、保留时间戳的复制、符号链接均需验证，不能仅比较全树最大 mtime。加载前按 realpath 验证目录、每个模块及缓存条目均在允许根目录内；损坏缓存降级为安全重扫。生产环境预生成文件清单复用既有构建流程和 E-1 基础字段，并明确可执行清单校验契约，不因优化再创建一个新命令；现已通过 `koatty manifest --runtime-dir dist` 生成 runtime v1 清单，生产 Loader 启动前校验全部路径、重复项与 SHA256 后消费，旧静态清单回退扫描；
 - 目标：200 个组件文件的项目，冷启动时间降低 ≥ 30%。
 
 **工作量**：2 人天。
 
 ### Phase D 验收门
 
-- [ ] 双应用同进程隔离测试通过
-- [ ] Request 作用域基准 < 2µs/次
+- [x] 双应用同进程监听真实端口，单例/注入/AOP/中间件隔离，停止其中一个不影响另一个
+- [x] Request 跨 await、并发、请求外访问、实例级注入、生命周期与装饰器注册选项通过
+- [x] 同步/异步 AOP 的内置钩子、thenable、失败策略与 proceed 至多一次通过
+- [x] 既有中间件/AOP 组合与 SSE 真实 HTTP 断连、背压、内容协商通过
+- [ ] 扫描路径/缓存边界与生产清单消费通过，200 组件冷启动降低 ≥ 30%
+- [x] Request 作用域基准 < 2µs/次
 - [ ] Router 基准 RPS 提升 ≥ 10%，p99 不回退
-- [ ] `koatty-serve` < 5000 行，所有行为测试通过
-- [ ] 以上所有改动在 Legacy 与 TC39 两种模式下均通过测试
+- [x] `koatty-serve` 23 个 TS 文件、4692 物理行；替代行为回归通过，HTTP/3 原 68 个协议/模拟用例移至可选包。既有 ring buffer 的 6 个 skip 仍未算通过
+- [x] 受影响的 Service/Controller/Autowired、Config、生命周期、Before/After/Around、middleware 与 CacheAble/RedLock 已有双模式实编译回归；不是所有公共装饰器排列组合的穷举。TC39 不支持参数装饰器，不能声称其在 TC39 可用
+
+### Phase D 实施状态（2026-09-28 审计修复后）
+
+**结论：主要正确性缺陷已修复，整体仍未通过发布验收。** 历史问题见 [独立审计](audits/phase-d-audit-2026-09-28.md)，本轮代码、回归及未完成边界见 [A–D 补齐记录](audits/phase-ad-completion-2026-09-28.md)。
+
+| 任务 | 本轮修复 | 尚未关闭的验收 |
+|---|---|---|
+| D-1 | Bootstrap/Loader/Router 使用 app.container；依赖与 Config 注入绑定实例；AOP 不共享运行实例缓存；真实双应用 HTTP 与独立停机回归通过 | 默认日志器配置仍为进程共享，未承诺应用独立日志配置 |
+| D-2 | Request 跨 await、并发隔离、请求外拒绝；Prototype 依赖与实例生命周期；Service scope/args 和 getInsByClass 贯通；Controller 不在启动期构造 | 新增双模式 Service/Controller/Autowired 生命周期、Config 隔离；TC39 参数装饰器受语言限制 |
+| D-3 | 统一 IAspect.run；内置异步钩子与 thenable 按顺序等待；proceed 至多执行一次，日志回退复用同一结果/错误 | 受影响 AOP 组合双模式实编译通过，不等于所有装饰器组合均已验证 |
+| D-4 | 实例解析遵循应用容器与作用域；减少 handler 异步包装；保留中间件 falsy body，HTTP respond=false 不影响 gRPC | 真实 HTTP handler 对比不能替代完整框架版本的 RPS/p99 门槛 |
+| D-5 | 连接追踪器替代入站池，23 文件/4692 行；拆出 HTTP/3 并移除核心 QUIC 依赖；真实 HTTP/TLS/H2/WS/gRPC、停机与证书回归 | HTTP/3 真实互操作未验收；属于 major 迁移 |
+| D-6 | 移除未发布的重复装饰器/接口；复用既有 middleware/Around；修复 SSE 取消、背压、编码与 Accept 权重；实际 HTTP 断连通过 | 本地网络测试不替代外部代理部署验收 |
+| D-7 | realpath 边界校验；按目录成员及每个文件状态使缓存失效；损坏缓存安全重扫 | 预生成清单与实际 200 组件 Bootstrap/篡改拒绝已通过；整体冷启动降低 ≥30% 尚未达到 |
+
+A/B/C 历史修复的全量回归与真实协议门禁重新执行；证据与环境边界记录在修复报告。测试通过数量不代替阶段验收。`.changeset/phase-d-architecture-and-performance.md` 为待审材料，**暂不应用版本号或发布**。迁移说明见 [Phase D 迁移状态](migration/phase-d-router-hotpath.md)。
+
+### Phase E 实施状态（2026-09-28 发布）
+
+**结论：E-1/E-2/E-3/E-4 与 COR-16 均已落地并有回归测试；`.changeset/phase-e-ai-dev-experience.md` 已应用 —— `koatty_cli@5.0.0`（major）、`koatty_testing@4.0.1`（patch）。**
+
+| 任务 | 交付 | 回归测试 |
+|---|---|---|
+| E-1 `koatty manifest` | 静态采集器 `packages/koatty-ai/src/manifest/` + `src/cli/commands/manifest.ts`；输出 components（类型/scope/构造依赖/文件:行）、routes（protocol/method/path/controller/handler/middleware/params/文件:行）、dtos（字段 + 校验装饰器）、aspects、`config.keys`（**仅键名**）、`security.profile`、koatty 版本、decoratorMode、protocols；支持 `--format json\|md`、`--out`、`--validate`、`--runtime-dir`（D-7 预生成清单） | `tests/regression/E-01.manifest.test.ts`（5 例）、`tests/regression/D-07.runtime-manifest.test.ts` |
+| E-2 `koatty mcp` | stdio MCP server，7 个工具；除 `koatty_apply` 外只读；`koatty_apply` 需 `koatty_plan` 的 SHA-256 且 `dryRun` 默认 `true`；路径经 `resolveInside()`；`koatty_test` 限定 `test/`/`tests/` 且带超时；无任意 shell 工具 | `tests/regression/E-02.mcp.test.ts`（10 例，真实 MCP 协议 + 内存传输） |
+| E-3 AI 文档 | `koatty new` 模板新增 `AGENTS.md`、`.cursor/rules/koatty.mdc`、`llms.txt`；本仓库根 `AGENTS.md` | `tests/regression/E-04.test-skeleton-and-docs.test.ts` |
+| E-4 测试即规格 | 生成器为每个模块追加 `test/<module>.test.ts` 骨架；模板新增 `jest.config.js`（ts-jest）与 `test/smoke.test.ts`；`koatty_testing` 自身测试（QA-05） | `tests/regression/E-04.test-skeleton-and-docs.test.ts`、`packages/koatty-testing/test/`（3 suites / 8 例） |
+| COR-16 | `ChangeSet.save()` 同时接受目录与 `*.json` 文件路径 | `tests/regression/COR-16.changeset-save.test.ts` |
+
+- 验收命令（本轮实测）：`cd packages/koatty-ai && npx tsc --noEmit` 干净、`npx jest` 36 suites / 177 tests 全绿；`cd packages/koatty-testing && npx jest` 3 suites / 8 tests 全绿。
+- 未关闭边界：清单是**静态分析（ts-morph）**，不反映 `@Autowired` 实际解析结果、请求作用域实例与真实依赖图；§8 验收门第 2 条（在 Cursor 内完成端到端任务）与 npm 实际发布未在本工作区执行；`guards`/`interceptors` 不重复输出，同一装饰器统一由 `middleware` 与 `aspects` 表达。
+- 发布材料与完成记录：`docs/migration/phase-e-ai-dev-experience.md`、`docs/audits/phase-e-completion-2026-09-28.md`（含版本应用方式与工作区变更集事故的回滚记录）。
 
 ---
 
@@ -977,7 +1050,7 @@ const handler = composedMiddleware
 
 ### E-1 应用清单 `koatty manifest`
 
-**原理**：框架在启动后已经掌握了应用的全部结构元数据，只是没有导出。manifest 把这些元数据导出为一份机器可读的 JSON，是 AI 理解项目最便宜的入口。
+**原理**：优先通过静态分析输出机器可读的组件、路由、DTO 和切面清单；明确区分可静态推断的信息与运行期信息，不以执行用户应用换取完整性。
 
 **命令**：
 
@@ -985,13 +1058,13 @@ const handler = composedMiddleware
 koatty manifest [--out .koatty/manifest.json] [--format json|md]
 ```
 
-**实现**：以 `createApplication()` 方式启动应用，但不监听端口，也不执行 `appReady` 之后的副作用（新增 `bootstrapApplication(..., { dryRun: true })`，跳过 `loadServe` 与用户组件的 `run()`），然后从 IoC 容器与路由元数据中收集信息。
+**实现**：采用现有 CLI 的静态采集器，不启动应用、不导入执行用户模块，不新增启动入口。实际应用启动继续使用 `createApplication()`。动态路由、最终配置与运行期依赖不得伪造为已解析；清单注明采集模式和未解析项。D-7 用于生产启动的文件清单须另外校验路径、版本与文件指纹，不能直接把静态分析结果当成可执行注册清单。
 
 **输出结构**：
 
 ```jsonc
 {
-  "koatty": "4.5.0",
+  "koatty": "4.4.0",
   "decoratorMode": "legacy",
   "protocols": ["http", "grpc"],
   "components": [
@@ -1001,14 +1074,14 @@ koatty manifest [--out .koatty/manifest.json] [--format json|md]
   "routes": [
     { "protocol": "http", "method": "POST", "path": "/users",
       "controller": "UserController", "handler": "create",
-      "middleware": ["AuthMiddleware"], "guards": [],
+      "middleware": ["AuthMiddleware"],
       "params": [{ "source": "body", "dto": "CreateUserDto" }],
       "file": "src/controller/UserController.ts", "line": 42 }
   ],
   "dtos": { "CreateUserDto": { /* 由 class-validator 元数据生成的 JSON Schema */ } },
   "aspects": [{ "name": "AuditAspect", "targets": ["UserService.create"] }],
   "config": { "keys": ["server.port", "redis.host"], "schema": { /* C-6 */ } },
-  "security": { "profile": "strict" /* 最终生效的安全画像 */ }
+  "security": { "profile": "strict" /* 静态声明值；动态配置须标记未解析 */ }
 }
 ```
 
@@ -1065,16 +1138,16 @@ koatty mcp            # stdio 传输，供 Cursor / Claude Code 等 IDE 接入
 
 AI 修改代码时，可运行的测试是最可靠的反馈。模板项目默认包含：
 
-- `koatty_testing` 补齐自身测试（QA-05），并提供 `createTestApp()` + `request()` 的最小示例；
+- `koatty_testing` 补齐自身测试（QA-05），并提供 `createTestApp()` + 已导出的 `createHttpTest()`（复用其请求客户端，不新增同义包装器） 的最小示例；
 - 每个生成器生成的 Controller/Service 同时生成对应的测试文件骨架。
 
 **工作量**：3 人天。
 
 ### Phase E 验收门
 
-- [ ] 在示例项目上执行 `koatty manifest`，输出能通过 JSON Schema 校验，且不包含任何配置值
+- [x] 在示例项目上执行 `koatty manifest`，输出能通过 JSON Schema 校验，且不包含任何配置值 —— `--validate`（`validateManifest()`）与 `tests/regression/E-01.manifest.test.ts` 断言输出中不出现 fixture 的密钥/主机/端口取值
 - [ ] 在 Cursor 中接入 `koatty mcp`，完成"新增一个带 DTO 校验的 POST 接口并通过测试"的端到端任务
-- [ ] 构造一个试图写入 `../outside.txt` 的恶意变更集，`koatty_apply` 必须拒绝
+- [x] 构造一个试图写入 `../outside.txt` 的恶意变更集，`koatty_apply` 必须拒绝 —— `tests/regression/E-02.mcp.test.ts` 覆盖哈希不匹配与越界路径两种情况（均 fail closed）
 
 ---
 
@@ -1089,10 +1162,9 @@ AI 修改代码时，可运行的测试是最可靠的反馈。模板项目默�
 
 **定位**：把 Koatty 应用中的 Service 方法，以声明式的方式暴露为 MCP 工具、资源与提示词，复用 Koatty 已有的 IoC、校验、AOP、多协议与可观测性能力。**这是 Koatty 相对其他框架最有差异化的能力。**
 
-**装饰器**（全部原生支持双模式）：
+**最小新增协议元数据**（以下为目标设计，全部原生支持双模式；服务器名称/版本放在已有配置加载机制的 MCP 配置中，不新增类装饰器）：
 
 ```ts
-@McpServer({ name: 'order-service', version: '1.0.0' })
 @Service()
 export class OrderTools {
   @Autowired() private orders: OrderService;
@@ -1102,7 +1174,9 @@ export class OrderTools {
     description: '按订单号查询订单状态',
     annotations: { readOnlyHint: true },
   })
-  async query(@Payload(QueryOrderDto) input: QueryOrderDto, ctx: ToolContext) {
+  @Validated({ async: false, types: [QueryOrderDto] })
+  async query(input: QueryOrderDto) {
+    const ctx = this.app.getCurrentContext(); // MCP 适配层扩展既有请求上下文
     return this.orders.findByNo(input.orderNo, ctx.principal);
   }
 
@@ -1113,7 +1187,8 @@ export class OrderTools {
     requireApproval: true,                       // 需要人工审批（见 F-3）
     scopes: ['order:refund'],                    // 调用方必须具备的权限
   })
-  async refund(@Payload(RefundDto) input: RefundDto, ctx: ToolContext) { /* ... */ }
+  @Validated({ async: false, types: [RefundDto] })
+  async refund(input: RefundDto) { /* 从已有请求上下文读取身份与取消信号 */ }
 
   @Resource({ uri: 'order://{orderNo}', mimeType: 'application/json' })
   async orderResource(params: { orderNo: string }) { /* ... */ }
@@ -1125,10 +1200,10 @@ export class OrderTools {
 
 **关键设计**：
 
-1. **Schema 自动生成**：`@Payload(Dto)` 通过 E-1 的 DTO → JSON Schema 转换器生成工具的 `inputSchema`；调用时复用 `koatty_validation` 的白名单校验（B-3）。**工具参数与 HTTP 请求体走同一套校验逻辑**；
-2. **传输协议**：新增 `mcp` 协议，实现 MCP Streamable HTTP 传输（`POST` 接收 JSON-RPC 请求，按需通过 SSE 流式返回），挂在 `koatty-serve` 的 HTTP 服务上的指定路径（默认 `/mcp`），也支持 stdio 模式用于本地调试；
-3. **会话与上下文**：每次工具调用创建一个请求作用域（D-2）；`ToolContext` 包含 `principal`、`sessionId`、`requestId`、`signal`（取消信号）、`progress()`（进度通知）；
-4. **鉴权**：遵循 MCP 规范的 OAuth 2.1 授权模型（资源服务器角色，校验 Bearer token 的受众与作用域）；同时提供简单的 API Key 模式供内部服务使用。`scopes` 在工具调用前由 Guard（D-6）校验；
+1. **Schema 自动生成**：从既有 `@Validated({ types: [Dto] })` 声明提取 DTO，复用 E-1 的 DTO → JSON Schema 转换器生成工具的 `inputSchema`；调用时复用 `koatty_validation` 的白名单校验（B-3），不新增参数装饰器。需补齐此声明的元数据读取桥接，不能假定当前静态采集器已经支持。**工具参数与 HTTP 请求体走同一套校验逻辑**；
+2. **传输协议**：在可选 MCP 包中适配 MCP Streamable HTTP 传输（复用 HTTP 服务与中间件，不为它再增加 Serve 网络协议枚举；`POST` 接收 JSON-RPC 请求，按需通过 SSE 流式返回），挂在 `koatty-serve` 的 HTTP 服务上的指定路径（默认 `/mcp`），也支持 stdio 模式用于本地调试；
+3. **会话与上下文**：每次工具调用创建一个请求作用域（D-2）；在既有请求上下文上扩展协议所需的 `principal`、`sessionId`、`signal`（取消信号）、`progress()`（进度通知），复用现有 `requestId` 与 Core ALS，不建立平行的 ToolContext 存储；stdio 调用由适配层进入同一 ALS 边界；
+4. **鉴权**：遵循 MCP 规范的 OAuth 2.1 授权模型（资源服务器角色，校验 Bearer token 的受众与作用域）；同时提供简单的 API Key 模式供内部服务使用。`scopes` 在工具调用前通过已有鉴权中间件/`@Before` 切面校验（D-6）；stdio 入口也必须调用相同的权限检查服务，不可只保护 HTTP 传输；
 5. **协议安全**：校验 `Origin` 头防止 DNS rebinding；本地模式默认只绑定 `127.0.0.1`；
 6. **SDK 策略**：底层使用官方 `@modelcontextprotocol/sdk` 处理协议细节，Koatty 只负责装饰器、IoC 集成与传输适配，避免自行实现并维护协议状态机。
 
@@ -1147,7 +1222,7 @@ export class SupportAgent {
       messages: [{ role: 'user', content: question }],
       tools: ['order_query'],                     // 直接引用本应用中注册的 @Tool
       signal,
-    });                                           // 返回 AsyncIterable，可以直接交给 @SSE 输出
+    });                                           // 返回 AsyncIterable，经已有路由中的 streamSSE 输出，并传递同一个 signal
   }
 }
 ```
@@ -1170,15 +1245,17 @@ export class SupportAgent {
 
 ### F-3 `koatty_guard`：AI 护栏
 
-基于 AOP 实现（依赖 SEC-01 已修复）：
+基于已有 `@Aspect` 与 `@Before` / `@After` / `@Around` 实现（依赖 SEC-01 已修复）；包名沿用 `koatty_guard`，不引入新的 Guard 基类或注册体系：
 
 | 切面 | 作用 |
 |---|---|
-| `@RedactPII()` | 在工具输入/输出、LLM 请求/响应上脱敏手机号、身份证号、邮箱、银行卡号等；规则可配置 |
-| `@PromptShield()` | 对进入 LLM 的**外部内容**（用户输入、检索结果、工具返回值）做提示注入特征检测；命中时按策略拒绝、标记或降权。**注意：基于规则的检测只能拦截已知模式，不能作为唯一防线**，核心防线是 F-1 中的权限作用域与人工审批 |
-| `@RequireApproval()` | 高危工具调用挂起，生成审批单（存储于 `koatty-store`），通过 MCP 的 elicitation 机制或外部回调通知审批人；超时后自动拒绝 |
-| `@ToolRateLimit()` | 按调用方 + 工具维度限流 |
-| `@AuditLog()` | 结构化记录调用方、工具名、参数摘要（脱敏后）、结果状态、耗时，便于事后追溯 |
+| 脱敏服务 + 既有 `@Around` 切面 | 在工具输入/输出、LLM 请求/响应上脱敏手机号、身份证号、邮箱、银行卡号等；规则可配置 |
+| 内容检查服务 + 既有 `@Before` 切面 | 对进入 LLM 的**外部内容**（用户输入、检索结果、工具返回值）做提示注入特征检测；命中时按策略拒绝、标记或降权。**注意：基于规则的检测只能拦截已知模式，不能作为唯一防线**，核心防线是 F-1 中的权限作用域与人工审批 |
+| 审批服务 + 既有 `@Around` 切面，复用工具的 `requireApproval` 元数据 | 高危工具调用挂起，生成审批单（存储于 `koatty-store`），通过 MCP 的 elicitation 机制或外部回调通知审批人；超时后自动拒绝 |
+| 已有鉴权中间件/切面调用限流服务 | 按调用方 + 工具维度限流 |
+| 既有 `@Around` 审计切面 | 结构化记录调用方、工具名、参数摘要（脱敏后）、结果状态、耗时，便于事后追溯 |
+
+**组合约束**：不假定多个 `@Around` 当前可以叠加执行；先验收既有 AOP 的组合顺序与恰好一次语义，或由一个普通切面调用多个安全服务，避免新建装饰器栈。
 
 **默认策略**：带有 `destructiveHint: true` 的工具，若未显式声明 `requireApproval: false`，在 strict 画像下默认需要审批。
 
@@ -1189,7 +1266,7 @@ export class SupportAgent {
 - 遵循 OpenTelemetry GenAI 语义约定（`gen_ai.*` 属性）：记录供应商、模型、输入/输出 token 数、耗时、结束原因；
 - 工具调用 Span：`gen_ai.tool.name` 等属性，与 HTTP/MCP 请求 Span 形成完整调用链；
 - 指标：每个模型的 token 消耗与成本（按配置的单价计算）、工具调用成功率、审批通过率；
-- **默认不记录提示词与模型输出的原文**（隐私与合规要求），需要通过 `trace.genai.captureContent: true` 显式开启，开启后经过 `@RedactPII` 规则处理；
+- **默认不记录提示词与模型输出的原文**（隐私与合规要求），需要通过 `trace.genai.captureContent: true` 显式开启，开启后调用 F-3 同一脱敏服务处理；
 - 注意：OTel 的 GenAI 语义约定目前仍处于 development 状态，属性名可能变化；实现时把属性名集中在一个常量文件中，便于后续跟进。
 
 **工作量**：4 人天。
@@ -1219,7 +1296,7 @@ export class SupportAgent {
 | `4.3.0` | W3 | Phase B：安全默认值（提供 `legacyDefaults` 回退） | 行为变更，可回退 |
 | `4.4.0` | W6 | Phase C：功能正确性 | 否（缺陷修复） |
 | `koatty_cli@5.0.0` | W8 | manifest、MCP 模式，`apply` 默认 dry-run | CLI 行为变更 |
-| `4.5.0` | W12 | Phase D：多容器、请求作用域、serve 瘦身、SSE | 否（新增能力；HTTP/3 移到独立包是依赖变更，需说明） |
+| 主框架/serve major（待定） | W12 原排期 | Phase D：多容器、请求作用域、serve 瘦身、SSE | 是：核心 HTTP/3 导出和旧连接池语义移除；须按迁移说明升级 |
 | `5.0.0` | W16 | 移除 `legacyDefaults` 与 `process.env` 路径变量；与 TC39 方案的发布合并；AI 组件 1.0 | 是 |
 
 ### 10.2 `4.3.0` 行为变更清单（写入 CHANGELOG 与迁移指南）
@@ -1250,7 +1327,7 @@ export class SupportAgent {
 |---|---|---|---|---|
 | R-01 | 安全默认值导致用户升级后接口异常 | 高 | 中 | 两段式发布（ADR-103）；`doctor --security`；迁移指南逐项列出 |
 | R-02 | 与 TC39 迁移在同一批文件上冲突 | 高 | 中 | ADR-107 规定顺序；容器改造由同一负责人主导；两种模式的测试矩阵 |
-| R-03 | `koatty-serve` 瘦身引入回归 | 中 | 高 | D-5 第 1 步先补行为测试；瘦身分多个小 PR；保留旧实现一个小版本并通过开关切换 |
+| R-03 | `koatty-serve` 瘦身引入回归 | 中 | 高 | D-5 第 1 步先补行为测试；瘦身分多个小 PR；以 major 发布并提供迁移说明；不引入未实现的旧连接池兼容开关 |
 | R-04 | 子模块工作流导致改动难以原子提交 | 高 | 中 | 每个 Phase 结束时统一更新子模块引用；中长期评估把子模块合并回 monorepo（本方案不强制） |
 | R-05 | MCP 规范仍在快速演进 | 中 | 中 | 协议细节交给官方 SDK；Koatty 只负责装饰器与集成层；锁定规范版本并在 CI 中跑协议一致性测试 |
 | R-06 | OTel GenAI 语义约定变化 | 中 | 低 | 属性名集中在常量文件；跟随上游版本更新 |

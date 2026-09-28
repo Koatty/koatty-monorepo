@@ -12,6 +12,13 @@ export interface ValidationSchema {
   };
 }
 
+export type ConfigSchema = ValidationSchema | Record<string, unknown> | boolean;
+export function isJsonSchema(schema: ConfigSchema): boolean {
+  return typeof schema === 'boolean' || !!schema && (
+    typeof schema.type === 'string' || Array.isArray(schema.required) || '$schema' in schema
+    || 'properties' in schema || 'allOf' in schema || 'anyOf' in schema || '$ref' in schema);
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: Array<{
@@ -23,11 +30,30 @@ export interface ValidationResult {
 
 export function validateConfig<T extends Record<string, unknown>>(
   config: T,
-  schema: ValidationSchema
+  schema: ConfigSchema
 ): ValidationResult {
+  if (isJsonSchema(schema)) {
+    let Ajv: any;
+    try {
+      Ajv = require('ajv');
+      if (!require('ajv/package.json').version.startsWith('8.')) throw new Error('AJV 8 required');
+    } catch {
+      throw new Error('JSON Schema validation requires the optional peer dependency ajv (version 8)');
+    }
+    const validator = new (Ajv.default || Ajv)({ allErrors: true, useDefaults: true, strict: true }).compile(schema);
+    const valid = validator(config);
+    return { valid: !!valid, errors: (validator.errors || []).map((error: any) => ({
+      path: error.instancePath || error.dataPath || error.params?.missingProperty || '/',
+      message: error.message, value: undefined as unknown
+    })) };
+  }
   const errors: ValidationResult['errors'] = [];
 
   for (const [key, rule] of Object.entries(schema)) {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule) ||
+      Object.keys(rule).some(key => !['type', 'required', 'default', 'validator', 'min', 'max', 'enum'].includes(key))) {
+      throw new Error(`Invalid configuration schema rule: ${key}`);
+    }
     const value = config[key];
     const path = key;
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Phase A–D completion
+
+- koatty_core、koatty_exception 按运行期依赖声明，保证隔离 tarball 安装可导入。
+
+本轮尚未发布；验收边界见根目录 `docs/audits/phase-ad-completion-2026-09-28.md`。
+
+## Unreleased
+
+- 后台指标刷新、内存监视和 Span 清理定时器不再阻止空闲进程退出；正常 appStop 仍负责 flush/destroy。新增真实子进程退出回归。
+
 ## 2.4.0
 
 ### Minor Changes

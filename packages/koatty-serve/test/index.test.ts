@@ -3,6 +3,9 @@ import { KoattyApplication } from "koatty_core";
 
 // Mock KoattyApplication
 class MockKoattyApplication {
+  callback = () => (_req: any, res: any) => res.end();
+  on = jest.fn();
+  emit = jest.fn();
   config(key?: string, defaultValue?: any) {
     return defaultValue;
   }
@@ -10,6 +13,8 @@ class MockKoattyApplication {
 
 describe("NewServe", () => {
   let app: KoattyApplication;
+  const servers: any[] = [];
+  afterEach(async () => { for (const server of servers.splice(0)) await new Promise<void>((resolve, reject) => server.Stop((err: Error) => err ? reject(err) : resolve())); });
 
   beforeEach(() => {
     app = new MockKoattyApplication() as unknown as KoattyApplication;
@@ -17,6 +22,7 @@ describe("NewServe", () => {
 
   it("should create single protocol server with default HTTP protocol", () => {
     const server = NewServe(app);
+    servers.push(server);
     expect(server).toBeInstanceOf(SingleProtocolServer);
     expect(server.options.protocol).toBe("http");
   });
@@ -31,6 +37,7 @@ describe("NewServe", () => {
         crtFile: "test/temp/test-cert.pem"
       }
     });
+    servers.push(server);
     expect(server).toBeInstanceOf(SingleProtocolServer);
     expect(server.options.protocol).toBe("https");
   });
@@ -45,6 +52,7 @@ describe("NewServe", () => {
         crtFile: "test/temp/test-cert.pem"
       }
     });
+    servers.push(server);
     expect(server).toBeInstanceOf(SingleProtocolServer);
     expect(server.options.protocol).toBe("http2");
   });
@@ -55,6 +63,7 @@ describe("NewServe", () => {
       hostname: "127.0.0.1",
       port: 3000
     });
+    servers.push(server);
     expect(server).toBeInstanceOf(SingleProtocolServer);
     expect(server.options.protocol).toBe("ws");
   });
@@ -65,6 +74,7 @@ describe("NewServe", () => {
       hostname: "127.0.0.1",
       port: 3000
     });
+    servers.push(server);
     expect(server).toBeInstanceOf(SingleProtocolServer);
     expect(server.options.protocol).toBe("grpc");
   });

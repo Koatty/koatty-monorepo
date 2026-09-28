@@ -9,8 +9,45 @@ Get singleton instance
 **Signature:**
 
 ```typescript
-static getInstance(): RouterFactory;
+static getInstance(app?: object): RouterFactory;
 ```
+
+## Parameters
+
+<table><thead><tr><th>
+
+Parameter
+
+
+</th><th>
+
+Type
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+app
+
+
+</td><td>
+
+object
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+</tbody></table>
+
 **Returns:**
 
 [RouterFactory](./koatty_router.routerfactory.md)

@@ -38,7 +38,8 @@ describe('createGrpcContext', () => {
   });
 
   test('should define rpc property on context', () => {
-    expect(ctx.rpc).toEqual({ call, callback });
+    expect(ctx.rpc).toEqual({ call, callback, path: "testPath", kind: undefined });
+    expect(ctx.path).toBe("testPath");
   });
 
   test('should define metadata property on context', () => {

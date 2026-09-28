@@ -10,7 +10,7 @@ Indicates that an decorated configuration as a property.
 **Signature:**
 
 ```typescript
-export declare function Config(key?: string, type?: string): PropertyDecorator;
+export declare function Config(key?: string, type?: string): (...args: any[]) => any;
 ```
 
 ## Parameters
@@ -67,7 +67,7 @@ _(Optional)_ configuration type
 
 **Returns:**
 
-PropertyDecorator
+(...args: any\[\]) =&gt; any
 
 {<!-- -->PropertyDecorator<!-- -->}
 

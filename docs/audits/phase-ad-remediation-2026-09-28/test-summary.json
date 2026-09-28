@@ -1,0 +1,102 @@
+{
+  "command": "pnpm exec turbo run test --concurrency=1 -- --runInBand",
+  "successfulTasks": 46,
+  "totalTasks": 46,
+  "cachedTasks": 37,
+  "packages": {
+    "koatty_lib": {
+      "passed": 91,
+      "total": 91
+    },
+    "koatty_cli": {
+      "passed": 172,
+      "total": 172
+    },
+    "koatty_logger": {
+      "passed": 30,
+      "total": 30
+    },
+    "koatty_proto": {
+      "passed": 9,
+      "total": 9
+    },
+    "koatty_loader": {
+      "passed": 17,
+      "total": 17
+    },
+    "koatty_store": {
+      "passed": 69,
+      "total": 69
+    },
+    "koatty_container": {
+      "passed": 386,
+      "total": 386
+    },
+    "koatty_exception": {
+      "passed": 80,
+      "total": 80
+    },
+    "koatty_validation": {
+      "passed": 210,
+      "total": 210
+    },
+    "koatty_core": {
+      "skipped": 4,
+      "passed": 315,
+      "total": 319
+    },
+    "koatty_serve": {
+      "skipped": 24,
+      "passed": 824,
+      "total": 848
+    },
+    "koatty_router": {
+      "passed": 414,
+      "total": 414
+    },
+    "koatty_config": {
+      "passed": 15,
+      "total": 15
+    },
+    "koatty_cacheable": {
+      "passed": 32,
+      "total": 32
+    },
+    "koatty_schedule": {
+      "passed": 152,
+      "total": 152
+    },
+    "koatty_typeorm": {
+      "skipped": 20,
+      "passed": 93,
+      "total": 113
+    },
+    "koatty_serverless": {
+      "passed": 41,
+      "total": 41
+    },
+    "koatty_trace": {
+      "passed": 133,
+      "total": 133
+    },
+    "koatty": {
+      "passed": 11,
+      "total": 11
+    },
+    "koatty_swagger": {
+      "passed": 52,
+      "total": 52
+    }
+  },
+  "total": {
+    "passed": 3146,
+    "skipped": 48,
+    "failed": 0,
+    "total": 3194
+  },
+  "limitations": [
+    "Turbo cached results were reused; this is not an all-force rerun.",
+    "koatty_serve retains its pre-existing forceExit Jest setting.",
+    "koatty_graphql and koatty_testing report no tests; koatty-doc runs its documentation checker rather than Jest."
+  ]
+}

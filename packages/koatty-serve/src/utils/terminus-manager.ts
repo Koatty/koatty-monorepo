@@ -15,9 +15,9 @@ import { DefaultLogger as Logger } from "koatty_logger";
 
 // async event listener - triggers all listeners without removing them
 const asyncEvent = async (event: EventEmitter, eventName: string) => {
-  for (const func of event.listeners(eventName)) {
+  for (const func of event.rawListeners(eventName)) {
     if (Helper.isFunction(func)) {
-      await func();
+      await func.call(event);
     }
   }
   return event.removeAllListeners(eventName);
@@ -42,16 +42,17 @@ const triggerListeners = async (target: NodeJS.EventEmitter, eventName: string) 
 export class TerminusManager {
   private static instance: TerminusManager | null = null;
   private isShuttingDown = false;
+  private shutdownPromise?: Promise<void>;
   private app: KoattyApplication | null = null;
   private signalsRegistered = false;
   private exitOnShutdown = true;
   private registeredServerCount = 0;
   /** COR-03: servers to drain/stop, in registration order */
-  private servers: Array<{ server: KoattyServer; serverId: string }> = [];
+  private servers: Array<{ app: KoattyApplication; server: KoattyServer; serverId: string }> = [];
   /** COR-03: /ready reports 503 for this long before sockets are closed */
   private preStopDelay = 5000;
   /** COR-03: upper bound for in-flight requests to finish */
-  private drainTimeout = 25000;
+  private drainTimeout = 19000;
   // Stored handler references for explicit removal on reset (prevents handler accumulation in tests)
   private signalHandlers: Map<NodeJS.Signals, () => void> = new Map();
 
@@ -65,6 +66,19 @@ export class TerminusManager {
       TerminusManager.instance = new TerminusManager();
     }
     return TerminusManager.instance;
+  }
+
+  /** Release an explicitly stopped server; signal shutdown keeps its cleanup snapshot. */
+  static unregisterServer(server: KoattyServer): void {
+    const manager = this.instance;
+    if (!manager || manager.isShuttingDown) return;
+    manager.servers = manager.servers.filter(entry => entry.server !== server);
+    manager.registeredServerCount = manager.servers.length;
+    manager.app = manager.servers.at(-1)?.app ?? null;
+    if (!manager.servers.length) {
+      for (const [signal, handler] of manager.signalHandlers) process.removeListener(signal, handler);
+      manager.signalHandlers.clear();manager.signalsRegistered = false;
+    }
   }
 
   setExitOnShutdown(value: boolean): void {
@@ -97,13 +111,14 @@ export class TerminusManager {
    * @param serverId - Unique identifier for the server
    */
   registerServer(app: KoattyApplication, server: KoattyServer, serverId: string): void {
+    if (this.servers.some(entry => entry.server === server)) return;
     this.app = app;
     this.registeredServerCount++;
-    this.servers.push({ server, serverId });
+    this.servers.push({ app, server, serverId });
 
     // COR-03: drain budget may come from config/server.ts `shutdown`
     try {
-      const serverConf = (app as any)?.config?.('server') as
+      const serverConf = ((server as any)?.options ?? (app as any)?.config?.(undefined, 'server') ?? (app as any)?.config?.('server')) as
         | { shutdown?: { preStopDelay?: number; drainTimeout?: number } }
         | undefined;
       if (typeof serverConf?.shutdown?.preStopDelay === 'number') {
@@ -168,7 +183,12 @@ export class TerminusManager {
    *
    * @param signal - Signal that triggered the shutdown
    */
-  private async shutdownAll(signal: string): Promise<void> {
+  private shutdownAll(signal: string): Promise<void> {
+    if (!this.shutdownPromise) this.shutdownPromise = this.performShutdown(signal);
+    return this.shutdownPromise;
+  }
+
+  private async performShutdown(signal: string): Promise<void> {
     if (this.isShuttingDown) {
       Logger.Warn('Shutdown already in progress, ignoring signal');
       return;
@@ -181,7 +201,7 @@ export class TerminusManager {
     // preStopDelay + in-flight drain + force close + appStop resource cleanup.
     // It stays below terminationGracePeriodSeconds ("must stay below" comment).
     const forceCloseGraceMs = 5000;
-    const shutdownTimeout = this.preStopDelay + this.drainTimeout + forceCloseGraceMs;
+    const shutdownTimeout = Math.min(29000, this.preStopDelay + this.drainTimeout + forceCloseGraceMs);
     let timeoutHandle: NodeJS.Timeout | undefined;
 
     try {
@@ -202,7 +222,7 @@ export class TerminusManager {
       if (this.exitOnShutdown) {
         // Logger.Fatal terminates the process (exit 1); it must not run when the
         // embedder (or a test) disabled exit-on-shutdown.
-        Logger.Fatal('Graceful shutdown completed');
+        Logger.Info('Graceful shutdown completed');
         process.exit(0);
       }
       Logger.Info('Graceful shutdown completed');
@@ -241,24 +261,26 @@ export class TerminusManager {
     }
 
     // 3. stop servers: no new connections; in-flight requests drain
-    await Promise.all(this.servers.map(({ server }) => new Promise<void>((resolve) => {
+    const errors: unknown[] = [];
+    const stopped = await Promise.allSettled(this.servers.map(({ server }) => new Promise<void>((resolve, reject) => {
       const stoppable = server as any;
-      if (stoppable && typeof stoppable.Stop === 'function') {
-        try {
-          stoppable.Stop(() => resolve());
-        } catch {
-          resolve();
-        }
-      } else {
-        resolve();
-      }
+      if (typeof stoppable?.Stop !== 'function') return resolve();
+      try { stoppable.Stop((error?: Error) => error ? reject(error) : resolve()); }
+      catch (error) { reject(error); }
     })));
+    for (const result of stopped) if (result.status === 'rejected') errors.push(result.reason);
 
-    // 4. resource cleanup, after the servers are down (nothing new is accepted)
-    if (this.app) {
-      Logger.Info('Triggering application stop events');
-      await asyncEvent(this.app, 'appStop').then(() => triggerListeners(process, 'beforeExit'));
+    // Every application owns its resources. A failing server/app must not skip others.
+    const apps = new Set(this.servers.map(entry => entry.app));
+    for (const app of apps) {
+      try {
+        if (typeof (app as any).stopResources === 'function') await (app as any).stopResources();
+        else await asyncEvent(app, 'appStop');
+      } catch (error) { errors.push(error); }
     }
+    try { await triggerListeners(process, 'beforeExit'); } catch (error) { errors.push(error); }
+    if (errors.length) throw new AggregateError(errors, 'One or more server/application shutdowns failed');
+
   }
 
   /**

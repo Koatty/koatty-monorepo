@@ -4,14 +4,12 @@
 
 ## WsServer class
 
-WebSocket Server implementation using template method pattern 继承BaseServer，只实现WebSocket特定的逻辑
-
 **Signature:**
 
 ```typescript
-export declare class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketServer> 
+export declare class WsServer extends BaseServer<WebSocketServerOptions, WebSocketServer>
 ```
-**Extends:** BaseServer&lt;WebSocketServerOptions, WS.WebSocketServer&gt;
+**Extends:** BaseServer&lt;WebSocketServerOptions, WebSocketServer&gt;
 
 ## Constructors
 
@@ -72,53 +70,15 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[connectionPool](./koatty_serve.wsserver.connectionpool.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-WebSocketConnectionPoolManager
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
 [httpServer](./koatty_serve.wsserver.httpserver.md)
 
 
 </td><td>
 
-`readonly`
-
 
 </td><td>
 
-HttpServer \| HttpsServer
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[socket](./koatty_serve.wsserver.socket.md)
-
-
-</td><td>
-
-
-</td><td>
-
-any
+HttpServer
 
 
 </td><td>
@@ -147,7 +107,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[analyzeConfigChanges(changedKeys, oldConfig, newConfig)](./koatty_serve.wsserver.analyzeconfigchanges.md)
+[cleanup()](./koatty_serve.wsserver.cleanup.md)
 
 
 </td><td>
@@ -161,53 +121,7 @@ Description
 </td></tr>
 <tr><td>
 
-[configureServerOptions()](./koatty_serve.wsserver.configureserveroptions.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-配置WebSocket服务器选项
-
-
-</td></tr>
-<tr><td>
-
-[createProtocolServer()](./koatty_serve.wsserver.createprotocolserver.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-创建WebSocket服务器实例
-
-
-</td></tr>
-<tr><td>
-
-[destroy()](./koatty_serve.wsserver.destroy.md)
-
-
-</td><td>
-
-
-</td><td>
-
-销毁服务器
-
-
-</td></tr>
-<tr><td>
-
-[extractRelevantConfig(config)](./koatty_serve.wsserver.extractrelevantconfig.md)
+[closeTransport()](./koatty_serve.wsserver.closetransport.md)
 
 
 </td><td>
@@ -221,7 +135,7 @@ Description
 </td></tr>
 <tr><td>
 
-[forceCloseRemainingConnections(traceId)](./koatty_serve.wsserver.forcecloseremainingconnections.md)
+[forceTransport()](./koatty_serve.wsserver.forcetransport.md)
 
 
 </td><td>
@@ -235,7 +149,7 @@ Description
 </td></tr>
 <tr><td>
 
-[forceShutdown(traceId)](./koatty_serve.wsserver.forceshutdown.md)
+[recreate()](./koatty_serve.wsserver.recreate.md)
 
 
 </td><td>
@@ -249,136 +163,10 @@ Description
 </td></tr>
 <tr><td>
 
-[getConnectionsStatus()](./koatty_serve.wsserver.getconnectionsstatus.md)
+[Start(callback)](./koatty_serve.wsserver.start.md)
 
 
 </td><td>
-
-
-</td><td>
-
-获取当前连接状态
-
-
-</td></tr>
-<tr><td>
-
-[getNativeServer()](./koatty_serve.wsserver.getnativeserver.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[getStatus()](./koatty_serve.wsserver.getstatus.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[getWebSocketConnectionStats()](./koatty_serve.wsserver.getwebsocketconnectionstats.md)
-
-
-</td><td>
-
-
-</td><td>
-
-获取WebSocket连接统计信息
-
-
-</td></tr>
-<tr><td>
-
-[initializeConnectionPool()](./koatty_serve.wsserver.initializeconnectionpool.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-初始化WebSocket连接池
-
-
-</td></tr>
-<tr><td>
-
-[onRuntimeConfigChange(analysis, newConfig, traceId)](./koatty_serve.wsserver.onruntimeconfigchange.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[performProtocolSpecificInitialization()](./koatty_serve.wsserver.performprotocolspecificinitialization.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-WebSocket特定的额外初始化
-
-
-</td></tr>
-<tr><td>
-
-[Start(listenCallback)](./koatty_serve.wsserver.start.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[stopAcceptingNewConnections(traceId)](./koatty_serve.wsserver.stopacceptingnewconnections.md)
-
-
-</td><td>
-
-`protected`
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
-[waitForConnectionCompletion(timeout, traceId)](./koatty_serve.wsserver.waitforconnectioncompletion.md)
-
-
-</td><td>
-
-`protected`
 
 
 </td><td>

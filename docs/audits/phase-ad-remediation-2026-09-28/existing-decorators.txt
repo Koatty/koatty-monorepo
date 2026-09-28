@@ -1,0 +1,75 @@
+AD_EXISTING_DECORATORS_PASS legacy
+AD_EXISTING_DECORATORS_PASS tc39
+[2026-09-28 17:37:22.145 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:37:22.146 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:37:22.146 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:37:22.146 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:37:22.146 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: Dependency, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: AspectClass, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: BeforeClass, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Consumer -> [Dependency]
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Consumer -> [Dependency]
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: Consumer, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: Dependency, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: AspectClass, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: BeforeClass, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Consumer -> [Dependency]
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Register component dependencies: Consumer -> [Dependency]
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Finish resolving component: Consumer, remaining path: []
+[2026-09-28 17:37:22.147 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container cleared including performance optimization components
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container cleared including performance optimization components
+[2026-09-28 17:37:22.148 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:37:22.148 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: Dependency, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: AspectClass, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: BeforeClass, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Consumer -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Consumer -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: Consumer, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Dependency -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: Dependency, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: AspectClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: AspectClass, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: BeforeClass -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: BeforeClass, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Consumer -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Register component dependencies: Consumer -> []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Finish resolving component: Consumer, remaining path: []
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container cleared including performance optimization components
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container cleared including performance optimization components
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Circular dependency detector has been cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG All caches cleared
+[2026-09-28 17:37:22.148 +08:00]  DEBUG Container cleared including performance optimization components

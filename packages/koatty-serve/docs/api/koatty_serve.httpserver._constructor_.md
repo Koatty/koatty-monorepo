@@ -9,7 +9,7 @@ Constructs a new instance of the `HttpServer` class
 **Signature:**
 
 ```typescript
-constructor(app: KoattyApplication, options: HttpServerOptions);
+constructor(app: KoattyApplication, options: HttpServerOptions, transport?: "http" | "https" | "http2");
 ```
 
 ## Parameters
@@ -55,6 +55,22 @@ HttpServerOptions
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+transport
+
+
+</td><td>
+
+"http" \| "https" \| "http2"
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

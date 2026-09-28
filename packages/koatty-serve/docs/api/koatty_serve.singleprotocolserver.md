@@ -4,12 +4,12 @@
 
 ## SingleProtocolServer class
 
-Single protocol server
+The wrapper preserves the existing KoattyServer contract; the transport owns resources.
 
 **Signature:**
 
 ```typescript
-export declare class SingleProtocolServer implements KoattyServer 
+export declare class SingleProtocolServer implements KoattyServer
 ```
 **Implements:** KoattyServer
 
@@ -191,10 +191,6 @@ Description
 
 </td><td>
 
-COR-03 (C-1): drain this instance before closing sockets.
-
-Delegates to the protocol server so its health middleware flips `/ready` to 503 (load balancer stops routing here) while in-flight requests are still served until `Stop()` runs.
-
 
 </td></tr>
 <tr><td>
@@ -206,8 +202,6 @@ Delegates to the protocol server so its health middleware flips `/ready` to 503 
 
 
 </td><td>
-
-Get server health status
 
 
 </td></tr>
@@ -221,8 +215,6 @@ Get server health status
 
 </td><td>
 
-Get server metrics in Prometheus format
-
 
 </td></tr>
 <tr><td>
@@ -234,8 +226,6 @@ Get server metrics in Prometheus format
 
 
 </td><td>
-
-Get native server
 
 
 </td></tr>
@@ -249,8 +239,6 @@ Get native server
 
 </td><td>
 
-Get server status
-
 
 </td></tr>
 <tr><td>
@@ -262,8 +250,6 @@ Get server status
 
 
 </td><td>
-
-Create health check middleware for Express/Koa
 
 
 </td></tr>
@@ -277,21 +263,17 @@ Create health check middleware for Express/Koa
 
 </td><td>
 
-Register Service for gRPC server
-
 
 </td></tr>
 <tr><td>
 
-[Start(listenCallback)](./koatty_serve.singleprotocolserver.start.md)
+[Start(callback)](./koatty_serve.singleprotocolserver.start.md)
 
 
 </td><td>
 
 
 </td><td>
-
-Start server
 
 
 </td></tr>
@@ -304,8 +286,6 @@ Start server
 
 
 </td><td>
-
-Stop server
 
 
 </td></tr>

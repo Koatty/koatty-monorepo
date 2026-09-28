@@ -1,0 +1,68 @@
+Phase C audit verification — 2026-09-28
+Baseline HEAD: cb7807fb1f71ccc6ba31f4813b4b64ee5d4a674c
+Environment: macOS, Node v22.23.1, pnpm 9.15.4
+Initial worktree clean. Concurrent router and loader changes appeared during audit.
+Results describe execution-time snapshots; later concurrent changes are not certified.
+
+Command: pnpm turbo run test --force --continue --concurrency=2
+Exit: 0; 46/46 tasks successful; 0 cached
+koatty_cli:test: Tests:       154 passed, 154 total
+koatty_lib:test: Tests:       91 passed, 91 total
+koatty_loader:test: Tests:       1 passed, 1 total
+koatty_proto:test: Tests:       9 passed, 9 total
+koatty_logger:test: Tests:       30 passed, 30 total
+koatty_store:test: Tests:       66 passed, 66 total
+koatty_container:test: Tests:       359 passed, 359 total
+koatty_validation:test: Tests:       210 passed, 210 total
+koatty_exception:test: Tests:       80 passed, 80 total
+koatty_core:test: Tests:       4 skipped, 307 passed, 311 total
+koatty_schedule:test: Tests:       150 passed, 150 total
+koatty_serve:test: Tests:       24 skipped, 819 passed, 843 total
+koatty_cacheable:test: Tests:       29 passed, 29 total
+koatty_config:test: Tests:       12 passed, 12 total
+koatty_serverless:test: Tests:       41 passed, 41 total
+koatty_typeorm:test: Tests:       20 skipped, 93 passed, 113 total
+koatty_router:test: Tests:       376 passed, 376 total
+koatty:test: Tests:       4 passed, 4 total
+koatty_trace:test: Tests:       135 passed, 135 total
+koatty_swagger:test: Tests:       52 passed, 52 total
+ Tasks:    46 successful, 46 total
+Totals: 3018 passed, 48 skipped, 0 failed
+
+Command: pnpm turbo run lint --force --continue --concurrency=2
+Exit: 0; 24/24 tasks successful; 0 cached; warnings remain.
+
+Command: node scripts/doctor.js --assert-submodules
+Exit: 0; all 17 submodules checked out and have test scripts.
+
+Existing COR-03.graceful-shutdown.test.ts repeated locally:
+LOOP 1/20 exit=0
+LOOP 2/20 exit=0
+LOOP 3/20 exit=0
+LOOP 4/20 exit=0
+LOOP 5/20 exit=0
+LOOP 6/20 exit=0
+LOOP 7/20 exit=0
+LOOP 8/20 exit=0
+LOOP 9/20 exit=0
+LOOP 10/20 exit=0
+LOOP 11/20 exit=0
+LOOP 12/20 exit=0
+LOOP 13/20 exit=0
+LOOP 14/20 exit=0
+LOOP 15/20 exit=0
+LOOP 16/20 exit=0
+LOOP 17/20 exit=0
+LOOP 18/20 exit=0
+LOOP 19/20 exit=0
+LOOP 20/20 exit=0
+Jest reports force-exit/open-handle warnings. Repetition success is not proof of clean process teardown.
+The existing test uses process.emit('SIGTERM'), real HTTP and disabled process exit.
+It does not establish external OS-signal/subprocess-exit acceptance.
+
+Component and network probe outputs are stored beside this file.
+Probe exit 0 means observations completed, NOT product correctness.
+Network probe uses real loopback HTTP and grpc-js, with leaf middleware replacing business controllers.
+Component adapters are explicitly mocked as documented in the report and script.
+No real Redis multi-process lock tests, Linux/Node 20 CI, npm tarball consumption or release performed.
+The generated root .pnpm-store/ is left in place because concurrent tasks may be using it.

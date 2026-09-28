@@ -47,22 +47,11 @@ jest.mock('fs');
 
 /** Minimal EventEmitter + grpc-js stream surface used by the wrapper. */
 function makeCall(overrides: Record<string, any> = {}) {
-  const listeners: Record<string, Array<(arg?: any) => void>> = {};
-  const call: any = {
+  const { EventEmitter } = require('events');
+  const call: any = Object.assign(new EventEmitter(), {
     getPeer: () => '127.0.0.1:5555',
-    on: jest.fn((event: string, listener: (arg?: any) => void) => {
-      (listeners[event] ||= []).push(listener);
-      return call;
-    }),
-    emit: (event: string, arg?: any) => {
-      (listeners[event] || []).forEach((l) => l(arg));
-      return true;
-    },
-    write: jest.fn(() => true),
-    end: jest.fn(),
-    destroy: jest.fn(),
-    ...overrides,
-  };
+    write: jest.fn(() => true), end: jest.fn(), destroy: jest.fn(), ...overrides,
+  });
   return call;
 }
 
@@ -104,6 +93,8 @@ describe('COR-04: gRPC call-shape dispatch', () => {
     } as any);
     registered = mockGrpcServer.addService.mock.calls.at(-1)![1];
   });
+
+  afterEach(async () => { await grpcServer.destroy(); });
 
   it('classifies each method from its proto definition', () => {
     expect(getGrpcMethodKind(SERVICE, 'Unary')).toBe('unary');
@@ -196,7 +187,7 @@ describe('COR-04: gRPC call-shape dispatch', () => {
 
     await registered.Unary(call, callback);
 
-    expect((call as any).koattyDeadlineMs).toBe(30000);
+    expect((call as any).koattyDeadlineMs).toBeUndefined();
     expect(middlewareHandler).toHaveBeenCalledWith(call, expect.any(Function));
     const wrappedCallback = middlewareHandler.mock.calls[0][1];
     wrappedCallback(null, { ok: true });

@@ -1,0 +1,116 @@
+Phase C remediation validation, 2026-09-28
+Baseline: cb7807fb1f71ccc6ba31f4813b4b64ee5d4a674c
+Node v22.23.1 / pnpm 9.15.4 / macOS
+Concurrent Phase D/E edits are present; this is a working-tree snapshot, not a release artifact.
+
+Full suite command: pnpm turbo run test --force --continue --concurrency=2 -- --runInBand --forceExit --coverage=false --silent
+koatty_cli:test: Tests:       169 passed, 169 total
+koatty_cli:test: Time:        8.266 s
+koatty_lib:test: Tests:       91 passed, 91 total
+koatty_lib:test: Time:        0.739 s, estimated 1 s
+koatty_proto:test: Tests:       9 passed, 9 total
+koatty_proto:test: Time:        0.858 s, estimated 2 s
+koatty_loader:test: Tests:       15 passed, 15 total
+koatty_loader:test: Time:        1.687 s, estimated 2 s
+koatty_logger:test: Tests:       30 passed, 30 total
+koatty_logger:test: Time:        1.313 s, estimated 7 s
+koatty_store:test: Tests:       68 passed, 68 total
+koatty_store:test: Time:        8.125 s, estimated 10 s
+koatty_container:test: Tests:       379 passed, 379 total
+koatty_container:test: Time:        3.163 s, estimated 11 s
+koatty_exception:test: Tests:       80 passed, 80 total
+koatty_exception:test: Time:        0.999 s, estimated 2 s
+koatty_validation:test: Tests:       210 passed, 210 total
+koatty_validation:test: Time:        1.897 s, estimated 3 s
+koatty_core:test: Tests:       4 skipped, 315 passed, 319 total
+koatty_core:test: Time:        2.827 s, estimated 6 s
+koatty_cacheable:test: Tests:       32 passed, 32 total
+koatty_cacheable:test: Time:        4.016 s, estimated 6 s
+koatty_trace:test:   startTime: '1790582464635',
+koatty_trace:test:   endTime: '1790582464637',
+koatty_trace:test:   startTime: '1790582464637',
+koatty_trace:test:   endTime: '1790582464637',
+koatty_trace:test:   startTime: '1790582464638',
+koatty_trace:test:   endTime: '1790582464638',
+koatty_trace:test:   startTime: '1790582464639',
+koatty_trace:test:   endTime: '1790582464639',
+koatty_trace:test:   startTime: '1790582464646',
+koatty_trace:test:   endTime: '1790582464647',
+koatty_trace:test:   startTime: '1790582464648',
+koatty_trace:test:   endTime: '1790582464648',
+koatty_trace:test:   startTime: '1790582464851',
+koatty_trace:test:   endTime: '1790582464853',
+koatty_trace:test:   startTime: '1790582464851',
+koatty_trace:test:   endTime: '1790582464853',
+koatty_trace:test:   startTime: '1790582464855',
+koatty_trace:test:   endTime: '1790582464856',
+koatty_trace:test:   startTime: '1790582464981',
+koatty_trace:test:   endTime: '1790582464982',
+koatty_router:test: Tests:       414 passed, 414 total
+koatty_router:test: Time:        15.502 s, estimated 19 s
+koatty_trace:test:   startTime: '1790582465992',
+koatty_trace:test:   endTime: '1790582465992',
+koatty_trace:test:   startTime: '1790582466006',
+koatty_trace:test:   endTime: '1790582466007',
+koatty_trace:test:   startTime: '1790582466008',
+koatty_trace:test:   endTime: '1790582466009',
+koatty_trace:test:   startTime: '1790582466018',
+koatty_trace:test:   endTime: '1790582466019',
+koatty_trace:test:   startTime: '1790582468655',
+koatty_trace:test:   endTime: '1790582468655',
+koatty_trace:test:   startTime: '1790582468657',
+koatty_trace:test:   endTime: '1790582469157',
+koatty_trace:test:   startTime: '1790582468680',
+koatty_trace:test:   endTime: '1790582468700',
+koatty_trace:test:   startTime: '1790582468702',
+koatty_trace:test:   endTime: '1790582468702',
+koatty_trace:test:   startTime: '1790582468702',
+koatty_trace:test:   endTime: '1790582468702',
+koatty_trace:test:   startTime: '1790582468703',
+koatty_trace:test:   endTime: '1790582468703',
+koatty_trace:test:   startTime: '1790582469249',
+koatty_trace:test:   endTime: '1790582469259',
+koatty_trace:test:   startTime: '1790582469249',
+koatty_trace:test:   endTime: '1790582469259',
+koatty_trace:test: Tests:       131 passed, 131 total
+koatty_trace:test: Time:        10.826 s, estimated 20 s
+koatty_serverless:test: Tests:       41 passed, 41 total
+koatty_serverless:test: Time:        1.015 s
+koatty_config:test: Tests:       14 passed, 14 total
+koatty_config:test: Time:        1.192 s, estimated 2 s
+koatty_typeorm:test: Tests:       20 skipped, 93 passed, 113 total
+koatty_typeorm:test: Time:        2.464 s
+koatty_schedule:test: Tests:       152 passed, 152 total
+koatty_schedule:test: Time:        2.017 s, estimated 3 s
+koatty:test: Tests:       7 passed, 7 total
+koatty:test: Time:        2.756 s, estimated 15 s
+koatty_swagger:test: Tests:       52 passed, 52 total
+koatty_swagger:test: Time:        1.423 s, estimated 2 s
+koatty_serve:test: Tests:       24 skipped, 819 passed, 843 total
+koatty_serve:test: Time:        16.268 s, estimated 18 s
+ Tasks:    46 successful, 46 total
+Cached:    0 cached, 46 total
+  Time:    1m52.027s 
+Totals: 3121 passed, 48 skipped, 0 failed. 46/46 tasks successful.
+
+After the full run, stream Span lifetime regression was added and Redis option preservation finalized:
+trace-final
+Test Suites: 17 passed, 17 total
+Tests:       132 passed, 132 total
+store-final
+Test Suites: 12 passed, 12 total
+Tests:       68 passed, 68 total
+
+TypeScript --noEmit: all 9 directly changed packages exit 0 (types.log). Follow-up Trace/Store type checks also passed.
+Lint: 24/24 tasks successful; targeted Trace/Store lint after final changes also passed. Existing warnings remain.
+Doctor: all 17 submodules checked out and testable.
+pnpm test:phase-c:integration: PASS (real HTTP + 4 RPC shapes via Router/IOC, actual TS Legacy/TC39 emit, external OS SIGTERM).
+External SIGTERM child-process runs: 20/20 exit 0 after build completion.
+
+Full suite uses --forceExit because existing Jest suites retain open handles; this is not proof of clean teardown.
+The standalone protocol/OS-signal scripts do not use forceExit.
+Earlier failures: incompatible Date realm in CLI fake timers; real timer/heap-sensitive Logger/Trace assertions. Tests were made deterministic and rerun successfully.
+An initial signal loop collided with build cleanup of container/dist (MODULE_NOT_FOUND at startup, run 4); the final 20-run loop was executed after builds finished.
+Real Redis, remote Linux/Node 20 CI and independent npm tarball consumption were NOT run locally.
+CI Redis service + phase-c-redis.cjs gate added; configuration is not evidence of execution.
+No commits, push, version application or publishing performed.

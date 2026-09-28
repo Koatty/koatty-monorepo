@@ -1,0 +1,19 @@
+{
+  "packages/koatty/src/core/Bootstrap.ts": "16c3345d0861a18cf22c3826885009743d52a072b92d574d8f59e30ddd00a41b",
+  "packages/koatty/src/core/Loader.ts": "bf6cf1e4c6f50361988860ed4877a00d587f54704f0397490419710feac55d5c",
+  "packages/koatty-core/src/Application.ts": "dba9cbce600e7d10826bcd2ad5b0b4ecfe91ac0b21547e269e50c4c8cf0928b1",
+  "packages/koatty-core/src/Component.ts": "bb8b0b35625d84a734470ae33777f9b75184375155c62b2a68bce1f3ce36a468",
+  "packages/koatty-container/src/container/container.ts": "ba36397232054cbc16ce54367c0bda0d5711e4ac89d3e5949d2899ceea650c2d",
+  "packages/koatty-container/src/container/lifecycle_manager.ts": "3a78935f9d6c062538f080b3f18b1e2886d8ff5a25eeddddb5e2ad5edb8bd71f",
+  "packages/koatty-container/src/processor/autowired_processor.ts": "28b0b65a38ccea7fe57fb19127de4c5479405483be663543827d3a42de70fef6",
+  "packages/koatty-container/src/processor/aop_processor.ts": "894b21ac6bf210686b2052f7e996a3014d40f987500868bc58e0303e463c5e7e",
+  "packages/koatty-router/src/router/http.ts": "29d4269c87583fa009bd630e4f2daf2b24315c8e9a42f28773810ea58ae139a5",
+  "packages/koatty-router/src/utils/handler.ts": "b84d5b9a7a5b634803f4393cea41e47a93d2e039d140be6582bc1f9d5df817c5",
+  "packages/koatty-router/src/utils/inject.ts": "823a72010ac35fb788abb35fb835b8d3fc979270309919d844b38841a606f4cd",
+  "packages/koatty-router/src/middleware/manager.ts": "873ba04bf2c2b3187944cbeaf978e16f36f18f9bab788819a3eebf72c1dff8a7",
+  "packages/koatty-router/src/guard/index.ts": "d66b71be8bd4823bba80a14fad20051cce419fa393b14728b6fff90441029f71",
+  "packages/koatty-router/src/sse/index.ts": "f47ef7df2a4ec9bdaf4bff1b9bebe0d6af4d0611b070c33003780203342cbded",
+  "packages/koatty-router/src/negotiation/index.ts": "ab79316ab577403b59b1dcec1fe218f736f829a6a66bea9a63599710efd7489a",
+  "packages/koatty-loader/src/index.ts": "abe1544240773c49dd4eef6515a2b6aa16009b535497353441dd263f1a367704",
+  "packages/koatty-serve/package.json": "ca9111ab5bdc6f42f3c7d9e750e320e89e40f406dbe2b7e2ac97b97f79e5c514"
+}

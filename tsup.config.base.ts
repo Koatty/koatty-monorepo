@@ -22,13 +22,13 @@ export const baseConfig: Options = {
       js: format === "cjs" ? ".js" : ".mjs",
     };
   },
-  banner: {
-    js: `/*!
+  banner: ({ format }) => ({
+    js: `${format === "esm" ? 'import { createRequire as __koattyCreateRequire } from "node:module";\nimport { fileURLToPath as __koattyFileURLToPath } from "node:url";\nimport { dirname as __koattyDirname } from "node:path";\nconst require = __koattyCreateRequire(import.meta.url);\nconst __filename = __koattyFileURLToPath(import.meta.url);\nconst __dirname = __koattyDirname(__filename);\n' : ""}/*!
 * @Author: richen
 * @Date: ${new Date().toISOString().replace("T", " ").slice(0, 19)}
 * @License: BSD (3-Clause)
 * @Copyright (c) - <richenlin(at)gmail.com>
 * @HomePage: https://koatty.org/
 */`,
-  },
+  }),
 };

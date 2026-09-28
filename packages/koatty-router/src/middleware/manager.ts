@@ -94,6 +94,7 @@ export interface IRouterMiddlewareManager {
 export class RouterMiddlewareManager implements IRouterMiddlewareManager {
   private app: Application;
   private static instance: RouterMiddlewareManager | null = null;
+  private static instances = new WeakMap<Application, RouterMiddlewareManager>();
   private static isCreating = false;
   private readonly _instanceId: string;
   private middlewares = new Map<string, MiddlewareConfig>(); // 按实例ID存储
@@ -118,9 +119,6 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
    */
   private constructor(app: Application) {
     this.app = app;
-    if (RouterMiddlewareManager.instance) {
-      throw new Error('RouterMiddlewareManager is a singleton. Use getInstance() instead.');
-    }
     this._instanceId = Math.random().toString(36).substr(2, 9);
     Logger.Debug(`RouterMiddlewareManager instance created with ID: ${this._instanceId}`);
   }
@@ -130,23 +128,14 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
    * @returns RouterMiddlewareManager instance
    */
   public static getInstance(app: Application): RouterMiddlewareManager {
-    if (RouterMiddlewareManager.instance) {
-      return RouterMiddlewareManager.instance;
+    let instance = this.instances.get(app);
+    if (!instance) {
+      instance = new RouterMiddlewareManager(app);
+      this.instances.set(app, instance);
+      (app as any).once?.('appStop', () => { instance!.destroy(); this.instances.delete(app); });
     }
-
-    if (RouterMiddlewareManager.isCreating) {
-      throw new Error('RouterMiddlewareManager is already being created');
-    }
-
-    RouterMiddlewareManager.isCreating = true;
-    try {
-      RouterMiddlewareManager.instance = new RouterMiddlewareManager(app);
-      Logger.Debug('RouterMiddlewareManager singleton instance initialized');
-    } finally {
-      RouterMiddlewareManager.isCreating = false;
-    }
-
-    return RouterMiddlewareManager.instance;
+    this.instance = instance;
+    return instance;
   }
 
   /**
@@ -157,6 +146,7 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
       RouterMiddlewareManager.instance.destroy();
     }
     RouterMiddlewareManager.instance = null;
+    RouterMiddlewareManager.instances = new WeakMap();
     RouterMiddlewareManager.isCreating = false;
     Logger.Debug('RouterMiddlewareManager singleton instance reset');
   }
@@ -277,7 +267,11 @@ export class RouterMiddlewareManager implements IRouterMiddlewareManager {
     const MiddlewareClass = config?.middleware as any;
     try {
       // 实例化中间件类
-      const middlewareInstance = new MiddlewareClass();
+      const container = (this.app as any).container;
+      if (container && !container.getClass(container.getIdentifier(MiddlewareClass), 'MIDDLEWARE')) {
+        container.reg(MiddlewareClass, { scope: 'Singleton', type: 'MIDDLEWARE' });
+      }
+      const middlewareInstance = container ? container.getInsByClass(MiddlewareClass) : new MiddlewareClass();
 
       // 检查实例是否有run方法
       if (!middlewareInstance.run || typeof middlewareInstance.run !== 'function') {

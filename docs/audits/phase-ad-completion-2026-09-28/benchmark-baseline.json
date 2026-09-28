@@ -1,0 +1,12 @@
+{
+  "description": "Snapshot before this turn D-5 rewrite; already includes earlier D-4 fixes. Not release 4.2.0.",
+  "rootHead": "cb7807fb1f71ccc6ba31f4813b4b64ee5d4a674c",
+  "temporarySnapshot": "/tmp/koatty-pre-d5-runtime/node_modules",
+  "sha256": {
+    "koatty_core": "bd61157c12779b1ffaa6ee37c89f8a9795ad6ec9f2238d785853cd6465f28be4",
+    "koatty_router": "c4162abff9a7475a38b22623aaed0fd14182c13621041d293762f06fa79b7352",
+    "koatty_serve": "87f58abd05edfab60ada06c11a6ccf47a63a5a8500bc17c2b3b46d2f678be5b5",
+    "koatty_container": "a78a6abaa63b72885c65c6c9a1632ee620b2e953c56dc07c9fe4cca3dda648fa",
+    "koatty_trace": "6068d24ecbd440ae9527a4a12cb026380465c5acdff0e9aea12f5b7f5402102e"
+  }
+}

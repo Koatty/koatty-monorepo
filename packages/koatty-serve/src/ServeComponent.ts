@@ -10,10 +10,10 @@
 
 import {
   Component,
-  IComponent,
+  type IComponent,
   AppEvent,
   OnEvent,
-  KoattyApplication,
+  type KoattyApplication,
 } from 'koatty_core';
 import { Helper } from 'koatty_lib';
 import { DefaultLogger as Logger } from 'koatty_logger';

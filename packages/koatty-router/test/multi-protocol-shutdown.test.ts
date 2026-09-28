@@ -17,7 +17,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
 
   beforeEach(() => {
     // Reset factory state
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
     (factory as any).activeRouters = [];
     (factory as any).isShuttingDown = false;
     (factory as any).hasShutdown = false;
@@ -59,7 +59,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("should only execute shutdownAll() once despite multiple calls", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
     const shutdownSpy = jest.spyOn(factory, "shutdownAll");
 
     // Create mock routers with cleanup methods
@@ -91,7 +91,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("should handle concurrent shutdownAll() calls gracefully", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
 
     // Create mock routers
     const mockRouters = [
@@ -126,7 +126,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("should set correct flags during shutdown lifecycle", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
 
     // Initial state
     expect((factory as any).isShuttingDown).toBe(false);
@@ -152,7 +152,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("should skip shutdown if no active routers", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
     (factory as any).activeRouters = [];
 
     await factory.shutdownAll();
@@ -162,7 +162,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("should handle cleanup errors gracefully", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
 
     const mockRouters = [
       {
@@ -197,7 +197,7 @@ describe("Multi-Protocol Graceful Shutdown", () => {
   });
 
   test("integration: RouterComponent appStop cleanup shuts down all routers once", async () => {
-    const factory = RouterFactory.getInstance();
+    const factory = RouterFactory.getInstance(mockApp);
 
     // Reset state
     (factory as any).activeRouters = [];

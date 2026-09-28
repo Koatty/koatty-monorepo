@@ -4,13 +4,11 @@
 
 ## SingleProtocolServer.getHealthStatus() method
 
-Get server health status
-
 **Signature:**
 
 ```typescript
 getHealthStatus(): {
-        status: 'healthy' | 'degraded' | 'unhealthy';
+        status: string;
         checks: {
             server: {
                 status: string;
@@ -18,19 +16,12 @@ getHealthStatus(): {
                 protocol: string;
                 port: number;
             };
-            connectionPool?: {
-                status: string;
-                activeConnections: number;
-                maxConnections: number;
-                utilizationRate: number;
-            };
+            connectionPool: any;
         };
         timestamp: number;
     };
 ```
 **Returns:**
 
-{ status: 'healthy' \| 'degraded' \| 'unhealthy'; checks: { server: { status: string; uptime: number; protocol: string; port: number; }; connectionPool?: { status: string; activeConnections: number; maxConnections: number; utilizationRate: number; }; }; timestamp: number; }
-
-Health status information
+{ status: string; checks: { server: { status: string; uptime: number; protocol: string; port: number; }; connectionPool: any; }; timestamp: number; }
 

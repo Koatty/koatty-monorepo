@@ -4,12 +4,10 @@
 
 ## SingleProtocolServer.Stop() method
 
-Stop server
-
 **Signature:**
 
 ```typescript
-Stop(callback?: () => void): void;
+Stop(callback?: (error?: Error) => void): void;
 ```
 
 ## Parameters
@@ -37,7 +35,7 @@ callback
 
 </td><td>
 
-() =&gt; void
+(error?: Error) =&gt; void
 
 
 </td><td>

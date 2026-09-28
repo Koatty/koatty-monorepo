@@ -79,12 +79,16 @@ export interface KoattyContext extends KoaContext {
    * @type {{
    *         call: IRpcServerCall<any, any>;
    *         callback?: IRpcServerCallback<any>;
+    path?: string;
+    kind?: "unary" | "client_stream" | "server_stream" | "bidi_stream";
    *     }}
    * @memberof KoattyContext
    */
   rpc?: {
     call: IRpcServerCall<any, any>;
     callback?: IRpcServerCallback<any>;
+    path?: string;
+    kind?: "unary" | "client_stream" | "server_stream" | "bidi_stream";
   }
 
   /**

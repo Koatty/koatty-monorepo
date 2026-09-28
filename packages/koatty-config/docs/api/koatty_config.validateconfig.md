@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-export declare function validateConfig<T extends Record<string, unknown>>(config: T, schema: ValidationSchema): ValidationResult;
+export declare function validateConfig<T extends Record<string, unknown>>(config: T, schema: ConfigSchema): ValidationResult;
 ```
 
 ## Parameters
@@ -49,7 +49,7 @@ schema
 
 </td><td>
 
-[ValidationSchema](./koatty_config.validationschema.md)
+[ConfigSchema](./koatty_config.configschema.md)
 
 
 </td><td>

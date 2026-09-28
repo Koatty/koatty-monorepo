@@ -1,558 +1,196 @@
-/*
- * @Description: 
- * @Usage: 
- * @Author: richen
- * @Date: 2023-12-09 12:02:29
- * @LastEditTime: 2024-12-03 16:23:54
- * @License: BSD (3-Clause)
- * @Copyright (c): <richenlin(at)gmail.com>
- */
-
+import { createRequire } from "module";
+import path from "path";
 import { KoattyApplication, KoattyServer, NativeServer } from "koatty_core";
-import { createLogger, generateTraceId } from "../utils/logger";
-import { validateConfig } from "../utils/validator";
-import { GrpcServer } from "./grpc";
-import { HttpServer as KoattyHttpServer } from "./http";
-import { Http2Server } from "./http2";
-import { Http3Server } from "./http3";
-import { HttpsServer as KoattyHttpsServer } from "./https";
-import { WsServer } from "./ws";
-import { CreateTerminus } from "../utils/terminus";
 import { ConfigHelper, ListeningOptions } from "../config/config";
+import { HttpServer } from "./http";
+import { HttpsServer } from "./https";
+import { Http2Server } from "./http2";
+import { GrpcServer } from "./grpc";
+import { WsServer } from "./ws";
 
-/**
- * Single protocol server
- */
+/** The wrapper preserves the existing KoattyServer contract; the transport owns resources. */
 export class SingleProtocolServer implements KoattyServer {
-  private app: KoattyApplication;
-  private serverInstance: KoattyServer | null = null; // Actual server instance
-  server: NativeServer | null = null; // Native server instance
-  private logger = createLogger({ module: 'KoattyServer' });
-
   readonly protocol: string;
   readonly options: ListeningOptions;
-  status: number = 0; // Server status
+  private serverInstance: any;
+  server: NativeServer | null = null;
+  status = 0;
   listenCallback?: () => void;
-
-  constructor(app: KoattyApplication, opt: ListeningOptions) {
-    this.app = app;
+  constructor(
+    private app: KoattyApplication,
+    opt: ListeningOptions,
+  ) {
     this.options = {
-      hostname: '127.0.0.1',
+      hostname: "127.0.0.1",
       port: 3000,
-      protocol: 'http',
-      ...opt
+      protocol: "http",
+      ...opt,
+      ext: { ...opt.ext },
     };
-    
-    // Set protocol from options
     this.protocol = this.options.protocol;
-    this.status = 0;
-
-    this.logger.info('Single protocol server initialized', {}, {
-      protocol: this.options.protocol,
-      hostname: this.options.hostname,
-      port: this.options.port
-    });
-
-    CreateTerminus(app, this);
-    
-    // Create server instance immediately to enable RegisterService calls
-    // Note: This creates the server wrapper but doesn't start listening yet
-    this.logger.info('About to call initializeServerInstance', {}, {
-      protocol: this.options.protocol
-    });
-    
-    try {
-      this.initializeServerInstance();
-      this.logger.info('initializeServerInstance completed successfully', {}, {
-        protocol: this.options.protocol,
-        hasServerInstance: !!this.serverInstance
-      });
-    } catch (error) {
-      this.logger.error('initializeServerInstance failed', {}, error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Initialize server instance without starting it
-   * This allows RegisterService to be called before Start()
-   */
-  private initializeServerInstance(): void {
-    const protocolType = this.options.protocol;
-    const port = this.options.port;
-    
-    // Preserve all original options including connectionPool and any custom fields
-    const options: ListeningOptions = {
-      ...this.options,
-      hostname: this.options.hostname,
-      port,
-      protocol: protocolType,
-      trace: this.options.trace,
-      ext: {
-        ...this.options.ext
-      }
+    const router = this.app.config?.("config.RouterComponent", "plugin") ?? {
+      ext: {},
     };
-
-    try {
-      // Simple initialization log - no traceId needed
-      this.logger.info('Initializing server instance', {}, {
-        protocol: protocolType,
-        port: port
-      });
-
-      // 确保 ext 配置存在
-      if (!options.ext) {
-        options.ext = {};
-      }
-
-      // Handle router specific options
-      const routerExt = this.app.config("config.RouterComponent", "plugin") || {ext: {}};
-      
-      if (protocolType === "graphql") {
-        const schemaFile = routerExt.ext?.graphql?.schemaFile || options.ext.schemaFile;
-        if (schemaFile) {
-          options.ext.schemaFile = schemaFile;
-        }
-      }
-
-      if (protocolType === "grpc") {
-        const protoFile = routerExt.ext?.grpc?.protoFile || options.ext.protoFile;
-        if (protoFile) {
-          options.ext.protoFile = protoFile;
-        }
-      }
-      
-      // Handle SSL specific options (pass undefined for traceId since it's optional)
-      ConfigHelper.configureSSLForProtocol(protocolType, options, undefined);
-
-      // Create server instance but don't start it yet
-      const server = this.createServerInstance(protocolType, options);
-      this.serverInstance = server;
-      
-      // Simple completion log - no traceId needed
-      this.logger.info('Server instance initialized', {}, {
-        protocol: protocolType,
-        hasRegisterService: typeof (server as any).RegisterService === 'function'
-      });
-
-    } catch (error) {
-      // Error logs keep traceId for troubleshooting
-      const errorTraceId = generateTraceId();
-      this.logger.error('Failed to initialize server instance', { 
-        traceId: errorTraceId, 
-        protocol: protocolType, 
-        port: port 
-      }, error);
-      throw error;
+    if (this.protocol === "grpc")
+      this.options.ext.protoFile =
+        router.ext?.grpc?.protoFile ?? this.options.ext.protoFile;
+    if (this.protocol === "graphql")
+      this.options.ext.schemaFile =
+        router.ext?.graphql?.schemaFile ?? this.options.ext.schemaFile;
+    ConfigHelper.configureSSLForProtocol(this.protocol, this.options);
+    let Constructor: any = {
+      http: HttpServer,
+      https: HttpsServer,
+      http2: Http2Server,
+      grpc: GrpcServer,
+      ws: WsServer,
+      wss: WsServer,
+    }[this.protocol];
+    if (this.protocol === "graphql") {
+      Constructor = this.options.ssl?.enabled ? Http2Server : HttpServer;
+      this.options.ext._underlyingProtocol = this.options.ssl?.enabled
+        ? "http2"
+        : "http";
+      this.options.ext._actualProtocol = this.options.ext._underlyingProtocol;
     }
-  }
-
-  /**
-   * Start server
-   */
-  Start(listenCallback?: () => void): any {
-    this.listenCallback = listenCallback;
-    
-    try {
-      // Simple startup log - no traceId needed for single-line status
-      this.logger.info('Server starting', {}, {
-        protocol: this.options.protocol,
-        hostname: this.options.hostname,
-        port: this.options.port
-      });
-
-      if (!this.serverInstance) {
-        throw new Error('Server instance not initialized');
+    if (this.protocol === "http3") {
+      const requireFromApp = createRequire(
+        path.join(this.app.rootPath ?? process.cwd(), "package.json"),
+      );
+      let filename: string;
+      try {
+        filename = requireFromApp.resolve("koatty_http3");
+      } catch {
+        throw new Error(
+          "HTTP/3 is optional: install koatty_http3 in this application (experimental).",
+        );
       }
-      
-      // Start the already-created server instance
-      this.serverInstance.Start(() => {
-        try {
-          // Set the native server instance
-          if (typeof (this.serverInstance as any).getNativeServer === 'function') {
-            this.server = (this.serverInstance as any).getNativeServer();
-          }
-          
-          // Update status to indicate server is running
-          this.status = 200;
-          
-          // Simple completion log - no traceId needed
-          this.logger.info('Server started', {}, {
-            protocol: this.options.protocol,
-            port: this.options.port
-          });
-
-          if (this.listenCallback) {
-            this.listenCallback();
-          }
-        } catch (error) {
-          // Error logs keep traceId for troubleshooting
-          const errorTraceId = generateTraceId();
-          this.logger.error('Error in server start callback', { traceId: errorTraceId }, error);
-          this.status = 500;
-        }
-      });
-      
-      return this;
-    } catch (error) {
-      // Error logs keep traceId for troubleshooting
-      const errorTraceId = generateTraceId();
-      this.logger.error('Server start error', { traceId: errorTraceId }, error);
-      throw error;
+      Constructor = requireFromApp(filename).Http3Server;
     }
+    if (!Constructor)
+      throw new Error(`Unsupported server protocol: ${this.protocol}`);
+    this.serverInstance = new Constructor(app, this.options);
   }
-
-  /**
-   * COR-03 (C-1): drain this instance before closing sockets.
-   *
-   * Delegates to the protocol server so its health middleware flips `/ready`
-   * to 503 (load balancer stops routing here) while in-flight requests are
-   * still served until `Stop()` runs.
-   */
+  Start(callback?: () => void): any {
+    this.listenCallback = callback;
+    this.serverInstance.Start(() => {
+      this.server = this.serverInstance.getNativeServer();
+      this.status = 200;
+      callback?.();
+    });
+    return this;
+  }
   beginDrain(): void {
-    if (this.status === 503) return;
     this.status = 503;
-    const inner = this.serverInstance as any;
-    if (inner && typeof inner.beginDrain === 'function') {
-      inner.beginDrain();
-    }
+    this.serverInstance.beginDrain();
   }
-
-  /**
-   * Stop server
-   */
-  Stop(callback?: () => void): void {
-    // COR-03: /ready must be 503 before the listeners are closed
+  Stop(callback?: (error?: Error) => void): void {
     this.beginDrain();
-    // Simple stop log - no traceId needed
-    this.logger.info('Server stopping', {}, {
-      protocol: this.options.protocol,
-      port: this.options.port
-    });
-
-    if (this.serverInstance && typeof this.serverInstance.Stop === 'function') {
-      this.serverInstance.Stop(() => {
-        this.serverInstance = null;
-        this.server = null;
-        this.status = 0;
-        this.logger.info('Server stopped', {});
-        if (callback) callback();
-      });
-    } else {
-      this.logger.warn('Server has no Stop method', {});
-      this.serverInstance = null;
-      this.server = null;
+    this.serverInstance.Stop((error?: Error) => {
       this.status = 0;
-      if (callback) callback();
-    }
+      this.server = null;
+      callback?.(error);
+    });
   }
-
-  /**
-   * Register Service for gRPC server
-   */
-  RegisterService(impl: (...args: any[]) => any) {
-    if (this.serverInstance && typeof (this.serverInstance as any).RegisterService === 'function') {
-      return (this.serverInstance as any).RegisterService(impl);
-    }
-    
-    this.logger.warn('Server does not support RegisterService method');
-    return undefined;
+  RegisterService(impl: any): any {
+    return this.serverInstance.RegisterService?.(impl);
   }
-
-  /**
-   * Get server status
-   * @returns 
-   */
   getStatus(): number {
-    return this.status;
+    return this.serverInstance.getStatus();
   }
-
-  /**
-   * Get native server
-   * @returns 
-   */
   getNativeServer(): NativeServer {
-    if (this.server) {
-      return this.server;
-    }
-    
-    // Fallback: try to get from server instance
-    if (this.serverInstance && typeof (this.serverInstance as any).getNativeServer === 'function') {
-      this.server = (this.serverInstance as any).getNativeServer();
-      return this.server;
-    }
-    
-    throw new Error('Native server not available. Server may not be started.');
+    return this.serverInstance.getNativeServer();
   }
-
-  /**
-   * Get server health status
-   * @returns Health status information
-   */
-  getHealthStatus(): {
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    checks: {
-      server: { 
-        status: string; 
-        uptime: number;
-        protocol: string;
-        port: number;
-      };
-      connectionPool?: { 
-        status: string; 
-        activeConnections: number;
-        maxConnections: number;
-        utilizationRate: number;
-      };
-    };
-    timestamp: number;
-  } {
-    const startTime = (this.serverInstance as any)?.startTime ?? Date.now();
-    
-    const checks: any = {
-      server: {
-        status: this.status === 200 ? 'healthy' : 'unhealthy',
-        uptime: Date.now() - startTime,
-        protocol: this.options.protocol,
-        port: this.options.port
-      }
-    };
-
-    // Get connection pool health status
-    if (this.serverInstance && 
-        typeof (this.serverInstance as any).getConnectionPoolHealth === 'function') {
-      try {
-        const poolHealth = (this.serverInstance as any).getConnectionPoolHealth();
-        if (poolHealth) {
-          checks.connectionPool = {
-            status: poolHealth.status || 'unknown',
-            activeConnections: poolHealth.activeConnections || 0,
-            maxConnections: poolHealth.maxConnections || 0,
-            utilizationRate: poolHealth.utilizationRate || 0
-          };
-        }
-      } catch (error) {
-        this.logger.debug('Failed to get connection pool health', {}, error);
-      }
-    }
-
-    // Determine overall health status
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
-    if (checks.server.status === 'unhealthy' || this.status !== 200) {
-      overallStatus = 'unhealthy';
-    } else if (checks.connectionPool) {
-      if (checks.connectionPool.status === 'degraded') {
-        overallStatus = 'degraded';
-      } else if (checks.connectionPool.status === 'overloaded' || 
-                 checks.connectionPool.utilizationRate > 0.9) {
-        overallStatus = 'degraded';
-      }
-    }
-
+  getHealthStatus() {
+    const pool = this.serverInstance.getConnectionPoolHealth?.();
+    const status =
+      this.getStatus() !== 200
+        ? "unhealthy"
+        : pool?.status === "overloaded" || pool?.status === "degraded"
+          ? "degraded"
+          : "healthy";
     return {
-      status: overallStatus,
-      checks,
-      timestamp: Date.now()
+      status,
+      checks: {
+        server: {
+          status: this.getStatus() === 200 ? "healthy" : "unhealthy",
+          uptime: Date.now() - (this.serverInstance.startTime || Date.now()),
+          protocol: this.protocol,
+          port: this.options.port,
+        },
+        connectionPool: pool,
+      },
+      timestamp: Date.now(),
     };
   }
-
-  /**
-   * Get server metrics in Prometheus format
-   * @returns Prometheus-formatted metrics
-   */
+  /** @deprecated Application request metrics are exported by koatty_trace. */
   getMetrics(): string {
-    const health = this.getHealthStatus();
-    const metrics: string[] = [];
-
-    // Server status metric
-    metrics.push('# HELP koatty_server_status Server status (1=running, 0=stopped)');
-    metrics.push('# TYPE koatty_server_status gauge');
-    metrics.push(`koatty_server_status{protocol="${this.options.protocol}",port="${this.options.port}"} ${this.status === 200 ? 1 : 0}`);
-
-    // Server uptime metric
-    metrics.push('# HELP koatty_server_uptime_seconds Server uptime in seconds');
-    metrics.push('# TYPE koatty_server_uptime_seconds counter');
-    metrics.push(`koatty_server_uptime_seconds{protocol="${this.options.protocol}"} ${(health.checks.server.uptime / 1000).toFixed(2)}`);
-
-    // Connection pool metrics
-    if (health.checks.connectionPool) {
-      const pool = health.checks.connectionPool;
-      
-      metrics.push('# HELP koatty_connection_pool_active Active connections');
-      metrics.push('# TYPE koatty_connection_pool_active gauge');
-      metrics.push(`koatty_connection_pool_active{protocol="${this.options.protocol}"} ${pool.activeConnections}`);
-
-      metrics.push('# HELP koatty_connection_pool_max Maximum connections');
-      metrics.push('# TYPE koatty_connection_pool_max gauge');
-      metrics.push(`koatty_connection_pool_max{protocol="${this.options.protocol}"} ${pool.maxConnections}`);
-
-      metrics.push('# HELP koatty_connection_pool_utilization Connection pool utilization rate (0-1)');
-      metrics.push('# TYPE koatty_connection_pool_utilization gauge');
-      metrics.push(`koatty_connection_pool_utilization{protocol="${this.options.protocol}"} ${pool.utilizationRate.toFixed(4)}`);
-    }
-
-    // Get detailed metrics from server instance
-    if (this.serverInstance && 
-        typeof (this.serverInstance as any).getConnectionStats === 'function') {
-      try {
-        const stats = (this.serverInstance as any).getConnectionStats();
-        
-        if (stats) {
-          metrics.push('# HELP koatty_connections_total Total connections since start');
-          metrics.push('# TYPE koatty_connections_total counter');
-          metrics.push(`koatty_connections_total{protocol="${this.options.protocol}"} ${stats.totalConnections || 0}`);
-
-          metrics.push('# HELP koatty_connections_per_second Connections per second');
-          metrics.push('# TYPE koatty_connections_per_second gauge');
-          metrics.push(`koatty_connections_per_second{protocol="${this.options.protocol}"} ${(stats.connectionsPerSecond || 0).toFixed(2)}`);
-
-          metrics.push('# HELP koatty_connection_latency_seconds Average connection latency');
-          metrics.push('# TYPE koatty_connection_latency_seconds gauge');
-          metrics.push(`koatty_connection_latency_seconds{protocol="${this.options.protocol}"} ${((stats.averageLatency || 0) / 1000).toFixed(4)}`);
-
-          metrics.push('# HELP koatty_connection_error_rate Error rate (0-1)');
-          metrics.push('# TYPE koatty_connection_error_rate gauge');
-          metrics.push(`koatty_connection_error_rate{protocol="${this.options.protocol}"} ${(stats.errorRate || 0).toFixed(4)}`);
-        }
-      } catch (error) {
-        this.logger.debug('Failed to get connection stats', {}, error);
-      }
-    }
-
-    return metrics.join('\n');
+    return `# TYPE koatty_server_status gauge\nkoatty_server_status{protocol="${this.protocol}"} ${this.getStatus() === 200 ? 1 : 0}`;
   }
-
-  /**
-   * Create health check middleware for Express/Koa
-   * @returns Middleware function
-   */
   healthCheckMiddleware() {
     return async (ctx: any, next: () => Promise<void>) => {
       const path = ctx.path || ctx.url;
-      
+
       // Liveness endpoint (SEC-06 / B-6): minimal body only — no memory,
       // CPU or connection details
-      if (path === '/health' || path === '/healthz') {
+      if (path === "/health" || path === "/healthz") {
         const health = this.getHealthStatus();
-        ctx.status = health.status === 'healthy' ? 200 : 503;
-        ctx.type = 'application/json';
-        ctx.body = { status: health.status === 'healthy' ? 'ok' : 'unhealthy' };
+        ctx.status = health.status === "healthy" ? 200 : 503;
+        ctx.type = "application/json";
+        ctx.body = { status: health.status === "healthy" ? "ok" : "unhealthy" };
         return;
       }
-      
+
       // Metrics endpoint (SEC-06 / B-6): exposure governed by the security
       // profile; internal policy restricts to loopback/RFC1918 or ops token
-      if (path === '/metrics') {
-        const policy = (this.app as any)?.security?.ops?.exposeMetrics ?? 'internal';
-        if (policy === 'off') {
+      if (path === "/metrics") {
+        const policy =
+          (this.app as any)?.security?.ops?.exposeMetrics ?? "internal";
+        if (policy === "off") {
           ctx.status = 404;
-          ctx.body = { message: 'Not Found' };
+          ctx.body = { message: "Not Found" };
           return;
         }
-        if (policy !== 'public') {
-          const ip = String(ctx.req?.socket?.remoteAddress || '');
-          const { isTrustedRemoteIp } = await import('../middleware/healthCheck');
-          const auth = String(ctx.headers?.authorization || '');
-          const token = (this.app as any)?.config?.('ops')?.token;
-          const trusted = isTrustedRemoteIp(ip) || (token && auth === `Bearer ${token}`);
+        if (policy !== "public") {
+          const ip = String(ctx.req?.socket?.remoteAddress || "");
+          const { isTrustedRemoteIp } =
+            await import("../middleware/healthCheck");
+          const auth = String(ctx.headers?.authorization || "");
+          const token = (this.app as any)?.config?.("ops")?.token;
+          const trusted =
+            isTrustedRemoteIp(ip) || (token && auth === `Bearer ${token}`);
           if (!trusted) {
             ctx.status = 403;
-            ctx.body = { message: 'Forbidden' };
+            ctx.body = { message: "Forbidden" };
             return;
           }
         }
         ctx.status = 200;
-        ctx.type = 'text/plain; version=0.0.4; charset=utf-8';
+        ctx.type = "text/plain; version=0.0.4; charset=utf-8";
         ctx.body = this.getMetrics();
         return;
       }
-      
+
       await next();
     };
   }
-
-
-  /**
-   * Create server instance based on protocol
-   */
-  private createServerInstance(protocolType: string, options: ListeningOptions): any {
-    const serverMap: Record<string, any> = {
-      grpc: GrpcServer,
-      ws: WsServer,
-      wss: WsServer,
-      https: KoattyHttpsServer,
-      http2: Http2Server,
-      http3: Http3Server,
-      http: KoattyHttpServer,
-      graphql: KoattyHttpServer,
-    };
-    let ServerConstructor = serverMap[protocolType] || KoattyHttpServer;
-    let actualProtocol = protocolType;
-    
-    // GraphQL automatically uses HTTP/2 when SSL is enabled
-    if (protocolType === "graphql" && options.ssl?.enabled) {
-        ServerConstructor = Http2Server;
-        actualProtocol = "http2";
-        // Set underlying protocol BEFORE creating server
-        if (!options.ext) {
-          options.ext = {};
-        }
-        options.ext._underlyingProtocol = actualProtocol;
-        options.ext._actualProtocol = actualProtocol;
-    } else if (protocolType === "graphql") {
-        actualProtocol = "http";
-        // Set underlying protocol BEFORE creating server
-        if (!options.ext) {
-          options.ext = {};
-        }
-        options.ext._underlyingProtocol = actualProtocol;
-        options.ext._actualProtocol = actualProtocol;
-    }
-    
-    return new ServerConstructor(this.app, options);
-  }
-
 }
-
-/**
- * Create Server
- *
- * @export
- * @param {KoattyApplication} app
- * @param {ListeningOptions} [opt]
- * @returns {*}  {KoattyServer}
- */
-export function NewServe(app: KoattyApplication, opt?: ListeningOptions): KoattyServer {
-  // Safe port parsing with validation
-  const parsePort = (envPort: string | undefined): number => {
-    if (!envPort) return 3000;
-    const parsed = parseInt(envPort, 10);
-    return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 3000;
-  };
-
+export function NewServe(
+  app: KoattyApplication,
+  opt?: ListeningOptions,
+): KoattyServer {
+  const port = Number(process.env.PORT ?? process.env.APP_PORT ?? 3000);
   const options: ListeningOptions = {
-    hostname: process.env.IP || '127.0.0.1',
-    port: parsePort(process.env.PORT || process.env.APP_PORT),
-    protocol: 'http',
-    ext: {
-      key: "",
-      cert: "",
-      protoFile: "",
-      server: null, // used by websocket
-    },
-    ...opt
+    hostname: process.env.IP ?? "127.0.0.1",
+    port: Number.isInteger(port) && port > 0 && port <= 65535 ? port : 3000,
+    protocol: "http",
+    ...opt,
   };
-
-  // Validate configuration before creating server
-  try {
-    validateConfig(options);
-  } catch (error) {
-    const logger = createLogger({ module: 'serve' });
-    logger.error('Invalid server configuration', {}, error);
-    throw error;
-  }
-
-  // Create single-protocol server
+  if (
+    !Number.isInteger(options.port) ||
+    options.port < 0 ||
+    options.port > 65535
+  )
+    throw new Error("Port must be an integer between 0 and 65535");
   return new SingleProtocolServer(app, options);
 }

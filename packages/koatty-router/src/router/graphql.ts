@@ -244,15 +244,16 @@ export class GraphQLRouter implements KoattyRouter {
       rootValue: routeHandler,
       validationRules: validationRules.length > 0 ? validationRules : undefined,
       formatError: this.options.ext?.debug ? undefined : (error) => {
-        const formatted: any = { message: error.message };
-        if (error.extensions) {
-          formatted.extensions = error.extensions;
+        const source = error as GraphQLError;
+        const formatted: any = { message: source.message };
+        if (source.extensions) {
+          formatted.extensions = source.extensions;
         }
-        if (error.locations) {
-          formatted.locations = error.locations;
+        if (source.locations) {
+          formatted.locations = source.locations;
         }
-        if (error.path) {
-          formatted.path = error.path;
+        if (source.path) {
+          formatted.path = source.path;
         }
         return formatted;
       },
@@ -421,7 +422,7 @@ export class GraphQLRouter implements KoattyRouter {
       const rootValue: IGraphQLImplementation = {};
 
       for (const n of list) {
-        const ctlClass = IOC.getClass(n, "CONTROLLER");
+        const ctlClass = (app.container ?? IOC).getClass(n, "CONTROLLER");
         // inject router
         const ctlRouters = await injectRouter(app, ctlClass, this.options.protocol);
         if (!ctlRouters) {
@@ -438,7 +439,7 @@ export class GraphQLRouter implements KoattyRouter {
 
           Logger.Debug(`Register request mapping: ${n}.${method}`);
           rootValue[method] = (args: any, ctx: KoattyContext): Promise<any> => {
-            const ctl = IOC.getInsByClass(ctlClass, [ctx]);
+            const ctl = (app.container ?? IOC).getInsByClass(ctlClass, [ctx]);
             return Handler(app, ctx, ctl, method, params, Object.values(args), router.composedMiddleware);
           }
           this.SetRouter(router.ctlPath || "/graphql", {
