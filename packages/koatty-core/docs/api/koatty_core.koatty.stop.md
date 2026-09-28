@@ -9,7 +9,7 @@ Stop all servers gracefully. - For single protocol: stops the single server - Fo
 **Signature:**
 
 ```typescript
-stop(callback?: () => void): void;
+stop(callback?: () => void): Promise<void>;
 ```
 
 ## Parameters
@@ -50,7 +50,7 @@ _(Optional)_ Optional callback function to be executed after all servers stop
 
 **Returns:**
 
-void
+Promise&lt;void&gt;
 
 {<!-- -->void<!-- -->}
 

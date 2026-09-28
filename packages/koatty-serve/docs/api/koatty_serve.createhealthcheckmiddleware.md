@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-export declare function createHealthCheckMiddleware(config?: HealthCheckConfig): (req: IncomingMessage, res: ServerResponse, next: () => Promise<void>) => Promise<void>;
+export declare function createHealthCheckMiddleware(config?: HealthCheckConfig): DrainableHealthMiddleware;
 ```
 
 ## Parameters
@@ -48,5 +48,5 @@ _(Optional)_
 
 **Returns:**
 
-(req: IncomingMessage, res: ServerResponse, next: () =&gt; Promise&lt;void&gt;) =&gt; Promise&lt;void&gt;
+DrainableHealthMiddleware
 
