@@ -1,0 +1,9 @@
+{
+  "name": "koatty-serve",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Temporary filter alias so `turbo run lint --filter=koatty-serve` runs the real package lint.",
+  "scripts": {
+    "lint": "pnpm --dir ../../packages/koatty-serve run lint"
+  }
+}

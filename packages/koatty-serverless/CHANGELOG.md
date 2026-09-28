@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_core@2.4.0
+  - koatty@4.3.3
+
 ## 2.0.2
 
 ### Patch Changes

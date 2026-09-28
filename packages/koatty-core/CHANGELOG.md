@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.4.0
+
+### Minor Changes
+
+- Phase B 收口：fail-closed 兜底、缺失实现与验收门回归测试（koatty-hardening-and-ai-evolution-plan.md，ADR-101/102）。
+  - `koatty_core`：新增 `src/security` barrel（`export * from "./security"`），`app.security` / `SecurityProfile` 与 ADR-102 的模块路径一致；此前只能从深层路径导入。
+  - `koatty_router`：GraphQL introspection 改为 fail-closed —— 没有 `security.graphql` profile 时不再默认开启 introspection（此前落到 `true`），显式 `ext.introspection` / profile 仍可开启；新增 `introspectionEnabled` 可观测字段。
+  - `koatty_serve`：WebSocket `maxPayload` 兜底从 `0`（ws@8 语义 = 无上限）改为 1MiB，无 profile 时也是 fail-closed；补充 SEC-12 回归测试（`minVersion` 解析 + 连接池不再给 TLSv1.0/1.1 任何协议分）。
+  - `koatty_logger`：内置默认敏感字段（password/passwd/secret/token/accessToken/refreshToken/authorization/cookie/apiKey/api_key），默认脱敏；`LoggerOpt.sensFields` 与 `setSensFields()` 改为追加，`clearSensFields()` / `resetSensFields()` 可显式清空。
+  - `koatty_store`：COR-09 回归测试锁定 Redis 默认端口为 6379（不是 MySQL 的 3306）。
+  - `koatty_cli`：SEC-10 CLI 沙箱修补 —— `config/server.ts` 的 protocol 补丁不再在 dry-run 阶段写入，且写入前经 `resolveInside(process.cwd(), ...)` 校验，dry-run 只打印预览。
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_logger@3.1.0
+  - koatty_container@4.0.0
+  - koatty_exception@2.2.2
+
 ## 2.3.0
 
 ### Minor Changes
@@ -7,7 +26,6 @@
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
-
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -312,14 +330,12 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🚀 性能优化 (Performance Improvements)
 
 - **Context**: 实现上下文对象池化，提升 HTTP/HTTPS 上下文创建性能
-
   - 添加`ContextPool`类支持上下文复用
   - 减少对象创建和垃圾回收开销
   - 支持池大小配置和统计监控
   - HTTP 上下文创建性能提升至 < 0.1ms/个
 
 - **Metadata**: 优化元数据访问性能
-
   - 实现`getMap()`结果缓存机制
   - 避免重复的对象转换操作
   - 在数据变更时自动失效缓存
@@ -333,7 +349,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### ✨ 新特性 (Features)
 
 - **GraphQL**: 添加 GraphQL 协议支持
-
   - 新增`GraphQLContextFactory`类
   - 支持 GraphQL 查询、变量和操作名解析
   - 实现 GraphQL 特定的元数据处理
@@ -347,7 +362,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🐛 修复 (Bug Fixes)
 
 - **Context**: 修复上下文属性重置问题
-
   - 解决 GraphQL 上下文池化时的只读属性问题
   - 优化上下文重置逻辑，避免属性删除错误
   - 改进错误处理机制
@@ -359,7 +373,6 @@ All notable changes to this project will be documented in this file. See [standa
 #### 📊 测试改进 (Testing)
 
 - **Performance**: 新增性能测试套件
-
   - 上下文创建性能测试
   - 元数据操作性能测试
   - 内存使用监控测试

@@ -1,0 +1,9 @@
+{
+  "name": "koatty-router",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Temporary filter alias so `turbo run lint --filter=koatty-router` runs the real package lint.",
+  "scripts": {
+    "lint": "pnpm --dir ../../packages/koatty-router run lint"
+  }
+}

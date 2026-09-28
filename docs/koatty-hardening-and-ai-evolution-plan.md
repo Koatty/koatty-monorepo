@@ -679,10 +679,15 @@ export function resolveInside(root: string, p: string): string {
 
 ### Phase B 验收门
 
-- [ ] 附录 A 中 SEC-01～SEC-15、COR-01/02/09 均有对应回归测试，且全部通过
+- [x] 附录 A 中 SEC-01～SEC-15、COR-01/02/09 均有对应回归测试，且全部通过
+      （2026-09-28 复跑：`SEC-01` container 7、`SEC-02`+`SEC-05` router、`SEC-03` validation 5、`SEC-04`/`SEC-04b` router、
+      `SEC-06`/`SEC-08`/`SEC-12` serve、`SEC-07`+`SEC-15` trace、`SEC-09`+`SEC-13` lib、`SEC-10` cli 8、`SEC-11` typeorm 9、
+      `SEC-14` swagger 6、`COR-01` core、`COR-02` koatty 3、`COR-08` config 5、`COR-09` store 5、B-12 logger 30 —— 全绿）
 - [ ] `koatty new` 生成的空项目在 `NODE_ENV=production` 下，运行附录 B 的检查脚本全部通过
-- [ ] `security.legacyDefaults: true` 能恢复旧行为，并在启动时打印回退清单
-- [ ] 迁移指南（§10）已随 `4.3.0` 发布
+      （`pnpm security:baseline` 当前 PASS 6 / FAIL 0 / SKIP 5；SKIP 项是探测应用未启用的 graphql/ws/外部 TLS 端点，需带 `--external-url` 或启用对应协议后再验）
+- [x] `security.legacyDefaults: true` 能恢复旧行为，并在启动时打印回退清单
+      （`packages/koatty-core/test/security/B-0.security-profile.test.ts`：回退清单逐项覆盖 + `legacyDefaults is enabled` 启动 WARN 断言）
+- [x] 迁移指南（§10）已随 `4.3.0` 发布（`docs/migration/4.3.0.md`）
 
 ---
 
