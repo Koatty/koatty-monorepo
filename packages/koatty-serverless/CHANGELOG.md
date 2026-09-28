@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty@4.4.0
+
 ## 4.0.0
 
 ### Patch Changes
