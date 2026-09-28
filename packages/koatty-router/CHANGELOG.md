@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Phase E generated HTTP verification
+
+- DTO extraction maps typed validation failures to existing HTTP 400 exceptions, preserving internal failures as server errors.
+- Mixed primitive + DTO signatures select the mixed extraction strategy; a numeric path id is no longer resolved as an IoC class.
+- Regression: E.dto-http-status and CLI E-07 generated POST/PUT requests. Migration details: docs/migration/phase-e-ai-dev-experience.md.
+
 ## Unreleased — Phase A–D completion
 
 - WS 每条消息直接进入现有路由处理器并保留实际 socket/请求信息，避免等待下一条消息与监听器积累。

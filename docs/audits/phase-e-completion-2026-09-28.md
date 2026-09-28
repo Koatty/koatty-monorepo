@@ -1,5 +1,7 @@
 # Phase E 完成记录（2026-09-28）
 
+> 历史记录：后续审计发现及 2026-09-29 修复见 `phase-e-audit-2026-09-29.md`、`phase-e-remediation-2026-09-29.md`。本记录的通过计数不代表后续发现已经覆盖。
+
 范围：`docs/koatty-hardening-and-ai-evolution-plan.md` §8（Phase E：AI-Ready 开发体验，E-1…E-4 + COR-16）与发布 `koatty_cli@5.0.0`（major）/ `koatty_testing@4.0.1`（patch）。
 
 本记录只陈述本轮实际执行过的命令与结果；未执行的验收项在第 3 节列出，不得据此宣称通过。

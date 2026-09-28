@@ -12,6 +12,7 @@ import { Koatty, KoattyContext } from "koatty_core";
 import { ParamMetadata, ParamSourceType } from "./inject";
 import {
   ClassValidator,
+  KoattyValidationError,
   plainToClass,
   ValidOtpions,
   ValidRules
@@ -20,6 +21,16 @@ import { DefaultLogger as Logger } from "koatty_logger";
 import { bodyParser } from "../payload/payload";
 import { FILE_KEY } from "../payload/interface";
 import { IOC } from "koatty_container";
+import { Exception, isException } from "koatty_exception";
+
+async function validateDto(clazz: new (...args: any[]) => unknown, value: unknown, partial?: boolean): Promise<unknown> {
+  try {
+    return await ClassValidator.valid(clazz, value, true, { partial, returnAllErrors: true });
+  } catch (error) {
+    if (error instanceof KoattyValidationError) throw new Exception(error.message, 1, 400);
+    throw error;
+  }
+}
 
 /**
  * Parameter extraction strategy enum
@@ -203,7 +214,7 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
     if (opt.isDto) {
       let validatedValue;
       if (opt.dtoCheck) {
-        validatedValue = await ClassValidator.valid(opt.clazz as new (...args: unknown[]) => unknown, value, true, { partial: opt.partial });
+        validatedValue = await validateDto(opt.clazz as new (...args: unknown[]) => unknown, value, opt.partial);
       } else {
         validatedValue = plainToClass(opt.clazz as new (...args: unknown[]) => unknown, value, true);
       }
@@ -234,6 +245,7 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
       return convertedValue;
     }
   } catch (err) {
+    if (isException(err)) throw err;
     const errorMessage = (err as Error).message || '';
     throw new Error(errorMessage.trim() ? errorMessage : `ValidatorError: invalid arguments.`);
   }
@@ -267,7 +279,7 @@ export function detectExtractionStrategy(params: ParamMetadata[]): ExtractionStr
     if (isSimpleDto) {
       return ExtractionStrategy.SYNC_DTO_NO_VALIDATION;
     }
-    if (hasDtoParams) {
+    if (hasDtoParams && paramCount === 1) {
       return ExtractionStrategy.ASYNC_DTO_VALIDATION;
     }
     return ExtractionStrategy.ASYNC_MIXED_PARAMS;
@@ -608,7 +620,7 @@ export class StrategyHandlerFactory {
       }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(actualClazz, body, true, { partial: param.partial })
+        ? await validateDto(actualClazz, body, param.partial)
         : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];
@@ -745,7 +757,7 @@ export class StrategyHandlerFactory {
       }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(actualClazz, body, true, { partial: param.partial })
+        ? await validateDto(actualClazz, body, param.partial)
         : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];

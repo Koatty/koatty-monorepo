@@ -1,0 +1,19 @@
+{
+  "root": "/var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/koatty-e-generated-X5Sqav",
+  "files": [
+    "src/model/ArticleModel.ts",
+    "src/dto/ArticleDto.ts",
+    "src/service/ArticleService.ts",
+    "src/controller/ArticleController.ts",
+    "test/article.test.ts",
+    "package.json",
+    "scripts/generate-api-doc.ts"
+  ],
+  "dependencies": {
+    "koatty": "^4.0.0",
+    "tslib": "^2.6.0"
+  },
+  "compileExit": 2,
+  "stdout": "src/controller/ArticleController.ts(1,101): error TS2305: Module '\"koatty\"' has no exported member 'Query'.\nsrc/controller/ArticleController.ts(9,11): error TS2564: Property 'articleService' has no initializer and is not definitely assigned in the constructor.\nsrc/controller/ArticleController.ts(23,17): error TS2339: Property 'ok' does not exist on type 'ArticleController'.\nsrc/controller/ArticleController.ts(32,17): error TS2339: Property 'ok' does not exist on type 'ArticleController'.\nsrc/controller/ArticleController.ts(42,17): error TS2339: Property 'ok' does not exist on type 'ArticleController'.\nsrc/controller/ArticleController.ts(55,17): error TS2339: Property 'ok' does not exist on type 'ArticleController'.\nsrc/controller/ArticleController.ts(64,17): error TS2339: Property 'ok' does not exist on type 'ArticleController'.\nsrc/dto/ArticleDto.ts(1,10): error TS2305: Module '\"koatty_validation\"' has no exported member 'IsString'.\nsrc/dto/ArticleDto.ts(1,20): error TS2724: '\"koatty_validation\"' has no exported member named 'IsNumber'. Did you mean 'IsIdNumber'?\nsrc/dto/ArticleDto.ts(1,30): error TS2305: Module '\"koatty_validation\"' has no exported member 'IsBoolean'.\nsrc/dto/ArticleDto.ts(1,41): error TS2305: Module '\"koatty_validation\"' has no exported member 'IsOptional'.\nsrc/dto/ArticleDto.ts(1,53): error TS2305: Module '\"koatty_validation\"' has no exported member 'IsEnum'.\nsrc/dto/ArticleDto.ts(1,73): error TS2305: Module '\"koatty_validation\"' has no exported member 'MinLength'.\nsrc/dto/ArticleDto.ts(1,84): error TS2305: Module '\"koatty_validation\"' has no exported member 'MaxLength'.\nsrc/dto/ArticleDto.ts(1,104): error TS2305: Module '\"koatty_validation\"' has no exported member 'Min'.\nsrc/dto/ArticleDto.ts(1,109): error TS2305: Module '\"koatty_validation\"' has no exported member 'Max'.\nsrc/dto/ArticleDto.ts(1,114): error TS2724: '\"koatty_validation\"' has no exported member named 'IsInt'. Did you mean 'IsIn'?\nsrc/model/ArticleModel.ts(6,8): error TS2307: Cannot find module 'typeorm' or its corresponding type declarations.\nsrc/model/ArticleModel.ts(12,3): error TS2564: Property 'id' has no initializer and is not definitely assigned in the constructor.\nsrc/model/ArticleModel.ts(15,3): error TS2564: Property 'createdAt' has no initializer and is not definitely assigned in the constructor.\nsrc/model/ArticleModel.ts(18,3): error TS2564: Property 'updatedAt' has no initializer and is not definitely assigned in the constructor.\nsrc/service/ArticleService.ts(8,11): error TS2564: Property 'articleModel' has no initializer and is not definitely assigned in the constructor.\nsrc/service/ArticleService.ts(15,46): error TS2339: Property 'findAndCount' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(28,25): error TS2339: Property 'findOneBy' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(35,33): error TS2339: Property 'create' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(36,25): error TS2339: Property 'save' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(43,24): error TS2339: Property 'update' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(44,25): error TS2339: Property 'findOneBy' does not exist on type 'typeof ArticleModel'.\nsrc/service/ArticleService.ts(51,25): error TS2339: Property 'delete' does not exist on type 'typeof ArticleModel'.\n",
+  "stderr": ""
+}

@@ -689,14 +689,14 @@ describe('Inject Simple Tests', () => {
         expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.SYNC_DTO_NO_VALIDATION);
       });
 
-      it('should detect ASYNC_DTO_VALIDATION when a DTO param coexists with other params', () => {
+      it('should detect ASYNC_MIXED_PARAMS when a DTO param coexists with other params', () => {
         const { detectExtractionStrategy, ExtractionStrategy } = strategyModule;
         const params = [
           { fn: function Post() { /* noop */ }, name: 'userData', index: 0, type: 'UserDTO', isDto: true, sourceType: ParamSourceType.BODY },
           { fn: function Get() { /* noop */ }, name: 'id', index: 1, type: 'string', isDto: false, sourceType: ParamSourceType.QUERY }
         ];
 
-        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.ASYNC_DTO_VALIDATION);
+        expect(detectExtractionStrategy(params)).toBe(ExtractionStrategy.ASYNC_MIXED_PARAMS);
       });
 
       it('should detect ASYNC_MIXED_PARAMS for body param without DTO', () => {
@@ -836,7 +836,7 @@ describe('Inject Simple Tests', () => {
 
         const result = await handler({}, params);
 
-        expect(ClassValidator.valid).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true, { partial: undefined });
+        expect(ClassValidator.valid).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true, { partial: undefined, returnAllErrors: true });
         expect(result).toEqual([{ validated: true }]);
       });
 

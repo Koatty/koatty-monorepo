@@ -12,11 +12,11 @@ import { Constructor, TestApplication, TestAppOptions } from "./types";
 /**
  * Create a test application instance from a Koatty application class
  * 
- * IMPORTANT: The AppClass must be decorated with @Bootstrap() for proper initialization.
+ * Use an undecorated application class; @Bootstrap() also starts the application on import.
  * createApplication() runs the full 11-step bootstrap sequence (appBoot → loadConfigure →
  * loadComponent → ... → appReady) WITHOUT starting the server, making it ideal for testing.
  * 
- * @param AppClass - The Koatty application class constructor (must have @Bootstrap() decorator)
+ * @param AppClass - The Koatty application class constructor (without automatic bootstrap)
  * @param options - Optional configuration for test app
  * @returns Promise resolving to a TestApplication wrapper
  * 
@@ -25,7 +25,6 @@ import { Constructor, TestApplication, TestAppOptions } from "./types";
  * import { createTestApp } from 'koatty_testing';
  * import { TestApp } from './src/TestApp';
  * 
- * @Bootstrap()
  * class MyTestApp extends Koatty {
  *   // ...
  * }
@@ -61,7 +60,7 @@ export async function createTestApp(
   });
 
   // createApplication() runs full bootstrap without starting server
-  // NOTE: AppClass must be decorated with @Bootstrap()
+  // AppClass must not auto-start via @Bootstrap().
   let app: KoattyApplication;
   try {
     app = await createApplication(AppClass);
@@ -77,26 +76,40 @@ export async function createTestApp(
     throw err;
   }
 
+  let started: Promise<void> | undefined;
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    Object.keys(originalEnv).forEach(key => {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    });
+  };
   return {
     app,
     async start() {
-      if (typeof (app as any).listen === 'function') {
-        await (app as any).listen();
+      if (!started) {
+        started = new Promise<void>((resolve, reject) => {
+          const emitter = app as any;
+          const servers = (Array.isArray(emitter.server) ? emitter.server : [emitter.server])
+            .map((s: any) => s?.getNativeServer?.()).filter(Boolean);
+          const cleanup = () => { emitter.removeListener?.('error', failed); servers.forEach((s: any) => s.removeListener?.('error', failed)); };
+          const failed = (error: Error) => { cleanup(); reject(error); };
+          emitter.once?.('error', failed);
+          servers.forEach((s: any) => s.once?.('error', failed));
+          try {
+            if (typeof emitter.listen !== 'function') throw new Error('Application has no listen method');
+            emitter.listen(() => { cleanup(); resolve(); });
+          } catch (error) { failed(error as Error); }
+        });
       }
+      await started;
     },
     async stop() {
-      if (typeof (app as any).stop === 'function') {
-        await (app as any).stop();
-      }
-      
-      // Restore original environment variables
-      Object.keys(originalEnv).forEach(key => {
-        if (originalEnv[key] === undefined) {
-          delete process.env[key];
-        } else {
-          process.env[key] = originalEnv[key];
-        }
-      });
+      try {
+        if (typeof (app as any).stop === 'function') await (app as any).stop();
+      } finally { restore(); }
     },
     getServer() {
       return (app as any).server || null;

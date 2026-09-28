@@ -9,7 +9,7 @@ HTTP-family transports share one request, TLS, timeout and shutdown implementati
 **Signature:**
 
 ```typescript
-export declare class HttpServer extends BaseServer<HttpServerOptions>
+export declare class HttpServer extends BaseServer<HttpServerOptions> 
 ```
 **Extends:** BaseServer&lt;HttpServerOptions&gt;
 

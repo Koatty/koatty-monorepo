@@ -9,7 +9,7 @@ The wrapper preserves the existing KoattyServer contract; the transport owns res
 **Signature:**
 
 ```typescript
-export declare class SingleProtocolServer implements KoattyServer
+export declare class SingleProtocolServer implements KoattyServer 
 ```
 **Implements:** KoattyServer
 

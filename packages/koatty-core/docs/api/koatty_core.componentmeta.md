@@ -9,7 +9,7 @@ Component metadata structure Contains all information about a registered compone
 **Signature:**
 
 ```typescript
-export interface ComponentMeta
+export interface ComponentMeta 
 ```
 
 ## Properties

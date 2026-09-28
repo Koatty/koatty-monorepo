@@ -5,9 +5,9 @@
 ## SingleProtocolServer.getMetrics() method
 
 > Warning: This API is now obsolete.
->
+> 
 > Application request metrics are exported by koatty\_trace.
->
+> 
 
 **Signature:**
 

@@ -275,7 +275,7 @@ describe('Handler Simple Tests', () => {
 
       await Handler(mockApp, mockCtx, mockCtl, 'testMethod', params);
       
-      expect(ClassValidator.valid).toHaveBeenCalledWith(TestDto, { name: 'test' }, true, { partial: undefined });
+      expect(ClassValidator.valid).toHaveBeenCalledWith(TestDto, { name: 'test' }, true, { partial: undefined, returnAllErrors: true });
       expect(mockCtl.testMethod).toHaveBeenCalledWith({ name: 'validated' });
     });
 

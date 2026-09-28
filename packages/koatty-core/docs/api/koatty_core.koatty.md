@@ -9,7 +9,7 @@ Koatty Application   Koatty  {<!-- -->Koa<!-- -->}  {<!-- -->BaseApp<!-- -->}
 **Signature:**
 
 ```typescript
-export declare class Koatty extends Koa implements KoattyApplication
+export declare class Koatty extends Koa implements KoattyApplication 
 ```
 **Extends:** Koa
 

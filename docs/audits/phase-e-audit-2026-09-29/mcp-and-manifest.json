@@ -1,0 +1,110 @@
+{
+  "fixture": "/var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/koatty-e-audit-FYKnbg",
+  "results": {
+    "stdio": {
+      "tools": 7,
+      "testAnnotation": {
+        "readOnlyHint": true,
+        "idempotentHint": true
+      }
+    },
+    "unplannedApply": {
+      "error": false,
+      "text": "{\n  \"dryRun\": false,\n  \"module\": \"not-planned\",\n  \"written\": [\n    \"unplanned.txt\"\n  ]\n}"
+    },
+    "outsideDocs": {
+      "error": false,
+      "text": "{\n  \"topic\": \"e_audit_outside_sentinel\",\n  \"matched\": 1,\n  \"matches\": [\n    {\n      \"file\": \"docs/linked.txt\",\n      \"line\": 1,\n      \"text\": \"E_AUDIT_OUTSIDE_SENTINEL\"\n    }\n  ]\n}"
+    },
+    "standardManifest": {
+      "koatty": "4.4.0",
+      "decoratorMode": "legacy",
+      "protocols": [
+        "http"
+      ],
+      "components": [
+        {
+          "id": "AuditAspect",
+          "type": "ASPECT",
+          "file": "src/aspect/AuditAspect.ts",
+          "line": 1,
+          "dependsOn": []
+        },
+        {
+          "id": "UserController",
+          "type": "CONTROLLER",
+          "file": "src/controller/UserController.ts",
+          "line": 1,
+          "dependsOn": []
+        },
+        {
+          "id": "UserService",
+          "type": "SERVICE",
+          "scope": "Request",
+          "file": "src/service/UserService.ts",
+          "line": 1,
+          "dependsOn": []
+        }
+      ],
+      "routes": [
+        {
+          "protocol": "http",
+          "method": "POST",
+          "path": "/users/create",
+          "controller": "UserController",
+          "handler": "create",
+          "middleware": [],
+          "params": [],
+          "file": "src/controller/UserController.ts",
+          "line": 3
+        }
+      ],
+      "dtos": {
+        "CreateUserDto": {
+          "file": "src/dto/CreateUserDto.ts",
+          "fields": {
+            "name": {
+              "type": "string",
+              "rules": [
+                "IsString",
+                "MinLength"
+              ]
+            }
+          }
+        }
+      },
+      "aspects": [
+        {
+          "name": "AuditAspect",
+          "targets": [],
+          "file": "src/aspect/AuditAspect.ts"
+        }
+      ],
+      "config": {
+        "keys": []
+      },
+      "security": {}
+    },
+    "profileLeak": {
+      "profile": "process.env.PROFILE || E_AUDIT_FAKE_SECRET",
+      "validation": []
+    },
+    "partialApply": {
+      "error": true,
+      "text": "Error: The \"data\" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received an instance of Object",
+      "after": {
+        "first": "written-first",
+        "existing": ""
+      }
+    },
+    "invalidBoolean": {
+      "error": false,
+      "text": "{\n  \"dryRun\": false,\n  \"module\": \"audit\",\n  \"written\": [\n    \"docs/guide.md\"\n  ]\n}"
+    },
+    "plan": {
+      "error": false,
+      "text": "{\n  \"module\": \"article\",\n  \"hash\": \"c850f9f9faa544c4f7a425e1fb877cda972bab00e1baf098cfa880847c2a2c7d\",\n  \"changeCount\": 7,\n  \"summary\": [\n    \"create src/model/ArticleModel.ts\",\n    \"create src/dto/ArticleDto.ts\",\n    \"create src/service/ArticleService.ts\",\n    \"create src/controller/ArticleController.ts\",\n    \"create test/article.test.ts\",\n    \"modify package.json\",\n    \"create scripts/generate-api-doc.ts\"\n  ],\n  \"changeset\": {\n    \"id\": \"mekj0djhu5lo3pjuv220g\",\n    \"timestamp\": \"2026-09-28T17:35:17.402Z\",\n    \"module\": \"article\",\n    \"changes\": [\n      {\n        \"type\": \"create\",\n        \"path\": \"src/model/ArticleModel.ts\",\n        \"content\": \"import { Component } from 'koatty';\\nimport {\\n  Entity, Column, PrimaryGeneratedColumn,\\n  CreateDateColumn, UpdateDateColumn,\\n  BaseEntity,\\n} from 'typeorm';\\n\\n@Component()\\n@Entity('article')\\nexport class ArticleModel extends BaseEntity {\\n  @PrimaryGeneratedColumn()\\n  id: number;\\n\\n  @CreateDateColumn()\\n  createdAt: Date;\\n\\n  @UpdateDateColumn()\\n  updatedAt: Date;\\n\\n}\\n\",\n        \"description\": \"Generate TypeORM model for article\"\n      },\n      {\n        \"type\": \"create\",\n        \"path\": \"src/dto/ArticleDto.ts\",\n        \"content\": \"import { IsString, IsNumber, IsBoolean, IsOptional, IsEnum, IsNotEmpty, MinLength, MaxLength, IsEmail, Min, Max, IsInt } from 'koatty_validation';\\n\\n/**\\n * 创建 DTO\\n */\\nexport class CreateArticleDto {\\n}\\n\\n/**\\n * 更新 DTO\\n */\\nexport class UpdateArticleDto {\\n}\\n\\n/**\\n * 查询 DTO\\n */\\nexport class QueryArticleDto {\\n  @IsInt({ message: 'page 必须是整数' })\\n  @Min(1, { message: 'page 不能小于 1' })\\n  @IsOptional()\\n  page?: number;\\n\\n  @IsInt({ message: 'pageSize 必须是整数' })\\n  @Min(1, { message: 'pageSize 不能小于 1' })\\n  @Max(100, { message: 'pageSize 不能大于 100' })\\n  @IsOptional()\\n  pageSize?: number;\\n\\n}\\n\",\n        \"description\": \"Generate DTOs for article\"\n      },\n      {\n        \"type\": \"create\",\n        \"path\": \"src/service/ArticleService.ts\",\n        \"content\": \"import { Service, Autowired } from 'koatty';\\nimport { ArticleModel } from '../model/ArticleModel';\\nimport { CreateArticleDto, UpdateArticleDto, QueryArticleDto } from '../dto/ArticleDto';\\n\\n@Service()\\nexport class ArticleService {\\n  @Autowired()\\n  private articleModel: ArticleModel;\\n\\n  /**\\n   * 分页查询\\n   */\\n  async findAll(query: QueryArticleDto) {\\n    const { page = 1, pageSize = 10, ...filters } = query;\\n    const [list, total] = await ArticleModel.findAndCount({\\n      where: filters as any,\\n      skip: (page - 1) * pageSize,\\n      take: pageSize,\\n      order: { id: 'DESC' },\\n    });\\n    return { list, total, page, pageSize };\\n  }\\n\\n  /**\\n   * 根据 ID 查询\\n   */\\n  async findById(id: number) {\\n    return ArticleModel.findOneBy({ id });\\n  }\\n\\n  /**\\n   * 创建\\n   */\\n  async create(dto: CreateArticleDto) {\\n    const entity = ArticleModel.create(dto as any);\\n    return ArticleModel.save(entity);\\n  }\\n\\n  /**\\n   * 更新\\n   */\\n  async update(id: number, dto: UpdateArticleDto) {\\n    await ArticleModel.update(id, dto as any);\\n    return ArticleModel.findOneBy({ id });\\n  }\\n\\n  /**\\n   * 删除\\n   */\\n  async delete(id: number) {\\n    return ArticleModel.delete(id);\\n  }\\n\\n}\\n\",\n        \"description\": \"Generate Service for article\"\n      },\n      {\n        \"type\": \"create\",\n        \"path\": \"src/controller/ArticleController.ts\",\n        \"content\": \"import { Controller, GetMapping, PostMapping, PutMapping, DeleteMapping, PathVariable, RequestBody, Query as QueryParam, Autowired, KoattyContext } from 'koatty';\\nimport { Validated } from 'koatty_validation';\\nimport { ArticleService } from '../service/ArticleService';\\nimport { CreateArticleDto, UpdateArticleDto, QueryArticleDto } from '../dto/ArticleDto';\\n\\n@Controller('/article')\\nexport class ArticleController {\\n  @Autowired()\\n  private articleService: ArticleService;\\n\\n  ctx: KoattyContext;\\n\\n  constructor(ctx: KoattyContext) {\\n    this.ctx = ctx;\\n  }\\n\\n  /**\\n   * 分页列表\\n   */\\n  @GetMapping('/')\\n  async list(@QueryParam() query: QueryArticleDto) {\\n    const data = await this.articleService.findAll(query);\\n    return this.ok(data);\\n  }\\n\\n  /**\\n   * 详情\\n   */\\n  @GetMapping('/:id')\\n  async detail(@PathVariable('id') id: number) {\\n    const data = await this.articleService.findById(id);\\n    return this.ok(data);\\n  }\\n\\n  /**\\n   * 创建\\n   */\\n  @PostMapping('/')\\n  @Validated()\\n  async create(@RequestBody() dto: CreateArticleDto) {\\n    const data = await this.articleService.create(dto);\\n    return this.ok(data);\\n  }\\n\\n  /**\\n   * 更新\\n   */\\n  @PutMapping('/:id')\\n  @Validated()\\n  async update(\\n    @PathVariable('id') id: number,\\n    @RequestBody() dto: UpdateArticleDto\\n  ) {\\n    const data = await this.articleService.update(id, dto);\\n    return this.ok(data);\\n  }\\n\\n  /**\\n   * 删除\\n   */\\n  @DeleteMapping('/:id')\\n  async remove(@PathVariable('id') id: number) {\\n    await this.articleService.delete(id);\\n    return this.ok();\\n  }\\n}\\n\",\n        \"description\": \"Generate REST Controller for article\"\n      },\n      {\n        \"type\": \"create\",\n        \"path\": \"test/article.test.ts\",\n        \"content\": \"/**\\n * Article module test skeleton - generated by `koatty generate:module`.\\n * Roadmap Phase E, item E-4: every generated module ships with a runnable test.\\n *\\n * Run it with: `npx jest test/article.test.ts`\\n *\\n * The Koatty IoC container injects `articleModel` at runtime. In a\\n * unit test, drive the service against a fake model instead:\\n *\\n *   import { mockBean } from 'koatty_testing';\\n *   const model = mockBean(ArticleModel);\\n */\\nimport { ArticleService } from '../src/service/ArticleService';\\n\\ndescribe('ArticleService', () => {\\n  let service: ArticleService;\\n\\n  beforeEach(() => {\\n    service = new ArticleService();\\n  });\\n\\n  it('is constructible', () => {\\n    expect(service).toBeDefined();\\n  });\\n\\n  it('exposes the generated CRUD API', () => {\\n    for (const method of ['findAll', 'findById', 'create', 'update', 'delete']) {\\n      expect(typeof (service as unknown as Record<string, unknown>)[method]).toBe('function');\\n    }\\n  });\\n\\n  // TODO: add behaviour tests, e.g. pagination defaults on findAll:\\n  //   it('applies pagination defaults', async () => {\\n  //     const fakeModel = { findAndCount: jest.fn().mockResolvedValue([[], 0]) };\\n  //     (service as any).articleModel = fakeModel;\\n  //     await expect(service.findAll({})).resolves.toEqual({\\n  //       list: [],\\n  //       total: 0,\\n  //       page: 1,\\n  //       pageSize: 10,\\n  //     });\\n  //   });\\n});\\n\",\n        \"description\": \"Generate test skeleton for article\"\n      },\n      {\n        \"type\": \"modify\",\n        \"path\": \"package.json\",\n        \"content\": \"{\\n  \\\"name\\\": \\\"audit\\\",\\n  \\\"dependencies\\\": {\\n    \\\"koatty\\\": \\\"^4.4.0\\\"\\n  },\\n  \\\"scripts\\\": {\\n    \\\"doc\\\": \\\"npx ts-node scripts/generate-api-doc.ts\\\"\\n  },\\n  \\\"devDependencies\\\": {\\n    \\\"typia\\\": \\\"^0.29.0\\\",\\n    \\\"ts-morph\\\": \\\"^27.0.0\\\",\\n    \\\"ts-patch\\\": \\\"^3.0.0\\\"\\n  }\\n}\",\n        \"originalContent\": \"{\\\"name\\\":\\\"audit\\\",\\\"dependencies\\\":{\\\"koatty\\\":\\\"^4.4.0\\\"}}\",\n        \"description\": \"Add doc script for Typia API documentation\"\n      },\n      {\n        \"type\": \"create\",\n        \"path\": \"scripts/generate-api-doc.ts\",\n        \"content\": \"/**\\n * API 文档生成脚本 - 基于 Typia 与 Controller 扫描\\n * 运行: npm run doc\\n * 输出: docs/openapi.json\\n */\\nimport { Project } from 'ts-morph';\\nimport * as fs from 'fs';\\nimport * as path from 'path';\\n\\nconst projectRoot = process.cwd();\\nconst srcDir = path.join(projectRoot, 'src');\\nconst scriptsDir = path.join(projectRoot, 'scripts');\\nconst docsDir = path.join(projectRoot, 'docs');\\n\\nfunction main() {\\n  if (!fs.existsSync(srcDir)) {\\n    console.warn('No src directory found. Skip API doc generation.');\\n    return;\\n  }\\n\\n  const project = new Project({ compilerOptions: { strict: true } });\\n  project.addSourceFilesAtPaths(path.join(srcDir, '**/*.ts'));\\n\\n  const dtoFiles = project.getSourceFiles().filter((f) => f.getFilePath().includes('Dto.ts'));\\n  const controllerFiles = project.getSourceFiles().filter((f) => f.getFilePath().includes('Controller.ts'));\\n\\n  const schemaEntryLines: string[] = [\\n    \\\"import typia from 'typia';\\\",\\n    '',\\n  ];\\n\\n  const dtoTypeNames: string[] = [];\\n  for (const file of dtoFiles) {\\n    const relPath = path.relative(scriptsDir, file.getFilePath()).replace(/\\\\.ts$/, '').replace(/\\\\\\\\/g, '/');\\n    const alias = relPath.replace(/[^a-zA-Z0-9]/g, '_');\\n    const classes = file.getClasses().filter((c) => c.getName()?.endsWith('Dto'));\\n    if (classes.length === 0) continue;\\n    const names = classes.map((c) => c.getName()!).filter(Boolean);\\n    schemaEntryLines.push(`import { ${names.join(', ')} } from '${relPath}';`);\\n    dtoTypeNames.push(...names);\\n  }\\n\\n  if (dtoTypeNames.length > 0) {\\n    schemaEntryLines.push('');\\n    schemaEntryLines.push(`const schemas = typia.json.schemas<[${dtoTypeNames.join(', ')}]>(\\\"3.0\\\");`);\\n    schemaEntryLines.push(\\\"require('fs').writeFileSync(require('path').join(__dirname, 'api-schemas.json'), JSON.stringify(schemas, null, 2));\\\");\\n  }\\n\\n  const paths: Record<string, Record<string, unknown>> = {};\\n  for (const file of controllerFiles) {\\n    const classes = file.getClasses();\\n    for (const clazz of classes) {\\n      const controllerDec = clazz.getDecorator('Controller');\\n      const basePath = controllerDec?.getArguments()[0]?.getText().replace(/^['\\\"]|['\\\"]$/g, '') ?? '/';\\n      for (const method of clazz.getMethods()) {\\n        const getDec = method.getDecorator('Get') ?? method.getDecorator('GetMapping');\\n        const postDec = method.getDecorator('Post') ?? method.getDecorator('PostMapping');\\n        const putDec = method.getDecorator('Put') ?? method.getDecorator('PutMapping');\\n        const delDec = method.getDecorator('Delete') ?? method.getDecorator('DeleteMapping');\\n        const dec = getDec ?? postDec ?? putDec ?? delDec;\\n        if (!dec) continue;\\n        const methodPath = dec.getArguments()[0]?.getText().replace(/^['\\\"]|['\\\"]$/g, '') ?? '/';\\n        const fullPath = basePath.replace(/\\\\/$/, '') + (methodPath === '/' ? '' : methodPath);\\n        const httpMethod = getDec ? 'get' : postDec ? 'post' : putDec ? 'put' : 'delete';\\n        const summary = method.getJsDoc().map((d) => d.getDescription().trim()).join(' ') || method.getName() ?? '';\\n\\n        const op: Record<string, unknown> = { summary, responses: { 200: { description: 'OK' } } };\\n        const params = method.getParameters();\\n        for (const p of params) {\\n          if (p.getDecorator('RequestBody')) {\\n            const type = p.getType().getText();\\n            const refName = type.split('.').pop() ?? type;\\n            if (refName.endsWith('Dto')) {\\n              op.requestBody = { content: { 'application/json': { schema: { $ref: `#/components/schemas/${refName}` } } } };\\n            }\\n          }\\n        }\\n        if (!paths[fullPath]) paths[fullPath] = {};\\n        (paths[fullPath] as Record<string, unknown>)[httpMethod] = op;\\n      }\\n    }\\n  }\\n\\n  const openapi = {\\n    openapi: '3.0.0',\\n    info: { title: 'API', version: '1.0.0' },\\n    paths,\\n    components: { schemas: {} },\\n  };\\n\\n  if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });\\n  fs.writeFileSync(path.join(docsDir, 'openapi.json'), JSON.stringify(openapi, null, 2));\\n  console.log('API doc written to docs/openapi.json');\\n}\\n\\nmain();\\n\",\n        \"description\": \"Add API doc generator script (Typia + controllers)\"\n      }\n    ]\n  }\n}"
+    }
+  },
+  "stderr": "koatty mcp listening on stdio (root: /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/koatty-e-audit-FYKnbg/app)\n"
+}

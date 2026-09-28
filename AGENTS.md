@@ -7,7 +7,7 @@
 ## 1. 仓库结构
 
 - `packages/*` — 所有框架包（pnpm workspace，见 `pnpm-workspace.yaml`：`packages/*`、`apps/*`、`tools/*`、`examples/*`）。
-- `docs/` — 方案、审计报告与**迁移指南**（`docs/includes/koatty-hardening-and-ai-evolution-plan.md` 为总体路线图；`docs/migration/*.md` 为逐版本行为变更说明）。
+- `docs/` — 方案、审计报告与**迁移指南**（`docs/koatty-hardening-and-ai-evolution-plan.md` 为总体路线图；`docs/migration/*.md` 为逐版本行为变更说明）。
 - `scripts/` — 构建/发布/校验脚本（`build-base-packages.js`、`commit-submodule-changes.js`、`create-and-version.js`、`doctor.js`、`security-baseline.ts`）。
 - `RELEASE-GUIDE.md` — 发布流程权威文档，发布前必须先读。
 

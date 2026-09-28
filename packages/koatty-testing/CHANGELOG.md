@@ -1,5 +1,12 @@
 # koatty_testing
 
+## Unreleased — Phase E audit fixes (2026-09-29)
+
+- Wait for listener readiness/error in createTestApp.start; restore environment in finally even when stop fails, without repeated restoration.
+- Add lifecycle regression coverage and correct examples to use an undecorated test app and createHttpTest(wrapper.app).
+- Migration: docs/migration/phase-e-ai-dev-experience.md. No publication performed.
+
+
 ## 4.0.1
 
 ### Patch Changes
@@ -7,7 +14,7 @@
 - Phase E（AI-Ready 开发体验，路线图 §8）：`koatty_cli@5.0.0` 发布内容。
   - **E-1 应用清单 `koatty manifest`**：静态采集器（`src/manifest`）+ CLI 命令，输出 components / routes / dtos / aspects / `config.keys` / `security.profile` / koatty 版本 / decoratorMode / protocols。**只输出配置键名，绝不输出配置取值**；纯静态分析（ts-morph），不启动应用、不监听端口、无网络。回归测试：`tests/regression/E-01.manifest.test.ts`。
   - **E-2 MCP 形态的 CLI（`koatty mcp`）**：stdio 传输的 MCP server，7 个工具（`koatty_manifest` / `koatty_routes` / `koatty_explain_component` / `koatty_plan` / `koatty_apply` / `koatty_test` / `koatty_docs`）。
-    - 只读优先：除 `koatty_apply` 外全部 `readOnlyHint`；`koatty_apply` 必须携带 `koatty_plan` 的 SHA-256 哈希，`dryRun` 默认 `true`。
+    - 只读优先：除写类 `koatty_apply` 和执行类 `koatty_test` 外使用 `readOnlyHint`；`koatty_apply` 必须携带 `koatty_plan` 的 SHA-256 哈希，`dryRun` 默认 `true`。
     - 路径一律经 `resolveInside()`；`koatty_test` 只运行 `test/` / `tests/` 下的测试文件并带超时；不提供任意 shell 工具。
     - 依赖 `@modelcontextprotocol/sdk`（仅 `koatty_cli`）。回归测试：`tests/regression/E-02.mcp.test.ts`。
   - **E-3 面向 AI 的项目文档**：`koatty new` 模板新增 `AGENTS.md`、`.cursor/rules/koatty.mdc`、`llms.txt`。回归测试：`tests/regression/E-04.test-skeleton-and-docs.test.ts`。

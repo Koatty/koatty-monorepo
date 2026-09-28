@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-export declare class GrpcServer extends BaseServer<GrpcServerOptions, Server>
+export declare class GrpcServer extends BaseServer<GrpcServerOptions, Server> 
 ```
 **Extends:** BaseServer&lt;GrpcServerOptions, Server&gt;
 

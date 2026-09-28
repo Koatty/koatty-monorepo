@@ -5,9 +5,9 @@
 ## registerConnectionPoolMetrics() function
 
 > Warning: This API is now obsolete.
->
+> 
 > Exposes only this application's connection counts; use trace for request metrics.
->
+> 
 
 **Signature:**
 

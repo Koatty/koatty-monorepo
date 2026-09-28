@@ -25,7 +25,7 @@ import type { SuperTest, Test } from "supertest";
  *   
  *   beforeAll(async () => {
  *     const app = await createTestApp(TestApp);
- *     request = createHttpTest(app);
+ *     request = createHttpTest(app.app);
  *   });
  *   
  *   it('should return 200', async () => {

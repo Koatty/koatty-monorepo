@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-export declare class Http2Server extends HttpServer
+export declare class Http2Server extends HttpServer 
 ```
 **Extends:** [HttpServer](./koatty_serve.httpserver.md)
 

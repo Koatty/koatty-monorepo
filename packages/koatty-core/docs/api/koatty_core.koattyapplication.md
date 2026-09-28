@@ -11,7 +11,7 @@ Interface representing a Koatty application that extends Koa. Defines the struct
 **Signature:**
 
 ```typescript
-export interface KoattyApplication extends Koa
+export interface KoattyApplication extends Koa 
 ```
 **Extends:** Koa
 

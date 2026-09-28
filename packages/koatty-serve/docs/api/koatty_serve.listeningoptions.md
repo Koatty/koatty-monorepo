@@ -11,7 +11,7 @@ listening options
 **Signature:**
 
 ```typescript
-export interface ListeningOptions
+export interface ListeningOptions 
 ```
 
 ## Properties

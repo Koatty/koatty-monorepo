@@ -9,7 +9,7 @@ Router factory implementation
 **Signature:**
 
 ```typescript
-export declare class RouterFactory implements IRouterFactory
+export declare class RouterFactory implements IRouterFactory 
 ```
 **Implements:** [IRouterFactory](./koatty_router.irouterfactory.md)
 

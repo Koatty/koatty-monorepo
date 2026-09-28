@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-export declare class WsServer extends BaseServer<WebSocketServerOptions, WebSocketServer>
+export declare class WsServer extends BaseServer<WebSocketServerOptions, WebSocketServer> 
 ```
 **Extends:** BaseServer&lt;WebSocketServerOptions, WebSocketServer&gt;
 

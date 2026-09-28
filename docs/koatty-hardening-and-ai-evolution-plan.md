@@ -1023,21 +1023,21 @@ list() { return this.orders.list(); }
 
 A/B/C 历史修复的全量回归与真实协议门禁重新执行；证据与环境边界记录在修复报告。测试通过数量不代替阶段验收。`.changeset/phase-d-architecture-and-performance.md` 为待审材料，**暂不应用版本号或发布**。迁移说明见 [Phase D 迁移状态](migration/phase-d-router-hotpath.md)。
 
-### Phase E 实施状态（2026-09-28 发布）
+### Phase E 实施状态（2026-09-29 审计修复，未发布）
 
-**结论：E-1/E-2/E-3/E-4 与 COR-16 均已落地并有回归测试；`.changeset/phase-e-ai-dev-experience.md` 已应用 —— `koatty_cli@5.0.0`（major）、`koatty_testing@4.0.1`（patch）。**
+**E-A01～E-A10 已完成代码修复和自动回归。版本文件仍为 `koatty_cli@5.0.0`、`koatty_testing@4.0.1`；版本应用不代表 npm 已发布。Cursor 人工确认端到端、全新在线安装和发布验收仍单列待验收。**
 
-| 任务 | 交付 | 回归测试 |
+| 任务 | 当前交付 | 验证 |
 |---|---|---|
-| E-1 `koatty manifest` | 静态采集器 `packages/koatty-ai/src/manifest/` + `src/cli/commands/manifest.ts`；输出 components（类型/scope/构造依赖/文件:行）、routes（protocol/method/path/controller/handler/middleware/params/文件:行）、dtos（字段 + 校验装饰器）、aspects、`config.keys`（**仅键名**）、`security.profile`、koatty 版本、decoratorMode、protocols；支持 `--format json\|md`、`--out`、`--validate`、`--runtime-dir`（D-7 预生成清单） | `tests/regression/E-01.manifest.test.ts`（5 例）、`tests/regression/D-07.runtime-manifest.test.ts` |
-| E-2 `koatty mcp` | stdio MCP server，7 个工具；除 `koatty_apply` 外只读；`koatty_apply` 需 `koatty_plan` 的 SHA-256 且 `dryRun` 默认 `true`；路径经 `resolveInside()`；`koatty_test` 限定 `test/`/`tests/` 且带超时；无任意 shell 工具 | `tests/regression/E-02.mcp.test.ts`（10 例，真实 MCP 协议 + 内存传输） |
-| E-3 AI 文档 | `koatty new` 模板新增 `AGENTS.md`、`.cursor/rules/koatty.mdc`、`llms.txt`；本仓库根 `AGENTS.md` | `tests/regression/E-04.test-skeleton-and-docs.test.ts` |
-| E-4 测试即规格 | 生成器为每个模块追加 `test/<module>.test.ts` 骨架；模板新增 `jest.config.js`（ts-jest）与 `test/smoke.test.ts`；`koatty_testing` 自身测试（QA-05） | `tests/regression/E-04.test-skeleton-and-docs.test.ts`、`packages/koatty-testing/test/`（3 suites / 8 例） |
-| COR-16 | `ChangeSet.save()` 同时接受目录与 `*.json` 文件路径 | `tests/regression/COR-16.changeset-save.test.ts` |
+| E-1 | 静态清单 v1、实际装饰器/属性注入/切面关系、`src/config`、DTO JSON Schema、C-6 声明 schema 与推断 schema 区分、未解析标记；动态配置原文不输出 | E-01 / E-06；Ajv 校验；D-07 runtime 清单回归 |
+| E-2 | 7 个 MCP 工具；apply 绑定会话计划和文件前像，默认预览，严格校验及失败回滚；递归读取拒绝符号链接；test 明确为执行类工具 | E-02 / E-05 / E-08（实际 stdio 子进程） |
+| E-3 | 项目 AGENTS/Cursor/llms 与实际 API 对齐；框架文档站源码新增 `packages/koatty-doc/docs/llms.txt`，尚未部署 | E-04；发布前检查线上索引 |
+| E-4 | DTO 按类拆文件；模块含模型 spy 行为测试；独立 Controller/Service 命令含测试；createTestApp 等待监听并在停止异常时恢复环境 | E-04 / E-07；testing 生命周期回归 |
+| COR-16 | ChangeSet.save 支持目录及 JSON 文件路径 | COR-16 原回归通过 |
 
-- 验收命令（本轮实测）：`cd packages/koatty-ai && npx tsc --noEmit` 干净、`npx jest` 36 suites / 177 tests 全绿；`cd packages/koatty-testing && npx jest` 3 suites / 8 tests 全绿。
-- 未关闭边界：清单是**静态分析（ts-morph）**，不反映 `@Autowired` 实际解析结果、请求作用域实例与真实依赖图；§8 验收门第 2 条（在 Cursor 内完成端到端任务）与 npm 实际发布未在本工作区执行；`guards`/`interceptors` 不重复输出，同一装饰器统一由 `middleware` 与 `aspects` 表达。
-- 发布材料与完成记录：`docs/migration/phase-e-ai-dev-experience.md`、`docs/audits/phase-e-completion-2026-09-28.md`（含版本应用方式与工作区变更集事故的回滚记录）。
+静态清单不执行应用，不能表示运行期实际依赖实例；未知类型、动态路径、动态配置通过 `unresolved` 报告。配置推断 schema 仅描述静态类型，不得冒充完整运行期验证约束。生成后 HTTP 验证使用真实框架、测试请求客户端与模型 spy，不代表真实数据库验收。
+
+修复记录与迁移方式：`docs/audits/phase-e-remediation-2026-09-29.md`、`docs/migration/phase-e-ai-dev-experience.md`。2026-09-28 完成记录保留为历史证据。
 
 ---
 
@@ -1078,14 +1078,14 @@ koatty manifest [--out .koatty/manifest.json] [--format json|md]
       "params": [{ "source": "body", "dto": "CreateUserDto" }],
       "file": "src/controller/UserController.ts", "line": 42 }
   ],
-  "dtos": { "CreateUserDto": { /* 由 class-validator 元数据生成的 JSON Schema */ } },
+  "dtos": { "CreateUserDto": { "schema": { /* 从现有类型及装饰器声明静态提取的 JSON Schema */ } } },
   "aspects": [{ "name": "AuditAspect", "targets": ["UserService.create"] }],
-  "config": { "keys": ["server.port", "redis.host"], "schema": { /* C-6 */ } },
+  "config": { "keys": ["server.port", "redis.host"], "schema": { /* C-6 */ }, "schemaSource": "declaration" /* 或 inferred */ },
   "security": { "profile": "strict" /* 静态声明值；动态配置须标记未解析 */ }
 }
 ```
 
-- DTO → JSON Schema：基于 `class-validator` 的元数据存储转换（可以评估使用 `class-validator-jsonschema`，或自行实现一个约 300 行的转换器）。这一能力同时服务于 Swagger、MCP `@Tool` 和 LLM 结构化输出，**一次实现，三处复用**；
+- DTO → JSON Schema：静态读取 TypeScript 类型和已有校验装饰器（`koatty_validation` / `class-validator`）的字面量约束，不导入执行应用以获取元数据。未知类型/约束明确标记未解析。当前 API 文档生成复用此 schema；Phase F 的 MCP 工具与结构化输出消费属于后续接入，不提前标成已交付。
 - 配置只输出键名与 schema，**绝不输出配置值**（其中可能有密钥）。
 
 **工作量**：5 人天。
@@ -1106,7 +1106,7 @@ koatty mcp            # stdio 传输，供 Cursor / Claude Code 等 IDE 接入
 | `koatty_routes` | 只读 | 按路径或控制器过滤路由 |
 | `koatty_explain_component` | 只读 | 某个组件的依赖图、切面、所在文件 |
 | `koatty_plan` | 只读 | 输入 spec，返回变更集预览（不写盘） |
-| `koatty_apply` | **写** | 应用变更集；限制在项目根目录内；变更集需带 `plan` 阶段返回的哈希，防止被篡改 |
+| `koatty_apply` | **写** | 应用变更集；限制在项目根目录内；变更集须绑定当前会话签发的 `plan` 哈希及原文件内容，拒绝篡改、过期、重复应用和文件冲突 |
 | `koatty_test` | 执行 | 运行指定测试文件；只允许运行 `test/` 目录下的文件，带超时 |
 | `koatty_docs` | 只读 | 按主题检索框架文档片段 |
 
@@ -1145,7 +1145,7 @@ AI 修改代码时，可运行的测试是最可靠的反馈。模板项目默�
 
 ### Phase E 验收门
 
-- [x] 在示例项目上执行 `koatty manifest`，输出能通过 JSON Schema 校验，且不包含任何配置值 —— `--validate`（`validateManifest()`）与 `tests/regression/E-01.manifest.test.ts` 断言输出中不出现 fixture 的密钥/主机/端口取值
+- [x] 在示例项目上执行 `koatty manifest`，输出能通过 JSON Schema 校验，且不包含任何配置值 —— `--validate` 使用 Ajv 校验清单及 DTO/config schema；E-01 / E-06 验证配置默认值和动态表达式不外泄；未知信息标记 unresolved
 - [ ] 在 Cursor 中接入 `koatty mcp`，完成"新增一个带 DTO 校验的 POST 接口并通过测试"的端到端任务
 - [x] 构造一个试图写入 `../outside.txt` 的恶意变更集，`koatty_apply` 必须拒绝 —— `tests/regression/E-02.mcp.test.ts` 覆盖哈希不匹配与越界路径两种情况（均 fail closed）
 
