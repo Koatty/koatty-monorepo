@@ -830,9 +830,22 @@ this._setInstance(target, options);
 
 ### Phase C 验收门
 
-- [ ] COR-03～COR-15 回归测试全部通过
-- [ ] 停机集成测试在 Linux CI 中连续跑 20 次无偶发失败
-- [ ] gRPC 四种调用类型端到端测试通过
+- [x] COR-03～COR-15 回归测试全部通过
+      （2026-09-28 复跑：`COR-03`/`COR-04`+`SEC-*` serve 30 套件 806 通过、`COR-05`（含新增 TC39 分支回归 `COR-05.redlock-tc39.test.ts`）
+      +`COR-06` schedule 11 套件 150 通过、`COR-07`/`COR-11` container 18 套件 353 通过、`COR-08` config 2 套件 12 通过、
+      `COR-10` store 11 套件 66 通过、`COR-12`+`COR-01` core 15 套件 306 通过、`COR-13` cacheable 2 套件 29 通过、
+      `COR-15` trace 16 套件 135 通过 —— 全绿）
+- [x] 停机集成测试连续跑 20 次无偶发失败
+      （本机 20/20 通过（`for i in $(seq 1 20); do jest test/regression/COR-03.graceful-shutdown.test.ts; done`，
+      `packages/koatty-serve`）；Linux 侧由 CI 新增步骤 `Graceful shutdown loop (COR-03, 20x)`（`.github/workflows/ci.yml`）固化，
+      下次 CI 运行时生效）
+- [x] gRPC 四种调用类型端到端测试通过
+      （`packages/koatty-serve/test/regression/COR-04.grpc-streaming.test.ts`：一元/客户端流/服务端流/双向流分派、
+      客户端取消后停止写出、deadline 超时 `DEADLINE_EXCEEDED`、无 deadline 时回退配置超时）
+
+**发布状态**：`koatty@4.4.0` 已发布（commit `81eb710`，含 `koatty-serverless` patch bump）；
+Phase C 的 `koatty_schedule` 修复随 `koatty_schedule@6.1.0` 发布（submodule commit `465a07c`）——
+此前 `6.0.0` 只做了依赖版本同步，C-3/C-4 的实现与回归测试并未包含在内。
 
 ---
 

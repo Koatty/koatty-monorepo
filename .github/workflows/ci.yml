@@ -103,6 +103,18 @@ jobs:
         # timing assertions have moved to the §12.3 benchmarks.
         run: pnpm turbo run test --force --concurrency=2
 
+      # Phase C acceptance gate (plan §6): the graceful-shutdown integration test
+      # is timing sensitive, so run it 20 times in a row and fail on the first
+      # flake. `pnpm turbo run test` above already built the workspace deps.
+      - name: Graceful shutdown loop (COR-03, 20x)
+        working-directory: packages/koatty-serve
+        shell: bash
+        run: |
+          for i in $(seq 1 20); do
+            echo "COR-03 graceful shutdown run $i/20"
+            pnpm exec jest test/regression/COR-03.graceful-shutdown.test.ts --silent || exit 1
+          done
+
       - name: Security baseline checks (plan §12.2)
         run: pnpm security:baseline
 
