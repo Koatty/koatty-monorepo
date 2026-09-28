@@ -53,7 +53,9 @@ export class Http2Server extends BaseServer<Http2ServerOptions, Http2SecureServe
       try {
         await healthMiddleware(req, res, async () => {
           if (rateLimitMiddleware) {
-            await rateLimitMiddleware(req, res, async () => {
+            // http2 request/response are structurally compatible with the
+            // http ones the middleware is typed for
+            await rateLimitMiddleware(req as any, res as any, async () => {
               this.app.callback()(req, res);
             });
           } else {

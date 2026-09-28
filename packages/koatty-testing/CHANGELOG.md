@@ -1,5 +1,13 @@
 # koatty_testing
 
+## 4.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_core@2.5.0
+  - koatty@4.3.4
+
 ## 3.0.0
 
 ### Patch Changes

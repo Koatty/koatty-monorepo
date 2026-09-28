@@ -13,11 +13,8 @@ import * as zlib from 'zlib';
 import { IRpcServerCallImpl, KoattyContext } from "koatty_core";
 import { Exception, StatusCodeConvert } from "koatty_exception";
 import { DefaultLogger as Logger } from "koatty_logger";
-import { Span } from '@opentelemetry/api';
-import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 import { catcher } from '../trace/catcher';
 import { extensionOptions } from '../trace/itrace';
-import { collectRequestMetrics } from '../opentelemetry/prometheus';
 
 
 /**
@@ -47,7 +44,13 @@ export class GrpcHandler extends BaseHandler implements Handler {
   }
 
   async handle(ctx: KoattyContext, next: Function, ext?: extensionOptions): Promise<any> {
-    const timeout = ext.timeout || 10000;
+    // COR-04 (C-2): prefer the gRPC deadline forwarded by koatty-serve
+    // (`call.koattyDeadlineMs`, derived from `call.getDeadline()`) over the
+    // framework-level fixed timeout, so a client deadline is honoured exactly.
+    const callDeadline = (ctx?.rpc?.call as any)?.koattyDeadlineMs;
+    const timeout = typeof callDeadline === 'number' && callDeadline > 0
+      ? Math.max(Math.min(callDeadline, ext.timeout || callDeadline), 1)
+      : (ext.timeout || 10000);
     const acceptEncoding = ctx.rpc.call.metadata.get('accept-encoding')[0] || '';
     const compression = acceptEncoding.includes('br') ? 'brotli' : 
                       acceptEncoding.includes('gzip') ? 'gzip' : 'none';
@@ -118,48 +121,15 @@ export class GrpcHandler extends BaseHandler implements Handler {
       error = err;
       return this.handleError(err, ctx, ext);
     } finally {
-      // 统一在 finally 块中记录日志和结束追踪
-      // 只记录成功请求或非4xx/5xx的日志（错误日志已由Exception.handler记录）
+      // COR-15: span end + metrics happen exactly once in
+      // `trace.ts#handleRequest`'s finally; only the access log is written here.
       if (!error || ctx.status < 400) {
         const status = StatusCodeConvert(ctx.status);
         this.commonPostHandle(ctx, ext, buildRequestLogData(ctx, status));
-      } else {
-        // 错误情况只处理追踪和指标，日志已经记录过了
-        this.endTraceSpanOnly(ctx, ext);
-        this.collectMetricsOnly(ctx, ext);
       }
       
       // 确保 finish 事件被触发（用于清理资源）
       ctx.res.emit("finish");
-    }
-  }
-
-  /**
-   * 只结束追踪span，不记录日志
-   */
-  private endTraceSpanOnly(ctx: KoattyContext, ext: extensionOptions) {
-    if (ext.spanManager) {
-      const status = StatusCodeConvert(ctx.status);
-      const msg = buildRequestLogData(ctx, status);
-
-      // 设置span属性
-      ext.spanManager.setSpanAttributes(ctx, {
-        [SemanticAttributes.HTTP_STATUS_CODE]: ctx.status,
-        [SemanticAttributes.HTTP_METHOD]: ctx.method,
-        [SemanticAttributes.HTTP_URL]: ctx.url
-      });
-      ext.spanManager.addSpanEvent(ctx, "request", { "message": JSON.stringify(msg) });
-      ext.spanManager.endSpan(ctx);
-    }
-  }
-
-  /**
-   * 只收集指标，不记录日志
-   */
-  private collectMetricsOnly(ctx: KoattyContext, ext: extensionOptions) {
-    if (ctx.startTime) {
-      const duration = Date.now() - ctx.startTime;
-      collectRequestMetrics(ctx, duration);
     }
   }
 }

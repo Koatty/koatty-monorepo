@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.1
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_core@2.5.0
+
 ## 2.4.0
 
 ### Minor Changes

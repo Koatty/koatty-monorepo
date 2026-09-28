@@ -14,8 +14,6 @@ import { DefaultLogger as Logger } from "koatty_logger";
 import { BaseHandler, Handler, buildRequestLogData } from "./base";
 import { extensionOptions } from "../trace/itrace";
 import { respond } from "./respond";
-import { collectRequestMetrics } from "../opentelemetry/prometheus";
-import { SemanticAttributes } from "@opentelemetry/semantic-conventions";
 
 /**
  * HTTP request handler middleware for Koatty framework.
@@ -67,43 +65,12 @@ export class HttpHandler extends BaseHandler implements Handler {
       error = err;
       return this.handleError(err, ctx, ext);
     } finally {
-      // 统一在 finally 块中记录日志和结束追踪
-      // 只记录成功请求或非4xx/5xx的日志（错误日志已由Exception.handler记录）
+      // COR-15: the span is ended and metrics are collected exactly once, in
+      // `trace.ts#handleRequest`'s finally; here we only write the access log
+      // (errors are already logged by Exception.handler).
       if (!error || ctx.status < 400) {
         this.commonPostHandle(ctx, ext, buildRequestLogData(ctx));
-      } else {
-        // 错误情况只处理追踪和指标，日志已经记录过了
-        this.endTraceSpanOnly(ctx, ext);
-        this.collectMetricsOnly(ctx, ext);
       }
-    }
-  }
-
-  /**
-   * 只结束追踪span，不记录日志
-   */
-  private endTraceSpanOnly(ctx: KoattyContext, ext: extensionOptions) {
-    if (ext.spanManager) {
-      const msg = buildRequestLogData(ctx);
-
-      // 设置span属性
-      ext.spanManager.setSpanAttributes(ctx, {
-        [SemanticAttributes.HTTP_STATUS_CODE]: ctx.status,
-        [SemanticAttributes.HTTP_METHOD]: ctx.method,
-        [SemanticAttributes.HTTP_URL]: ctx.url
-      });
-      ext.spanManager.addSpanEvent(ctx, "request", { "message": JSON.stringify(msg) });
-      ext.spanManager.endSpan(ctx);
-    }
-  }
-
-  /**
-   * 只收集指标，不记录日志
-   */
-  private collectMetricsOnly(ctx: KoattyContext, ext: extensionOptions) {
-    if (ctx.startTime) {
-      const duration = Date.now() - ctx.startTime;
-      collectRequestMetrics(ctx, duration);
     }
   }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.3
+
+### Patch Changes
+
+- Updated dependencies
+  - koatty_core@2.5.0
+
 ## 1.4.2
 
 ### Patch Changes

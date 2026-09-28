@@ -10,10 +10,8 @@
 import { KoattyContext, KoattyNext } from "koatty_core";
 import { catcher } from "../trace/catcher";
 import { DefaultLogger as Logger } from "koatty_logger";
-import { Span } from '@opentelemetry/api';
 import { SemanticAttributes } from "@opentelemetry/semantic-conventions";
 import { extensionOptions } from "../trace/itrace";
-import { collectRequestMetrics } from '../opentelemetry/prometheus';
 import { TimeoutController } from "../utils/timeout";
 import { Exception } from "koatty_exception";
 
@@ -33,9 +31,11 @@ export abstract class BaseHandler implements Handler {
   }
 
   protected commonPostHandle(ctx: KoattyContext, ext: extensionOptions, msg?: RequestLogData | string) {
+    // COR-15: only the access log remains here. Finishing the span and
+    // collecting request metrics happen exactly once per request, in the
+    // `finally` of `trace.ts#handleRequest`; doing it here as well counted
+    // every request twice (metrics +2, span ended twice).
     this.logRequest(ctx, ext, msg);
-    this.endTraceSpan(ctx, ext, msg);
-    this.collectMetrics(ctx, ext);
   }
 
   protected handleError(err: Error, ctx: KoattyContext, ext: extensionOptions) {
@@ -94,34 +94,6 @@ export abstract class BaseHandler implements Handler {
         [SemanticAttributes.HTTP_URL]: ctx.originalUrl,
         [SemanticAttributes.HTTP_METHOD]: ctx.method
       });
-    }
-  }
-
-  private endTraceSpan(ctx: KoattyContext, ext: extensionOptions, msg?: RequestLogData | string) {
-    if (ext.spanManager) {
-      // ✅ 传递 ctx 参数
-      ext.spanManager.setSpanAttributes(ctx, {
-        [SemanticAttributes.HTTP_STATUS_CODE]: ctx.status,
-        [SemanticAttributes.HTTP_METHOD]: ctx.method,
-        [SemanticAttributes.HTTP_URL]: ctx.url
-      });
-      // span event attributes must be scalar values
-      ext.spanManager.addSpanEvent(ctx, "request", {
-        "message": typeof msg === 'string' ? msg : JSON.stringify(msg ?? {})
-      });
-      ext.spanManager.endSpan(ctx);
-    }
-  }
-
-  /**
-   * Collect metrics for the request
-   * @param ctx - Koatty context object
-   * @param ext - Extension options
-   */
-  private collectMetrics(ctx: KoattyContext, ext?: extensionOptions) {
-    if (ctx.startTime) {
-      const duration = Date.now() - ctx.startTime;
-      collectRequestMetrics(ctx, duration);
     }
   }
 

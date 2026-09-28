@@ -333,7 +333,11 @@ export class MetricsCollector {
       // Protocol-specific metrics
       this.collectProtocolSpecificMetricsOptimized(ctx, protocol);
 
-      if (typeof logger.debug === 'function') {
+      // PERF-02: short-circuit hot-path debug logging — building the
+      // interpolated string per request is measurable at high throughput.
+      // Older koatty-logger without the isDebugEnabled flag keeps logging.
+      const debugLogger = logger as { debug?: Function; isDebugEnabled?: boolean };
+      if (typeof debugLogger.debug === 'function' && debugLogger.isDebugEnabled !== false) {
         logger.debug(`Metrics collected for ${protocol.toUpperCase()} ${ctx.method} ${ctx.path}: ${duration}ms, status: ${ctx.status}`);
       }
     } catch (error) {

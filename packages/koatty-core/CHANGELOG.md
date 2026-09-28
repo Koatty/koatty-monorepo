@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.5.0
+
+### Minor Changes
+
+- Phase C（P1 功能正确性，路线图 4.4.0）— main-repo 部分
+
+  **koatty_serve**
+  - COR-03（C-1）优雅停机闭环：`TerminusManager.shutdownAll()` 现在按
+    `signal → beginDrain（/ready 503）→ preStopDelay → Stop（停止接收新连接、排空在途请求、超时强关）→ appStop → 退出`
+    顺序执行，不再只触发 `appStop`；`Stop()` 前先 `beginDrain()`，`getStatus()` 生命周期
+    为 `0（未启动）/200（健康）/503（摘流中）`。
+  - COR-03：`closeIdleConnections()` 释放 keep-alive 空闲连接，排空阶段只等待真正在途的请求，
+    不再被 `keepAliveTimeout` 拖满整个 drain 预算；停机总预算 = `preStopDelay + drainTimeout + 5s` 强关余量。
+  - COR-03：`exitOnShutdown=false`（测试 / 宿主接管退出）时不再调用 `Logger.Fatal`（它会直接 `process.exit`）。
+  - COR-03：`ConfigHelper.create*Config()` 使用 `??` 保留显式的 `port: 0`（随机端口）。
+  - COR-04（C-2）gRPC 四种调用形态：按 `@grpc/proto-loader` 方法定义中的
+    `requestStream`/`responseStream` 分派包装器（一元 / 客户端流 / 服务端流 / 双向流）；流式调用以
+    `(call)` 包装、不设置回调超时、客户端 `cancelled` 后停止写出；一元/客户端流读取
+    `call.getDeadline()` 作为超时（无 deadline 时回退 `requestTimeout`），并把结果通过
+    `call.koattyDeadlineMs` 传给 trace 的 GrpcHandler；连接跟踪 ID 改用 `crypto.randomUUID()`。
+  - `shutdown: { preStopDelay, drainTimeout }` 可通过 server 配置或 `TerminusManager` 覆盖。
+
+  **koatty_trace**
+  - COR-15（C-7）指标采集与 Span 结束只在 `handleRequest` 的 `finally` 中执行一次，
+    删除各协议 handler 中的重复调用（此前每个请求指标 +2、Span 结束两次）；Span 的状态属性与
+    `request` 事件也集中在该处写入。
+  - C-2：`GrpcHandler` 接受 `call.koattyDeadlineMs`（来自 gRPC deadline）作为请求超时。
+  - COR-03：删除 `SpanManager` 自行注册的 `SIGTERM`/`SIGINT` 监听，统一由 `TerminusManager` 协调。
+
+  **koatty_core**
+  - COR-03：`Application.stop()` 返回 Promise，服务器全部停止后再 `emit('appStop')`；
+    移除把 `appStop` 转绑到 `process beforeExit` 的 `bindProcessEvent` 用法（收到信号退出时不会触发）。
+  - COR-12（C-7）：`Application.use()` 同时清空 `middlewareStacks`（按协议缓存的中间件栈），
+    在 `appReady` 之后调用 `use()` 会输出 `WARN`。
+
 ## 2.4.0
 
 ### Minor Changes

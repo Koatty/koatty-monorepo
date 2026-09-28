@@ -12,6 +12,7 @@ import { AppEvent, Koatty, KoattyContext, KoattyNext } from "koatty_core";
 import { Helper } from "koatty_lib";
 import { SpanManager } from '../opentelemetry/spanManager';
 import { SpanStatusCode } from '@opentelemetry/api';
+import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 import { performance } from 'node:perf_hooks';
 import { HandlerFactory } from '../handler/factory';
 import { ProtocolType } from '../handler/base';
@@ -450,11 +451,27 @@ async function handleRequest(
       }
     }
 
-    // End span on request completion to ensure accurate durations and prevent memory leaks
+    // COR-15: this is the single place where a request is accounted for.
+    // The per-protocol handlers no longer end the span or collect metrics, so
+    // every request is counted exactly once (metrics +1, span ended once) even
+    // on the error path.
     if (ext.spanManager) {
       const span = ext.spanManager.getSpan(ctx);
       if (span) {
         try {
+          ext.spanManager.setSpanAttributes(ctx, {
+            [SemanticAttributes.HTTP_STATUS_CODE]: ctx.status,
+            [SemanticAttributes.HTTP_METHOD]: ctx.method,
+            [SemanticAttributes.HTTP_URL]: ctx.url || ctx.originalUrl,
+          });
+          // span event attributes must be scalar values
+          ext.spanManager.addSpanEvent(ctx, 'request', {
+            status: ctx.status,
+            method: ctx.method,
+            path: ctx.originalPath || ctx.path || '/',
+            duration,
+            requestId: ctx.requestId,
+          });
           span.setStatus({ code: ctx.status >= 400 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
           ext.spanManager.endSpan(ctx);
         } catch (error) {
