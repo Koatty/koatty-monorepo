@@ -95,6 +95,7 @@ describe("SingleProtocolServer", () => {
       expect(server.protocol).toBe("http");
     });
 
+    // [SKIP-16] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should initialize with multiple protocols - DEPRECATED: Only single protocol supported", () => {
       // This test is skipped because SingleProtocolServer now only supports single protocol
       const server = new SingleProtocolServer(app as any, {
@@ -131,6 +132,7 @@ describe("SingleProtocolServer", () => {
       expect(callback).toHaveBeenCalled();
     });
 
+    // [SKIP-17] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should start multiple protocol servers - DEPRECATED: Only single protocol supported", () => {
       // Skipped: SingleProtocolServer now only supports single protocol
     });
@@ -210,14 +212,17 @@ describe("SingleProtocolServer", () => {
   });
 
   describe("Server management", () => {
+    // [SKIP-18] deprecated API: getServer() removed — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should get server by protocol and port - DEPRECATED: getServer() method removed", () => {
       // Skipped: getServer() method no longer exists in SingleProtocolServer
     });
 
+    // [SKIP-19] deprecated API: getServer() removed — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should return undefined for non-existent server - DEPRECATED: getServer() method removed", () => {
       // Skipped: getServer() method no longer exists in SingleProtocolServer
     });
 
+    // [SKIP-20] deprecated API: getAllServers() removed — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should get all servers - DEPRECATED: getAllServers() method removed", () => {
       // Skipped: getAllServers() method no longer exists in SingleProtocolServer
     });
@@ -237,6 +242,7 @@ describe("SingleProtocolServer", () => {
       expect(status).toBe(200);
     });
 
+    // [SKIP-21] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should get status from specific protocol server - DEPRECATED: Only single protocol supported", () => {
       // Skipped: getStatus() no longer accepts protocol/port parameters
     });
@@ -254,6 +260,7 @@ describe("SingleProtocolServer", () => {
       expect(nativeServer).toBeDefined();
     });
 
+    // [SKIP-22] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should get native server for specific protocol - DEPRECATED: Only single protocol supported", () => {
       // Skipped: getNativeServer() no longer accepts protocol/port parameters
     });
@@ -277,12 +284,14 @@ describe("SingleProtocolServer", () => {
        expect(true).toBe(true);
      });
 
+         // [SKIP-23] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
          it.skip("should register service on specific gRPC server - DEPRECATED: Only single protocol supported", () => {
        // Skipped: RegisterService() no longer accepts protocol/port parameters
      });
   });
 
   describe("Port allocation", () => {
+    // [SKIP-24] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should allocate different ports for multiple protocols - DEPRECATED: Only single protocol supported", () => {
       // Skipped: Port allocation for multiple protocols no longer needed
     });
@@ -424,6 +433,7 @@ describe("NewServe function", () => {
       expect(server.options.ext?.custom).toBe("value");
     });
 
+    // [SKIP-25] deprecated API: single protocol per server — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip("should preserve protocol arrays - DEPRECATED: Only single protocol supported", () => {
       // Skipped: Protocol arrays no longer supported
     });

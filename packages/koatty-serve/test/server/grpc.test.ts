@@ -678,6 +678,8 @@ describe('GrpcServer', () => {
       expect(hasChanged).toBe(true);
     });
 
+    // [SKIP-13] reason not recorded (pre-Phase A); private API hasChannelOptionsChanged() changed shape
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should detect channel options changes', () => {
       const oldConfig: any = {
         channelOptions: { 'grpc.keepalive_time_ms': 30000 }
@@ -742,6 +744,8 @@ describe('GrpcServer', () => {
   });
 
   describe('Service Registration and Management', () => {
+    // [SKIP-14] reason not recorded (pre-Phase A); needs a live gRPC server
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should register service implementation', () => {
       const serviceImpl: any = {
         service: {
@@ -815,6 +819,8 @@ describe('GrpcServer', () => {
       ).resolves.not.toThrow();
     });
 
+    // [SKIP-15] reason not recorded (pre-Phase A); needs a live gRPC server + open channels
+    // tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should force close remaining connections', async () => {
       const traceId = 'test-trace-id';
       

@@ -198,6 +198,7 @@ describe('WsServer', () => {
     // TODO: 临时跳过此测试 - 由于测试环境中异步资源清理时序问题导致的间歇性超时
     // 功能本身正常，单独运行时可以通过，属于测试环境的资源竞争问题
     // 可在优化测试环境后重新启用
+    // [SKIP-26] flaky: async resource-cleanup timing in tests (author TODO) — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should stop WebSocket server successfully', async () => {
       const stopPromise = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -680,6 +681,7 @@ describe('WsServer', () => {
 
   // Add comprehensive WebSocket tests after existing tests
   describe('WebSocket Configuration Management', () => {
+    // [SKIP-27] reason not recorded (pre-Phase A); external HTTP server wiring — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should create WebSocket server with external HTTP server', () => {
       // 由于 ext 字段已从协议特定配置中移除，此功能暂不支持
       const mockHttpServer = {
@@ -789,6 +791,7 @@ describe('WsServer', () => {
   });
 
   describe('WebSocket Upgrade Handling', () => {
+    // [SKIP-28] reason not recorded (pre-Phase A); upgrade handling wiring — tracked in docs/reports/test-baseline-2026-09.md#skip-inventory
     it.skip('should setup upgrade handling correctly', () => {
       // 由于 ext 字段已从协议特定配置中移除，此功能暂不支持
       const mockHttpServer = {

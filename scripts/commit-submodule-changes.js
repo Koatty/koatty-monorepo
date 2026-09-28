@@ -57,8 +57,10 @@ function hasChanges(cwd) {
  * 获取变更文件列表
  */
 function getChangedFiles(cwd) {
+  // NOTE: do not trim() the whole output -- the first line of
+  // `git status --porcelain` starts with a space for unstaged changes (" M file"),
+  // and trimming it would drop the first character of the file name.
   return git('status --porcelain', cwd)
-    .trim()
     .split('\n')
     .filter(line => line.trim())
     .map(line => {

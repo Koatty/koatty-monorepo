@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.3.1
+
+### Patch Changes
+
+- Fix span double-end race in `SpanManager`: a span ended by the timeout /
+  memory-pressure sweeper (`forceEndSpan`) could be ended a second time when the
+  request completed normally, which double-counted `spansEnded` and exported the
+  span twice. Span ending now goes through an idempotent `endSpanOnce()` guard
+  (detected by the Phase A test-gate hardening: `test/trace.test.ts` asserts each
+  span is ended exactly once and failed intermittently under
+  `turbo run test --force`).
+
 ## 2.3.0
 
 ### Minor Changes
@@ -7,7 +19,6 @@
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
-
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -308,7 +319,6 @@ All notable changes to this project will be documented in this file. See [standa
 ### Features
 
 - **metrics**: 完成基础 HTTP 指标的实际收集功能 ([#新增])
-
   - 实现完整的 MetricsCollector 类，支持 HTTP 请求指标收集
   - 新增 http_requests_total 计数器，统计 HTTP 请求总数
   - 新增 http_errors_total 计数器，统计 HTTP 错误请求数（状态码>=400）
@@ -319,7 +329,6 @@ All notable changes to this project will be documented in this file. See [standa
   - 添加完整的测试覆盖，确保指标收集功能的稳定性
 
 - **integration**: 增强请求处理器的指标收集能力 ([#改进])
-
   - 在 BaseHandler 中集成指标收集功能
   - 在 trace.ts 中添加指标收集调用
   - 支持错误类型分类（client_error, server_error）

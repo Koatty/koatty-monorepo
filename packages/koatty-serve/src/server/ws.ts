@@ -69,7 +69,9 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
     this.options.wsOptions = {
       ...this.options.wsOptions,
       noServer: true,
-      maxPayload: this.options.wsOptions?.maxPayload ?? wsProfile.maxPayload ?? 0,
+      // fail-closed: 0 means UNLIMITED in ws@8, so an app without a security
+      // profile must still fall back to a hard 1MiB cap (ADR-101, B-8)
+      maxPayload: this.options.wsOptions?.maxPayload ?? wsProfile.maxPayload ?? 1 * 1024 * 1024,
       perMessageDeflate: this.options.wsOptions?.perMessageDeflate ?? false,
     };
 

@@ -38,6 +38,13 @@ describe("SEC-08: WebSocket server defaults", () => {
     expect((server.options.wsOptions as any).maxPayload).toBe(1024 * 1024);
   });
 
+  test("without a profile maxPayload fails closed to 1MiB", () => {
+    const server = makeWsServer();
+    server.createProtocolServer();
+    expect((server.options.wsOptions as any).maxPayload).toBe(1024 * 1024);
+    expect((server.options.wsOptions as any).perMessageDeflate).toBe(false);
+  });
+
   test("explicit wsOptions win over the profile", () => {
     const server = makeWsServer({ wsProfile: { maxPayload: 1024 * 1024 } });
     server.options.wsOptions = { maxPayload: 4096 } as any;

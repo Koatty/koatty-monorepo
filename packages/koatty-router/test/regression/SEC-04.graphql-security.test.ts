@@ -105,6 +105,31 @@ describe("SEC-04: profile-driven router defaults", () => {
     expect((router as any).playgroundEnabled).toBe(false);
   });
 
+  test("without a profile introspection stays off (fail-closed)", () => {
+    const router = new GraphQLRouter(makeApp(), OPTIONS_WITH_SCHEMA);
+    router.SetRouter("/graphql", { schema: TEST_SCHEMA, implementation: { dummy: () => 1 } } as any);
+    expect((router as any).introspectionEnabled).toBe(false);
+  });
+
+  test("introspection is only enabled when the profile turns it on", () => {
+    const on = new GraphQLRouter(makeApp({ introspection: true }), OPTIONS_WITH_SCHEMA);
+    on.SetRouter("/graphql", { schema: TEST_SCHEMA, implementation: { dummy: () => 1 } } as any);
+    expect((on as any).introspectionEnabled).toBe(true);
+
+    const off = new GraphQLRouter(makeApp({ introspection: false }), OPTIONS_WITH_SCHEMA);
+    off.SetRouter("/graphql", { schema: TEST_SCHEMA, implementation: { dummy: () => 1 } } as any);
+    expect((off as any).introspectionEnabled).toBe(false);
+  });
+
+  test("explicit ext.introspection wins over the profile", () => {
+    const router = new GraphQLRouter(makeApp({ introspection: true }), {
+      ...OPTIONS_WITH_SCHEMA,
+      ext: { schemaFile: "./schema.gql", introspection: false },
+    });
+    router.SetRouter("/graphql", { schema: TEST_SCHEMA, implementation: { dummy: () => 1 } } as any);
+    expect((router as any).introspectionEnabled).toBe(false);
+  });
+
   test("explicit ext config wins over the profile", () => {
     const router = new GraphQLRouter(makeApp({ playground: true }), {
       ...OPTIONS_WITH_SCHEMA,
