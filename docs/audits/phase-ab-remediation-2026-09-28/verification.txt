@@ -1,0 +1,73 @@
+Environment: macOS; Node v22.23.1; pnpm 9.15.4
+Working tree based on main HEAD 5740654
+
+pnpm turbo run test --force --continue --concurrency=2: exit 0, 46/46 tasks, cache 0
+Jest: 3018 passed / 48 skipped / 0 failed; +47 passed versus audit baseline
+
+koatty_cli:test: Test Suites: 31 passed, 31 total
+koatty_cli:test: Tests:       154 passed, 154 total
+koatty_lib:test: Test Suites: 2 passed, 2 total
+koatty_lib:test: Tests:       91 passed, 91 total
+koatty_loader:test: Test Suites: 1 passed, 1 total
+koatty_loader:test: Tests:       1 passed, 1 total
+koatty_graphql:test: No tests found, exiting with code 0
+koatty_proto:test: Test Suites: 2 passed, 2 total
+koatty_proto:test: Tests:       9 passed, 9 total
+koatty_logger:test: Test Suites: 2 passed, 2 total
+koatty_logger:test: Tests:       30 passed, 30 total
+koatty_container:test: Test Suites: 20 passed, 20 total
+koatty_container:test: Tests:       359 passed, 359 total
+koatty_store:test: Test Suites: 11 passed, 11 total
+koatty_store:test: Tests:       66 passed, 66 total
+koatty_exception:test: Test Suites: 4 passed, 4 total
+koatty_exception:test: Tests:       80 passed, 80 total
+koatty_validation:test: Test Suites: 15 passed, 15 total
+koatty_validation:test: Tests:       210 passed, 210 total
+koatty_core:test: Test Suites: 16 passed, 16 total
+koatty_core:test: Tests:       4 skipped, 307 passed, 311 total
+koatty_typeorm:test: Test Suites: 2 skipped, 8 passed, 8 of 10 total
+koatty_typeorm:test: Tests:       20 skipped, 93 passed, 113 total
+koatty_schedule:test: Test Suites: 11 passed, 11 total
+koatty_schedule:test: Tests:       150 passed, 150 total
+koatty_cacheable:test: Test Suites: 2 passed, 2 total
+koatty_cacheable:test: Tests:       29 passed, 29 total
+koatty_serverless:test: Test Suites: 6 passed, 6 total
+koatty_serverless:test: Tests:       41 passed, 41 total
+koatty_config:test: Test Suites: 2 passed, 2 total
+koatty_config:test: Tests:       12 passed, 12 total
+koatty_trace:test: Test Suites: 16 passed, 16 total
+koatty_trace:test: Tests:       135 passed, 135 total
+koatty_router:test: Test Suites: 31 passed, 31 total
+koatty_router:test: Tests:       376 passed, 376 total
+koatty_serve:test: Test Suites: 31 passed, 31 total
+koatty_serve:test: Tests:       24 skipped, 819 passed, 843 total
+koatty_swagger:test: Test Suites: 9 passed, 9 total
+koatty_swagger:test: Tests:       52 passed, 52 total
+koatty:test: Test Suites: 2 passed, 2 total
+koatty:test: Tests:       4 passed, 4 total
+koatty_testing:test: No tests found, exiting with code 0
+
+pnpm turbo run lint --force --continue --concurrency=2: exit 0, 24/24 tasks, cache 0; existing warnings remain
+node scripts/doctor.js --assert-submodules: exit 0
+pnpm security:baseline (includes tsc --noEmit): exit 0
+[PASS] wire: minimal /health and /healthz
+[PASS] wire: valid DTO reaches the real decorated method
+[PASS] wire: malformed JSON is 400 without reflection
+[PASS] wire: fixed 2MiB request is 413
+[PASS] wire: strict DTO rejects undeclared fields and missing required fields
+[PASS] wire: invalid and oversized IDs are replaced; valid ID survives
+[PASS] wire: GraphQL enabled and normal query succeeds
+[PASS] wire: no GraphQL playground
+[PASS] wire: GraphQL introspection rejected by its security rule
+[PASS] wire: GraphQL depth and complexity enforced
+[PASS] wire: 11-file upload is 413 and temporary files are removed
+[PASS] wire: WS origin checks and configured handshake rate limit
+[PASS] wire: TLS1.2 succeeds and TLS1.1 handshake is rejected
+[PASS] component: external socket address denied despite forged XFF
+PASS 14 / FAIL 0 / SKIP 0
+
+Negative baseline: temporary copy expects wrong DTO result; underlying command exit 1, PASS 13 / FAIL 1 / SKIP 0; temporary copy deleted.
+git diff --check (root and submodules, cr-at-eol enabled for existing generated CRLF docs): no whitespace errors.
+
+Boundary: local workspace fixture, not independent tarball / generated app / remote Linux CI / external network deployment.
+Original koatty_graphql and koatty_testing tasks still contain no tests. Existing 48 skipped cases are not counted as passed.

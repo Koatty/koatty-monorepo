@@ -11,7 +11,7 @@
 import { KoattyContext } from "koatty_core";
 import { PayloadOptions } from "../interface";
 import { emptyFallback, payloadParseError, resolveOnParseError } from "../error_policy";
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { parseText } from "./text";
 
 interface XMLParserOptions {
@@ -42,6 +42,9 @@ export async function parseXml(ctx: KoattyContext, opts: PayloadOptions) {
   if (!str) return {};
 
   try {
+    if (XMLValidator.validate(str) !== true) {
+      throw new Error('Malformed XML');
+    }
     const parsed = xmlParser.parse(str);
     return (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed))
       ? parsed

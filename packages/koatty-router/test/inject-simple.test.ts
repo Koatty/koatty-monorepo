@@ -836,7 +836,7 @@ describe('Inject Simple Tests', () => {
 
         const result = await handler({}, params);
 
-        expect(ClassValidator.valid).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true);
+        expect(ClassValidator.valid).toHaveBeenCalledWith(mockClazz, { user: 'raw' }, true, { partial: undefined });
         expect(result).toEqual([{ validated: true }]);
       });
 

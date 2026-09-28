@@ -1,0 +1,10 @@
+AROUND_RESULT 2 BUSINESS_CALLS 2
+[2026-09-28 11:38:19.431 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 11:38:19.433 +08:00]  DEBUG Container initialized with metadata cache
+[2026-09-28 11:38:19.433 +08:00]  DEBUG Instance was cleared for AuditTarget, recreating with proper dependency injection flow
+[2026-09-28 11:38:19.434 +08:00]  DEBUG Start resolving component: AuditTarget, current path: [AuditTarget]
+[2026-09-28 11:38:19.434 +08:00]  DEBUG Successfully recreated singleton instance for AuditTarget
+[2026-09-28 11:38:19.434 +08:00]  DEBUG Instance was cleared for AuditAroundAspect, recreating with proper dependency injection flow
+[2026-09-28 11:38:19.434 +08:00]  DEBUG Start resolving component: AuditAroundAspect, current path: [AuditTarget -> AuditAroundAspect]
+[2026-09-28 11:38:19.434 +08:00]  DEBUG Successfully recreated singleton instance for AuditAroundAspect
+[2026-09-28 11:38:19.434 +08:00]  ERROR Around aspect execution failed for AuditAroundAspect: post failure

@@ -1,0 +1,7 @@
+const root=process.cwd(),fs=require('fs'),os=require('os'),path=require('path'),http=require('http');
+require(root+'/node_modules/ts-node').register({transpileOnly:true,skipProject:true,compilerOptions:{module:'commonjs',target:'es2022',esModuleInterop:true}});
+const {bodyParser}=require(root+'/packages/koatty-router/src/payload/payload.ts');
+const {FILE_KEY}=require(root+'/packages/koatty-router/src/payload/interface.ts');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'koatty-upload-audit-'));
+const server=http.createServer(async(req,res)=>{const ctx={req,res,method:req.method,request:{headers:req.headers},app:{security:{payload:{limit:'1mb',maxFiles:10,maxFields:100,maxFieldsSize:'1mb'}}},setMetaData(){}};try{const b=await bodyParser(ctx,{uploadDir:dir});res.end(JSON.stringify(b[FILE_KEY]));}catch(e){res.statusCode=e.status||500;res.end(e.message)}});
+server.listen(0,'127.0.0.1',async()=>{try{for(const n of [1,11]){const boundary='auditboundary';let body='';for(let i=0;i<n;i++)body+=`--${boundary}\r\nContent-Disposition: form-data; name="f${i}"; filename="attack.html"\r\nContent-Type: text/html\r\n\r\nhello\r\n`;body+=`--${boundary}--\r\n`;const r=await fetch(`http://127.0.0.1:${server.address().port}`,{method:'POST',headers:{'Content-Type':`multipart/form-data; boundary=${boundary}`},body});console.log('UPLOAD',n,r.status,await r.text());await new Promise(r=>setTimeout(r,1000));console.log('REMAINING',fs.readdirSync(dir));}}finally{server.close();fs.rmSync(dir,{recursive:true,force:true});}});

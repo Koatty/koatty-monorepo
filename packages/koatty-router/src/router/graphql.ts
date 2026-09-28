@@ -60,10 +60,15 @@ export function createQueryDepthLimitRule(maxDepth: number, ignore: RegExp[] = [
       }
     }
 
+    const depths = new Map<string, number>();
+    let visits = 0;
     const depthOfSelection = (selectionSet: SelectionSetNode | undefined, stack: Set<string>): number => {
       if (!selectionSet) return 0;
       let max = 0;
       for (const child of selectionSet.selections) {
+        if (++visits > 10000 || stack.size > 256) {
+          throw new GraphQLError('Query exceeds validation traversal budget.');
+        }
         let d = 0;
         if (child.kind === Kind.FIELD) {
           const field = child as FieldNode;
@@ -84,11 +89,16 @@ export function createQueryDepthLimitRule(maxDepth: number, ignore: RegExp[] = [
             );
             continue;
           }
+          if (depths.has(name)) {
+            max = Math.max(max, depths.get(name)!);
+            continue;
+          }
           const frag = fragments.get(name);
           if (!frag) continue;
           stack.add(name);
           d = depthOfSelection(frag.selectionSet, stack);
           stack.delete(name);
+          depths.set(name, d);
         }
         if (d > max) max = d;
       }
@@ -97,7 +107,12 @@ export function createQueryDepthLimitRule(maxDepth: number, ignore: RegExp[] = [
 
     return {
       OperationDefinition(node: DocumentNode) {
-        const depth = depthOfSelection((node as any).selectionSet, new Set());
+        let depth: number;
+        try { depth = depthOfSelection((node as any).selectionSet, new Set()); }
+        catch (error) {
+          context.reportError(error instanceof GraphQLError ? error : new GraphQLError('Query depth validation failed.'));
+          return false;
+        }
         if (depth > maxDepth) {
           context.reportError(
             new GraphQLError(
@@ -201,22 +216,23 @@ export class GraphQLRouter implements KoattyRouter {
     // complexity limit relies on the optional graphql-query-complexity rule;
     // configuring it without the package is a startup failure (fail-closed)
     if (complexityLimit && complexityLimit > 0) {
-      let createComplexityLimitRule: any;
+      let createComplexityRule: any;
+      let simpleEstimator: any;
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        ({ createComplexityLimitRule } = require('graphql-query-complexity'));
+        ({ createComplexityRule, simpleEstimator } = require('graphql-query-complexity'));
       } catch {
         throw new Error(
           'GraphQL complexityLimit is configured but the optional package ' +
           '"graphql-query-complexity" is not installed. ' +
-          'Install it or unset graphql.ext.complexityLimit.'
+          'Install it or explicitly set graphql.ext.complexityLimit to 0.'
         );
       }
       validationRules.push(
-        createComplexityLimitRule(complexityLimit, {
-          scalarCost: 1,
-          objectCost: 2,
-          listFactor: 10,
+        createComplexityRule({
+          maximumComplexity: complexityLimit,
+          estimators: [simpleEstimator({ defaultComplexity: 1 })],
+          maxQueryNodes: 10000,
         })
       );
       Logger.Debug(`GraphQL complexity limit enabled: ${complexityLimit}`);
@@ -457,6 +473,7 @@ export class GraphQLRouter implements KoattyRouter {
       Logger.Debug('GraphQL router middleware registered (optimized)');
     } catch (err) {
       Logger.Error(err);
+      throw err;
     }
   }
 

@@ -26,6 +26,8 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
   private allowedOrigins: string[] = [];
   private maxConnections = 0;
   private maxBufferedAmount = 1024 * 1024;
+  private upgradeRateLimit = { enabled: false, max: 100, windowMs: 60000 };
+  private upgradeAttempts = new Map<string, { count: number; resetAt: number }>();
 
   protected connectionPool!: WebSocketConnectionPoolManager;
   
@@ -83,6 +85,12 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
       ? wsConfig.allowedOrigins
       : [];
     this.maxConnections = Number(wsConfig.maxConnections) || 0;
+    const rate = wsConfig.rateLimit ?? (this.options as any).rateLimit ?? {};
+    this.upgradeRateLimit = {
+      enabled: rate.enabled === true,
+      max: Number.isFinite(rate.max) && rate.max > 0 ? rate.max : 100,
+      windowMs: Number.isFinite(rate.windowMs) && rate.windowMs > 0 ? rate.windowMs : 60000,
+    };
     if (this.checkOriginEnabled && this.allowedOrigins.length === 0) {
       this.logger.warn('WebSocket checkOrigin is enabled but ws.allowedOrigins is empty; every upgrade will be rejected');
     }
@@ -155,40 +163,54 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
     if (typeof origin !== 'string' || origin.length === 0 || origin.length > 256) {
       return false;
     }
-    if (this.allowedOrigins.includes('*')) {
-      return true;
-    }
-    let host = '';
-    try {
-      host = new URL(origin).host.toLowerCase();
-    } catch {
-      return false;
-    }
+    let actual: URL;
+    try { actual = new URL(origin); } catch { return false; }
+    if (!['http:', 'https:'].includes(actual.protocol) || actual.username || actual.password ||
+        actual.pathname !== '/' || actual.search || actual.hash) return false;
+    if (this.allowedOrigins.includes('*')) return true;
     return this.allowedOrigins.some((pattern) => {
-      let normalized = String(pattern).toLowerCase();
-      // patterns may carry a scheme ('https://app.example.com'): compare hosts
-      if (normalized.includes('://')) {
-        try {
-          normalized = new URL(normalized).host;
-        } catch {
-          return false;
-        }
-      }
-      if (normalized.includes('*')) {
-        const escaped = normalized
-          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*/g, '[^.]+');
-        return new RegExp(`^${escaped}$`).test(host);
-      }
-      return host === normalized || host === normalized.replace(/:\d+$/, '');
+      // Host-only entries retain their documented wildcard-host semantics;
+      // entries with a scheme always constrain the complete origin.
+      const hasScheme = String(pattern).includes('://');
+      let allowed: URL;
+      try { allowed = new URL(hasScheme ? pattern : `${actual.protocol}//${pattern}`); } catch { return false; }
+      if (!['http:', 'https:'].includes(allowed.protocol) || allowed.username || allowed.password ||
+          allowed.pathname !== '/' || allowed.search || allowed.hash) return false;
+      if (actual.protocol !== allowed.protocol || actual.port !== allowed.port) return false;
+      const labels = allowed.hostname.toLowerCase().split('.');
+      const actualLabels = actual.hostname.toLowerCase().split('.');
+      return labels.length === actualLabels.length && labels.every((label, i) =>
+        label === '*' ? actualLabels[i].length > 0 : label === actualLabels[i]);
     });
   }
 
   /**
    * 设置WebSocket升级处理
    */
+  private acceptUpgrade(ip: string): boolean {
+    const rate = this.upgradeRateLimit;
+    if (!rate.enabled) return true;
+    const now = Date.now();
+    let entry = this.upgradeAttempts.get(ip);
+    if (!entry || entry.resetAt <= now) {
+      for (const [key, value] of this.upgradeAttempts) {
+        if (value.resetAt <= now) this.upgradeAttempts.delete(key);
+      }
+      // Refuse new identities under memory pressure rather than grow forever.
+      if (this.upgradeAttempts.size >= 10000) return false;
+      entry = { count: 0, resetAt: now + rate.windowMs };
+      this.upgradeAttempts.set(ip, entry);
+    }
+    return ++entry.count <= rate.max;
+  }
+
   private setupUpgradeHandling(): void {
     this.upgradeHandler = (request: any, socket: any, head: any) => {
+      if (!this.acceptUpgrade(socket?.remoteAddress || 'unknown')) {
+        socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       // SEC-08: reject upgrades before completing the handshake
       if (this.checkOriginEnabled && !this.isOriginAllowed(request?.headers?.origin)) {
         this.logger.warn('WebSocket upgrade rejected: origin not allowed', {}, {
@@ -232,8 +254,12 @@ export class WsServer extends BaseServer<WebSocketServerOptions, WS.WebSocketSer
   private ensureUpgradeHandlersAreBound(): void {
     // 确保处理器已创建且 httpServer 已初始化后再绑定事件处理器
     if (this.httpServer && this.upgradeHandler && this.clientErrorHandler && typeof this.httpServer.on === 'function') {
-      this.httpServer.on('upgrade', this.upgradeHandler);
-      this.httpServer.on('clientError', this.clientErrorHandler);
+      if (!this.httpServer.listeners?.('upgrade').includes(this.upgradeHandler)) {
+        this.httpServer.on('upgrade', this.upgradeHandler);
+      }
+      if (!this.httpServer.listeners?.('clientError').includes(this.clientErrorHandler)) {
+        this.httpServer.on('clientError', this.clientErrorHandler);
+      }
       // WebSocket upgrade handlers bound to HTTP server
     } else {
       this.logger.warn('HTTP server not available for WebSocket upgrade handling');

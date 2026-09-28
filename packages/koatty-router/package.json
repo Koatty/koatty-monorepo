@@ -60,7 +60,8 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.x.x",
     "ts-morph": "^26.0.0",
-    "tslib": "^2.x.x"
+    "tslib": "^2.x.x",
+    "graphql-query-complexity": "^2.0.0"
   },
   "dependencies": {
     "@koa/router": "^15.3.0",
@@ -82,5 +83,13 @@
     "lru-cache": "^11.2.5",
     "on-finished": "^2.4.1",
     "raw-body": "^3.0.2"
+  },
+  "peerDependencies": {
+    "graphql-query-complexity": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "graphql-query-complexity": {
+      "optional": true
+    }
   }
 }

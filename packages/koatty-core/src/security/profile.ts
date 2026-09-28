@@ -18,7 +18,7 @@ export type ProfileName = 'strict' | 'standard' | 'development';
 /**
  * Security profile options that can be overridden via `config/security.ts`.
  */
-export interface SecurityProfile {
+interface MutableSecurityProfile {
   name: ProfileName;
   payload: {
     /** request body size limit, e.g. '1mb' */
@@ -57,6 +57,9 @@ export interface SecurityProfile {
     minVersion: 'TLSv1.2' | 'TLSv1.3';
   };
 }
+
+export type DeepReadonly<T> = { readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K] };
+export type SecurityProfile = DeepReadonly<MutableSecurityProfile>;
 
 /**
  * User-provided security config (from `config/security.ts`).
@@ -161,7 +164,7 @@ export function resolveProfileName(env = process.env.KOATTY_ENV || process.env.N
   return 'standard';
 }
 
-function cloneProfile(name: ProfileName): SecurityProfile {
+function cloneProfile(name: ProfileName): MutableSecurityProfile {
   const base = PROFILES[name];
   return {
     name: base.name,
@@ -175,7 +178,7 @@ function cloneProfile(name: ProfileName): SecurityProfile {
   };
 }
 
-function applyLegacyDefaults(profile: SecurityProfile): string[] {
+function applyLegacyDefaults(profile: MutableSecurityProfile): string[] {
   const reverted: string[] = [];
   for (const item of LEGACY_DEFAULTS) {
     const parts = item.path.split('.');
@@ -192,7 +195,7 @@ function applyLegacyDefaults(profile: SecurityProfile): string[] {
   return reverted;
 }
 
-function applyUserOverrides(profile: SecurityProfile, options: SecurityConfigOptions): void {
+function applyUserOverrides(profile: MutableSecurityProfile, options: SecurityConfigOptions): void {
   const sections: Array<keyof Omit<SecurityConfigOptions, 'profile' | 'legacyDefaults'>> =
     ['payload', 'validation', 'aop', 'graphql', 'ws', 'ops', 'tls'];
   for (const section of sections) {
@@ -228,6 +231,9 @@ export function resolveProfile(
     Logger.Warn('Security: legacyDefaults is enabled, the following items are reverted to pre-4.3 behavior:');
     for (const item of reverted) Logger.Warn(`  - ${item}`);
     Logger.Warn('Security: legacyDefaults will be removed in koatty 5.0.0, please migrate your config.');
+  }
+  for (const section of Object.values(profile)) {
+    if (section && typeof section === 'object') Object.freeze(section);
   }
   return Object.freeze(profile);
 }

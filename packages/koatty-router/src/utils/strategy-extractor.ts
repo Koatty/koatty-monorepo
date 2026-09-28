@@ -168,6 +168,7 @@ interface ParamOptions {
   validRule: Function | ValidRules | ValidRules[];
   validOpt: ValidOtpions;
   dtoCheck: boolean;
+  partial?: boolean;
   dtoRule: unknown;
   clazz: unknown;
 }
@@ -180,6 +181,7 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
     validRule: param.validRule,
     validOpt: param.validOpt,
     dtoCheck: param.dtoCheck,
+    partial: param.partial,
     dtoRule: param.dtoRule,
     clazz: param.clazz,
   };
@@ -201,7 +203,7 @@ function createParamOptions(param: ParamMetadata, index: number): ParamOptions {
     if (opt.isDto) {
       let validatedValue;
       if (opt.dtoCheck) {
-        validatedValue = await ClassValidator.valid(opt.clazz as new (...args: unknown[]) => unknown, value, true);
+        validatedValue = await ClassValidator.valid(opt.clazz as new (...args: unknown[]) => unknown, value, true, { partial: opt.partial });
       } else {
         validatedValue = plainToClass(opt.clazz as new (...args: unknown[]) => unknown, value, true);
       }
@@ -606,7 +608,7 @@ export class StrategyHandlerFactory {
       }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(actualClazz, body, true)
+        ? await ClassValidator.valid(actualClazz, body, true, { partial: param.partial })
         : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];
@@ -743,7 +745,7 @@ export class StrategyHandlerFactory {
       }
 
       const transformed = dtoCheck
-        ? await ClassValidator.valid(actualClazz, body, true)
+        ? await ClassValidator.valid(actualClazz, body, true, { partial: param.partial })
         : plainToClass(actualClazz as new (...args: unknown[]) => unknown, body, true);
 
       return [transformed];

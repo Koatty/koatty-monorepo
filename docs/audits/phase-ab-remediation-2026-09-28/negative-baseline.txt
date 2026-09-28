@@ -1,0 +1,15 @@
+Temporary copy changed only the expected valid DTO value. Underlying command exit=1; temporary copy deleted.
+
+[FAIL] wire: valid DTO reaches the real decorated method: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
++   name: 'alice'
+-   name: 'deliberately-wrong'
+  }
+
+[PASS] wire: malformed JSON is 400 without reflection
+[2026-09-28 12:17:02.231 +08:00]  DEBUG [CONNECTION_POOL] [HTTP] Connection added to pool | Data: {"connectionId":"http_1790569022231_26eoc849"}
+[PASS] wire: fixed 2MiB request is 413
+[PASS] wire: strict DTO rejects undeclared fields and missing required fields
+PASS 13 / FAIL 1 / SKIP 0

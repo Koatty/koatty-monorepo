@@ -397,6 +397,7 @@ export interface ParamMetadata {
   "validOpt": ValidOtpions;
   "options": PayloadOptions;
   "dtoCheck": boolean;
+  "partial"?: boolean;
   "dtoRule": Map<string, string>;
   "compiledValidator"?: (value: any) => void;
   "precompiledOptions"?: any;
@@ -512,6 +513,7 @@ export function injectParamMetaData(app: Koatty, target: any,
       }
       v.type = v.isDto ? v.type : (v.type).toLowerCase();
       v.dtoCheck = !!(validatedMetaDatas[meta]?.dtoCheck);
+      v.partial = validatedMetaDatas[meta]?.partial;
       if (v.isDto) {
         v.clazz = IOC.getClass(v.type, "COMPONENT");
         if (!v.clazz) {
@@ -551,6 +553,7 @@ export function injectParamMetaData(app: Koatty, target: any,
         validRule: v.validRule,
         validOpt: v.validOpt,
         dtoCheck: v.dtoCheck,
+        partial: v.partial,
         dtoRule: v.dtoRule,
         clazz: v.clazz
       };

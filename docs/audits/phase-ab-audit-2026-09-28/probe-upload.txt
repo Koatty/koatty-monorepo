@@ -1,0 +1,6 @@
+[2026-09-28 11:37:22.650 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 11:37:22.652 +08:00]  DEBUG Container initialized with metadata cache
+UPLOAD 1 200 {"f0":[{"size":5,"filepath":"/var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/koatty-upload-audit-gpqJG5/e7nl5qeyz07tt0wt8a2kdhs2s.html","newFilename":"e7nl5qeyz07tt0wt8a2kdhs2s.html","mimetype":"text/html","mtime":"2026-09-28T03:37:22.657Z","originalFilename":"attack.html"}]}
+REMAINING []
+UPLOAD 11 413 Invalid request payload: multipart body
+REMAINING [ 'e1qyj58dxg5rahsz0vgqme11k.html' ]

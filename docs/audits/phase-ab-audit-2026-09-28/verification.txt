@@ -1,0 +1,104 @@
+HEAD: 5740654
+Node: v22.23.1; pnpm: 9.15.4; macOS
+Command: pnpm turbo run test --force --concurrency=2; exit=0
+
+koatty_cli:test: Test Suites: 30 passed, 30 total
+koatty_cli:test: Tests:       147 passed, 147 total
+koatty_cli:test: Time:        6.052 s, estimated 7 s
+koatty_lib:test: Test Suites: 2 passed, 2 total
+koatty_lib:test: Tests:       91 passed, 91 total
+koatty_lib:test: Time:        0.922 s, estimated 1 s
+koatty_loader:test: Test Suites: 1 passed, 1 total
+koatty_loader:test: Tests:       1 passed, 1 total
+koatty_loader:test: Time:        0.654 s, estimated 1 s
+koatty_graphql:test: No tests found, exiting with code 0
+koatty_proto:test: Test Suites: 2 passed, 2 total
+koatty_proto:test: Tests:       9 passed, 9 total
+koatty_proto:test: Time:        1.118 s
+koatty_logger:test: Test Suites: 2 passed, 2 total
+koatty_logger:test: Tests:       30 passed, 30 total
+koatty_logger:test: Time:        1.284 s
+koatty_store:test: Test Suites: 11 passed, 11 total
+koatty_store:test: Tests:       66 passed, 66 total
+koatty_store:test: Time:        8.375 s
+koatty_container:test: Test Suites: 18 passed, 18 total
+koatty_container:test: Tests:       353 passed, 353 total
+koatty_container:test: Time:        5.629 s
+koatty_validation:test: Test Suites: 13 passed, 13 total
+koatty_validation:test: Tests:       203 passed, 203 total
+koatty_validation:test: Time:        3 s
+koatty_exception:test: Test Suites: 4 passed, 4 total
+koatty_exception:test: Tests:       80 passed, 80 total
+koatty_exception:test: Time:        1.143 s
+koatty_core:test: Test Suites: 15 passed, 15 total
+koatty_core:test: Tests:       4 skipped, 306 passed, 310 total
+koatty_core:test: Time:        2.59 s
+koatty_serverless:test: Test Suites: 6 passed, 6 total
+koatty_serverless:test: Tests:       41 passed, 41 total
+koatty_serverless:test: Time:        2.271 s, estimated 3 s
+koatty_schedule:test: Test Suites: 11 passed, 11 total
+koatty_schedule:test: Tests:       150 passed, 150 total
+koatty_schedule:test: Time:        5.686 s
+koatty_typeorm:test: Test Suites: 2 skipped, 7 passed, 7 of 9 total
+koatty_typeorm:test: Tests:       20 skipped, 89 passed, 109 total
+koatty_typeorm:test: Time:        6.52 s
+koatty_trace:test:         startTime: '1790566479136',
+koatty_trace:test:         endTime: '1790566479137',
+koatty_trace:test:         startTime: '1790566480267',
+koatty_trace:test:         endTime: '1790566480267',
+koatty_trace:test:         startTime: '1790566480282',
+koatty_trace:test:         endTime: '1790566480282',
+koatty_trace:test:         startTime: '1790566480285',
+koatty_trace:test:         endTime: '1790566480285',
+koatty_trace:test:         startTime: '1790566480286',
+koatty_trace:test:         endTime: '1790566480287',
+koatty_trace:test:         startTime: '1790566480828',
+koatty_trace:test:         endTime: '1790566480828',
+koatty_trace:test:         startTime: '1790566480829',
+koatty_trace:test:         endTime: '1790566480829',
+koatty_trace:test:         startTime: '1790566480829',
+koatty_trace:test:         endTime: '1790566480829',
+koatty_trace:test:         startTime: '1790566480830',
+koatty_trace:test:         endTime: '1790566480830',
+koatty_trace:test:         startTime: '1790566480836',
+koatty_trace:test:         endTime: '1790566480838',
+koatty_trace:test:         startTime: '1790566480841',
+koatty_trace:test:         endTime: '1790566480841',
+koatty_trace:test:         startTime: '1790566481045',
+koatty_trace:test:         endTime: '1790566481045',
+koatty_trace:test:         startTime: '1790566481045',
+koatty_trace:test:         endTime: '1790566481045',
+koatty_trace:test:         startTime: '1790566481046',
+koatty_trace:test:         endTime: '1790566481046',
+koatty_serve:test: Test Suites: 30 passed, 30 total
+koatty_serve:test: Tests:       24 skipped, 806 passed, 830 total
+koatty_serve:test: Time:        6.175 s
+koatty_trace:test: Test Suites: 16 passed, 16 total
+koatty_trace:test: Tests:       135 passed, 135 total
+koatty_trace:test: Time:        13.8 s
+koatty_cacheable:test: Test Suites: 2 passed, 2 total
+koatty_cacheable:test: Tests:       29 passed, 29 total
+koatty_cacheable:test: Time:        5.975 s
+koatty_router:test: Test Suites: 28 passed, 28 total
+koatty_router:test: Tests:       367 passed, 367 total
+koatty_router:test: Time:        12.981 s, estimated 15 s
+koatty_config:test: Test Suites: 2 passed, 2 total
+koatty_config:test: Tests:       12 passed, 12 total
+koatty_config:test: Time:        1.362 s
+koatty_swagger:test: Test Suites: 9 passed, 9 total
+koatty_swagger:test: Tests:       52 passed, 52 total
+koatty_swagger:test: Time:        1.011 s
+koatty:test: Test Suites: 2 passed, 2 total
+koatty:test: Tests:       4 passed, 4 total
+koatty:test: Time:        4.182 s
+koatty_testing:test: No tests found, exiting with code 0
+ Tasks:    46 successful, 46 total
+Cached:    0 cached, 46 total
+  Time:    1m59.074s 
+
+Total Jest: 2971 passed, 48 skipped, 0 failed
+Lint: pnpm turbo run lint --force --concurrency=2; exit=0; 24 successful
+Doctor: --assert-submodules; exit=0; 17 submodules
+Negative: temporary koatty-lib test expect(1).toBe(2), turbo --force --filter=koatty_lib; exit=1; temporary test removed
+Security baseline: exit=0; PASS 6 / FAIL 0 / SKIP 5
+Raw full logs: /tmp/koatty-audit-{tests,lint,negative,baseline}.log

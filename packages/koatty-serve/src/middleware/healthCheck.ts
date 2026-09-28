@@ -96,7 +96,7 @@ export class HealthCheckMiddleware {
    * when details are authorized.
    */
   private handleHealthCheck(req: any, res: any): void {
-    const authorized = this.isAuthorized(req);
+    const authorized = this.hasValidToken(req);
     if (this.config.detailed && authorized) {
       const response: HealthCheckResponse = {
         status: 'ok',
@@ -118,13 +118,12 @@ export class HealthCheckMiddleware {
    * default (based on socket.remoteAddress only — X-Forwarded-For is never
    * trusted here), plus configured allowCidrs, or a valid ops bearer token.
    */
+  private hasValidToken(req: any): boolean {
+    return !!this.config.opsToken && req.headers?.authorization === `Bearer ${this.config.opsToken}`;
+  }
+
   private isAuthorized(req: any): boolean {
-    if (this.config.opsToken) {
-      const auth = String(req.headers?.authorization || '');
-      if (auth === `Bearer ${this.config.opsToken}`) {
-        return true;
-      }
-    }
+    if (this.hasValidToken(req)) return true;
     const ip = String(req.socket?.remoteAddress || '');
     return isTrustedRemoteIp(ip, this.config.allowCidrs);
   }
@@ -164,7 +163,7 @@ export class HealthCheckMiddleware {
     if (this.draining) {
       this.sendJsonResponse(res, 503, {
         status: 'not_ready',
-        checks: this.config.detailed ? { ...checks, draining: false } : undefined,
+        checks: this.config.detailed && this.hasValidToken(req) ? { ...checks, draining: false } : undefined,
         timestamp: new Date().toISOString(),
       });
       return;
@@ -172,7 +171,7 @@ export class HealthCheckMiddleware {
     const allChecksPass = Object.values(checks).every(check => check === true);
     const response: ReadinessResponse = {
       status: allChecksPass ? 'ready' : 'not_ready',
-      checks: this.config.detailed ? checks : undefined,
+      checks: this.config.detailed && this.hasValidToken(req) ? checks : undefined,
       timestamp: new Date().toISOString(),
     };
     this.sendJsonResponse(res, allChecksPass ? 200 : 503, response);

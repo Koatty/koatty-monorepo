@@ -829,17 +829,6 @@ User-provided security config (from `config/security.ts`<!-- -->). Every field i
 </td></tr>
 <tr><td>
 
-[SecurityProfile](./koatty_core.securityprofile.md)
-
-
-</td><td>
-
-Security profile options that can be overridden via `config/security.ts`<!-- -->.
-
-
-</td></tr>
-<tr><td>
-
 [WebSocketContext](./koatty_core.websocketcontext.md)
 
 
@@ -965,6 +954,15 @@ Description
 <tr><td>
 
 [ComponentType](./koatty_core.componenttype.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[DeepReadonly](./koatty_core.deepreadonly.md)
 
 
 </td><td>
@@ -1126,6 +1124,15 @@ Protocol types supported by Koatty
 <tr><td>
 
 [ResponseType](./koatty_core.responsetype.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[SecurityProfile](./koatty_core.securityprofile.md)
 
 
 </td><td>

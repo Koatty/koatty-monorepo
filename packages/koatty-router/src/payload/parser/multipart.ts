@@ -8,7 +8,7 @@
  * @Copyright (c): <richenlin(at)gmail.com>
  */
 
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, createWriteStream, WriteStream, promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { DefaultLogger as Logger } from "koatty_logger";
@@ -16,7 +16,7 @@ import { KoattyContext } from "koatty_core";
 import { PayloadOptions, FILE_KEY } from "../interface";
 import { BufferEncoding, IncomingForm } from "formidable";
 import onFinished from "on-finished";
-import { deleteFiles } from "../../utils/path";
+
 import { emptyFallback, multipartErrorStatus, payloadParseError, resolveOnParseError } from "../error_policy";
 import { parseSize } from "../size";
 
@@ -84,6 +84,23 @@ export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
     // fall back to formidable's default upload directory
   }
 
+  // Own the write streams through formidable's public adapter hook. Its
+  // maxFiles error may fire before the last file is opened/added to files.
+  // Every opened stream is tracked, including streams created after failure.
+  let cleanupRequested = false;
+  const uploads = new Map<string, { stream: WriteStream; closed: Promise<void> }>();
+  const removeUpload = async (filepath: string, entry: { stream: WriteStream; closed: Promise<void> }) => {
+    entry.stream.destroy();
+    await entry.closed;
+    await fs.unlink(filepath).catch((err) => {
+      if (err.code !== 'ENOENT') Logger.Error('[FileCleanupError]', err);
+    });
+  };
+  const cleanup = async () => {
+    cleanupRequested = true;
+    await Promise.all([...uploads].map(([filepath, entry]) => removeUpload(filepath, entry)));
+  };
+
   const formOptions: Record<string, unknown> = {
     encoding: <BufferEncoding>opts.encoding,
     multiples: opts.multiples,
@@ -93,6 +110,17 @@ export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
     maxFields: limits.maxFields,
     maxFieldsSize: limits.maxFieldsSize,
     uploadDir,
+    fileWriteStreamHandler: (file: any) => {
+      const stream = createWriteStream(file.filepath, { flags: 'wx', mode: 0o600 });
+      const closed = new Promise<void>((resolve) => stream.once('close', resolve));
+      const entry = { stream, closed };
+      uploads.set(file.filepath, entry);
+      // Preserve the public serialized file shape when using VolatileFile.
+      const toJSON = file.toJSON.bind(file);
+      file.toJSON = () => ({ ...toJSON(), filepath: file.filepath, mtime: file.lastModifiedDate });
+      if (cleanupRequested) void removeUpload(file.filepath, entry);
+      return stream;
+    },
   };
   // NB: `filter` must only be set when actually provided — overriding
   // formidable's default filter with `undefined` breaks parsing entirely
@@ -101,23 +129,12 @@ export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
   }
   const form = new IncomingForm(formOptions as any);
 
-  let uploadFiles: any = null;
-  const cleanup = () => {
-    if (uploadFiles) {
-      try {
-        deleteFiles(uploadFiles);
-      } catch (e) {
-        Logger.Error('[FileCleanupError]', e);
-      }
-    }
-  };
-  onFinished(ctx.res, cleanup);
+  onFinished(ctx.res, () => { void cleanup(); });
 
   return new Promise((resolve, reject) => {
     form.parse(ctx.req, (err, fields, files) => {
       if (err) {
-        uploadFiles = files;
-        cleanup();
+        void cleanup();
         if (resolveOnParseError(ctx, opts) === 'empty') {
           Logger.Warn('[MultipartParseError]', err);
           return resolve(emptyFallback('multipart body', err));
@@ -125,7 +142,6 @@ export function parseMultipart(ctx: KoattyContext, opts: PayloadOptions) {
         return reject(payloadParseError('multipart body', multipartErrorStatus(err), err));
       }
 
-      uploadFiles = files;
       resolve({ ...fields, [FILE_KEY]: files });
     });
   });

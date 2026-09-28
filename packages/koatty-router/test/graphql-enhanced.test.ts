@@ -267,7 +267,7 @@ describe('GraphQLRouter 增强测试', () => {
 
       const controllerList = ['TestController'];
 
-      await router.LoadRouter(app as any, controllerList);
+      await expect(router.LoadRouter(app as any, controllerList)).rejects.toThrow(error);
 
       expect(Logger.Error).toHaveBeenCalledWith(error);
     });

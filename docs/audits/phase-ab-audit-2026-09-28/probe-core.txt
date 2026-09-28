@@ -1,0 +1,17 @@
+CLI_DANGLING_SYMLINK AUDIT
+CLI_GITIGNORE_ESCAPE outside
+# 生成备份文件
+*.bak.*
+
+XML_MALFORMED_ACCEPTED { root: { a: 1 } }
+MULTIPART_MERGED_KEEP_EXTENSIONS true
+BODY_FIRST { a: 1 }
+BODY_CHUNKED_SECOND_ERROR 400 Invalid request payload: unreadable body
+DTO_RESULT {
+  validatedArgs: [ { name: 'x', admin: true } ],
+  validationTargets: [ D { name: 'x' } ]
+}
+TYPEORM_INFO_WITH_ERROR_ONLY INSERT INTO users(password) VALUES (?) [ 'audit-secret' ]
+HEALTH_DETAIL_WITHOUT_TOKEN 200 [ 'status', 'uptime', 'timestamp', 'details' ]
+[2026-09-28 11:34:30.861 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 11:34:30.862 +08:00]  DEBUG Container initialized with metadata cache

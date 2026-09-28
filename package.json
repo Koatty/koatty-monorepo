@@ -27,7 +27,7 @@
     "release": "pnpm build && node scripts/fix-workspace-versions.js && changeset publish && node scripts/commit-submodule-changes.js",
     "release:dry-run": "node scripts/commit-submodule-changes.js --dry-run",
     "release:submodule": "cd packages/koatty && pnpm release",
-    "security:baseline": "ts-node --transpile-only scripts/security-baseline.ts",
+    "security:baseline": "tsc --project scripts/tsconfig.json --noEmit && ts-node --project scripts/tsconfig.json --transpile-only scripts/security-baseline.ts",
     "test": "turbo run test"
   },
   "keywords": [
@@ -55,6 +55,8 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.4.0",
     "turbo": "^2.5.8",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "@types/node": "^22.x.x",
+    "reflect-metadata": "^0.2.2"
   }
 }

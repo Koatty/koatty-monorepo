@@ -70,7 +70,7 @@ const defaultOptions: PayloadOptions = {
   limit: DEFAULT_LIMIT,
   encoding: DEFAULT_ENCODING,
   multiples: true,
-  keepExtensions: true,
+  keepExtensions: false,
 };
 
 /**
@@ -83,13 +83,11 @@ export class PayloadCacheManager {
 
   private readonly typeMapCache: LRUCache<string, ParserMap>;
   private readonly contentTypeCache: LRUCache<string, string>;
-  private readonly optionsCache: LRUCache<string, PayloadOptions>;
 
   // 私有构造函数确保单例
   private constructor() {
     this.typeMapCache = new LRUCache<string, ParserMap>({ max: 100 });
     this.contentTypeCache = new LRUCache<string, string>({ max: 200 });
-    this.optionsCache = new LRUCache<string, PayloadOptions>({ max: 50 });
   }
 
   /**
@@ -170,20 +168,7 @@ export class PayloadCacheManager {
    * 获取合并后的选项
    */
   public getMergedOptions(options?: PayloadOptions): PayloadOptions {
-    if (!options) {
-      return defaultOptions;
-    }
-
-    const cacheKey = JSON.stringify(options);
-
-    const cached = this.optionsCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    const mergedOptions = Object.assign({}, defaultOptions, options);
-    this.optionsCache.set(cacheKey, mergedOptions);
-    return mergedOptions;
+    return { ...defaultOptions, ...options };
   }
 
   /**
@@ -192,7 +177,6 @@ export class PayloadCacheManager {
   public clearAll(): void {
     this.typeMapCache.clear();
     this.contentTypeCache.clear();
-    this.optionsCache.clear();
   }
 
 

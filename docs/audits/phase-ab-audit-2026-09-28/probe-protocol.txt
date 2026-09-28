@@ -1,0 +1,18 @@
+WS_ORIGIN [
+  [ 'https://app.example.com:8443', true ],
+  [ 'http://app.example.com:8443', true ],
+  [ 'http://app.example.com', true ]
+]
+DTO_BUSINESS_INPUT { name: 'x', admin: true }
+PROFILE_NESTED_MUTABLE false
+[2026-09-28 11:35:36.983 +08:00]  DEBUG [TIMER_MANAGER] Timer manager initialized with optimization | Data: {"config":{"enableConsolidation":true,"enableAdaptiveFrequency":true,"maxTimersPerFrequency":10,"loadThreshold":0.7},"supportedFrequencies":[5000,30000,60000]}
+[2026-09-28 11:35:36.985 +08:00]  DEBUG MetadataCache initialized with 8 cache types, base capacity: 3000, TTL: 600000ms
+[2026-09-28 11:35:36.985 +08:00]  DEBUG Container initialized with metadata cache
+GRAPHQL_MISSING_COMPLEXITY_LOAD_RESOLVED 0
+GRAPHQL_DEPTH_FRAGMENT_COST 10 2ms errors=0 bytes=415
+GRAPHQL_DEPTH_FRAGMENT_COST 15 14ms errors=0 bytes=615
+GRAPHQL_DEPTH_FRAGMENT_COST 20 198ms errors=0 bytes=815
+[2026-09-28 11:35:37.205 +08:00]  DEBUG Register request mapping: C.a
+[2026-09-28 11:35:37.205 +08:00]  DEBUG GraphQL introspection disabled
+[2026-09-28 11:35:37.205 +08:00]  DEBUG GraphQL depth limit enabled: 10
+[2026-09-28 11:35:37.205 +08:00]  ERROR GraphQL complexityLimit is configured but the optional package "graphql-query-complexity" is not installed. Install it or unset graphql.ext.complexityLimit.

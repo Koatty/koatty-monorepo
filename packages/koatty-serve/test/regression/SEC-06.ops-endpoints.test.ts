@@ -87,13 +87,13 @@ describe("SEC-06: liveness endpoints are minimal", () => {
 });
 
 describe("SEC-06: detailed health requires authorization", () => {
-  test("detailed info served for authorized internal caller", async () => {
+  test("private-network callers still need a token for details", async () => {
     const mw = createHealthCheckMiddleware({ detailed: true });
     const { res } = await run(mw, makeReq({ url: "/health?detailed=1", remoteAddress: "10.1.2.3" }));
     expect(res.statusCode).toBe(200);
     const parsed = JSON.parse(res.body);
     expect(parsed.status).toBe("ok");
-    expect(parsed.details).toBeDefined();
+    expect(parsed.details).toBeUndefined();
   });
 
   test("ops bearer token authorizes external callers", async () => {

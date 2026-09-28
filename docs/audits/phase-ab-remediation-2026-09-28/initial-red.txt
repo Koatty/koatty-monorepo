@@ -1,0 +1,21 @@
+koatty-ab-koatty-ai.log
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 6 total
+koatty-ab-koatty-container.log
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 1 passed, 4 total
+koatty-ab-koatty-core.log
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+koatty-ab-koatty-router.log
+Test Suites: 3 failed, 3 total
+Tests:       7 failed, 2 passed, 9 total
+koatty-ab-koatty-serve.log
+Test Suites: 1 failed, 1 total
+Tests:       8 failed, 3 passed, 11 total
+koatty-ab-koatty-typeorm.log
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 4 total
+koatty-ab-koatty-validation.log
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total

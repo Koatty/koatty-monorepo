@@ -18,6 +18,7 @@ import { PayloadOptions, FILE_KEY } from "./interface";
 
 /** Module-level body cache using WeakMap for automatic GC when ctx is collected */
 const bodyCache = new WeakMap<object, any>();
+const pendingBodies = new WeakMap<object, Promise<any>>();
 
 // 使用 Set 和预编译正则表达式
 const supportedMethods = new Set(['POST', 'PUT', 'DELETE', 'PATCH', 'LINK', 'UNLINK']);
@@ -154,7 +155,11 @@ export function bodyParser(ctx: KoattyContext, options?: PayloadOptions): any {
   if (cached !== undefined) return cached;
 
   // Slow async path: first-time parsing
-  return parseBodyAndCache(ctx, options);
+  const pending = pendingBodies.get(ctx);
+  if (pending) return pending;
+  const promise = parseBodyAndCache(ctx, options).finally(() => pendingBodies.delete(ctx));
+  pendingBodies.set(ctx, promise);
+  return promise;
 }
 
 /**
@@ -172,6 +177,7 @@ async function parseBodyAndCache(ctx: KoattyContext, options?: PayloadOptions): 
   if (cached !== undefined) return cached;
 
   const opts = cacheManager.getMergedOptions(options);
+  (opts as any)._limitFromUser = (options as any)?._limitFromUser ?? (options?.limit !== undefined);
   const body = await parseBody(ctx, opts);
   bodyCache.set(ctx, body);
   // Backward compatibility: also write to ctx metadata for direct getMetaData('_body') callers
@@ -208,13 +214,12 @@ function parseBody(ctx: KoattyContext, options: PayloadOptions): Promise<unknown
   const len = getContentLength(ctx.req.headers || {});
   const encoding = ctx.req.headers?.['content-encoding'] || IDENTITY_ENCODING;
 
-  if (len && encoding === IDENTITY_ENCODING) {
-    options.length = len;
-  }
+  delete options.length;
+  if (len && encoding === IDENTITY_ENCODING) options.length = len;
 
   // 性能优化：避免重复赋值
   if (!options.encoding) options.encoding = DEFAULT_ENCODING;
-  if (!options.limit || (!(options as any)._limitFromUser && options.limit === DEFAULT_LIMIT)) {
+  if (!(options as any)._limitFromUser) {
     // ADR-102 / 附录 B: unless the caller configured a body limit explicitly,
     // the security profile decides (strict '1mb'); DEFAULT_LIMIT is the
     // last-resort fallback for non-profiled (library) usage
