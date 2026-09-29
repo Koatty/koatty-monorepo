@@ -243,6 +243,37 @@ rate(http_response_time_seconds_sum[5m]) / rate(http_response_time_seconds_count
 histogram_quantile(0.95, rate(http_response_time_seconds_bucket[5m]))
 ```
 
+## GenAI 可观测性（Phase F F-4）
+
+遵循 OpenTelemetry GenAI 语义约定（`gen_ai.*`）记录大模型与工具调用，属性名集中在
+`src/genai/constants.ts`，便于跟随上游 development 状态更新。
+
+```typescript
+import { createGenAiRecorder } from 'koatty_trace';
+
+const genai = createGenAiRecorder({
+  captureContent: false,        // 默认不记录提示词/输出原文（隐私默认值）
+  mask: (v) => guard.masking.mask(v),   // 开启抓取时复用 F-3 的脱敏服务
+  pricePer1kPrompt: { 'openai:gpt-4o-mini': 0.00015 },
+  pricePer1kCompletion: { 'openai:gpt-4o-mini': 0.0006 },
+});
+
+// LLM 调用完成后（provider/model/token/耗时/结束原因）
+genai.recordChat({ provider: 'openai', model: 'default', responseModel: 'gpt-4o-mini', usage, finishReason, durationMs, context });
+// 工具调用
+genai.recordToolCall({ name: 'order_query', status: 'success', toolCallId, durationMs, context });
+// 人工审批
+genai.recordApproval({ tool: 'order_refund', decision: 'approved', context });
+
+// 指标：每个模型的 token 与成本、工具成功率、审批通过率
+console.log(genai.metrics());
+```
+
+- Span 名称：`gen_ai.chat` / `gen_ai.tool` / `gen_ai.approval`；三者加上已有的 HTTP/MCP 请求 Span 共享同一条 Trace。
+- 记录点发生在 `await` 之后时，可用 `context` 显式指定父 Span（`trace.setSpan(context.active(), requestSpan)`）；
+  省略则使用当前活动上下文。
+- **默认不记录提示词与模型输出原文**；`captureContent: true` 时必须注入脱敏服务（见 F-3），否则会记录未脱敏内容。
+
 ## 开发和测试
 
 ```bash

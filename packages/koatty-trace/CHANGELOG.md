@@ -10,6 +10,19 @@
 
 - 后台指标刷新、内存监视和 Span 清理定时器不再阻止空闲进程退出；正常 appStop 仍负责 flush/destroy。新增真实子进程退出回归。
 
+## 2.5.0 — Phase F F-4 GenAI 可观测性
+
+### Minor Changes
+
+- 新增 `src/genai`：`createGenAiRecorder()` 按 OpenTelemetry GenAI 语义约定记录
+  `gen_ai.chat` / `gen_ai.tool` / `gen_ai.approval` Span（供应商、模型、输入/输出 token、耗时、结束原因、
+  工具名与状态、审批结论），并汇总 `metrics()`（每个模型的 token 与成本、工具调用成功率、审批通过率）；
+  属性名集中在 `src/genai/constants.ts`（`GEN_AI_ATTRIBUTES` 已冻结）便于跟进上游 development 状态变更。
+- 隐私默认值：**不记录提示词与模型输出原文**；`captureContent: true` 时先调用注入的脱敏函数（F-3 同一服务）再记录为
+  `gen_ai.prompt` / `gen_ai.completion`。`context` 选项可显式指定父 Span，保证“MCP 请求 → 工具调用 → LLM 调用”同一条 Trace。
+- 纯增量 API，未改动既有 Trace/指标行为。回归用例：`test/regression/F-04.genai.test.ts`（6 例，使用
+  `@opentelemetry/sdk-trace-base` 的 `InMemorySpanExporter` 校验真实 Span 与属性）。
+
 ## 2.4.0
 
 ### Minor Changes

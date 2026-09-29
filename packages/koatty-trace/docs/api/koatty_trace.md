@@ -19,12 +19,140 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[createGenAiRecorder(options)](./koatty_trace.creategenairecorder.md)
+
+
+</td><td>
+
+Create a GenAI recorder.
+
+
+</td></tr>
+<tr><td>
+
 [Trace(options, app)](./koatty_trace.trace.md)
 
 
 </td><td>
 
 Trace middleware for Koatty framework that provides request tracing, topology analysis, and request lifecycle management capabilities.
+
+
+</td></tr>
+</tbody></table>
+
+## Interfaces
+
+<table><thead><tr><th>
+
+Interface
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[GenAiApprovalInput](./koatty_trace.genaiapprovalinput.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiChatInput](./koatty_trace.genaichatinput.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiMetrics](./koatty_trace.genaimetrics.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiRecorder](./koatty_trace.genairecorder.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiRecorderOptions](./koatty_trace.genairecorderoptions.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiToolCallInput](./koatty_trace.genaitoolcallinput.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[GenAiUsage](./koatty_trace.genaiusage.md)
+
+
+</td><td>
+
+
+</td></tr>
+</tbody></table>
+
+## Variables
+
+<table><thead><tr><th>
+
+Variable
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[GEN\_AI\_ATTRIBUTES](./koatty_trace.gen_ai_attributes.md)
+
+
+</td><td>
+
+OpenTelemetry GenAI attribute names (roadmap Phase F, item F-4).
+
+The OTel GenAI semantic conventions are still in development, so every `gen_ai.*` name used by koatty\_trace is centralised here: following upstream renames then means editing one file.
+
+
+</td></tr>
+<tr><td>
+
+[GEN\_AI\_SPAN\_NAMES](./koatty_trace.gen_ai_span_names.md)
+
+
+</td><td>
+
+Span names used by the recorder.
 
 
 </td></tr>
