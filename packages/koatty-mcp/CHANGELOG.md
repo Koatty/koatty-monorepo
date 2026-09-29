@@ -46,6 +46,7 @@ First release — the MCP (Model Context Protocol) Server host (roadmap Phase F,
 
 ### Notes
 
-- `koatty_validation@4.x` adds the additive `PARAM_DTO_KEY` metadata
-  (`@Validated({ types })` bridge) and `koatty_core@2.x` adds the optional
-  protocol fields on `KoattyContext`; neither changes existing behaviour.
+- Minimum peer versions are `koatty_validation@4.1.0` (`PARAM_DTO_KEY` metadata for the
+  `@Validated({ types })` bridge) and `koatty_core@2.6.0` (optional protocol fields
+  on `KoattyContext`); both changes are additive and do not change existing
+  behaviour, but older versions are rejected by the peer ranges on purpose.

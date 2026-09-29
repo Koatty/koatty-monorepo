@@ -70,10 +70,10 @@
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1",
     "koatty_container": "^4.0.0",
-    "koatty_core": "^2.5.0",
+    "koatty_core": "^2.6.0",
     "koatty_lib": "^1.6.0",
     "koatty_logger": "^3.1.0",
-    "koatty_validation": "^4.0.0"
+    "koatty_validation": "^4.1.0"
   },
   "types": "./dist/index.d.ts"
 }
