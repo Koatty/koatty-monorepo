@@ -779,6 +779,19 @@ Koatty Context.
 </td></tr>
 <tr><td>
 
+[KoattyPrincipal](./koatty_core.koattyprincipal.md)
+
+
+</td><td>
+
+Caller identity attached to the context by protocol adapters (MCP, gRPC, ...).
+
+Kept in koatty\_core so the protocol layer does not have to own a parallel context type; `koatty_mcp` populates it for every tool call.
+
+
+</td></tr>
+<tr><td>
+
 [KoattyRouter](./koatty_core.koattyrouter.md)
 
 

@@ -49,6 +49,19 @@ export type IRpcServerCallImpl<RequestType, ResponseType> = ServerUnaryCallImpl<
   | ServerReadableStreamImpl<RequestType, ResponseType>;
 
 /**
+ * Caller identity attached to the context by protocol adapters (MCP, gRPC, ...).
+ *
+ * Kept in koatty_core so the protocol layer does not have to own a parallel
+ * context type; `koatty_mcp` populates it for every tool call.
+ */
+export interface KoattyPrincipal {
+  id: string;
+  scopes: string[];
+  kind?: string;
+  claims?: Record<string, unknown>;
+}
+
+/**
  * Koatty Context.
  *
  * @export
@@ -98,6 +111,22 @@ export interface KoattyContext extends KoaContext {
    * @memberof KoattyContext
    */
   websocket?: IWebSocket; // ws.WebSocket
+
+  /**
+   * MCP protocol adaptation (roadmap Phase F, item F-1).
+   *
+   * Populated by `koatty_mcp` for every tool / resource / prompt call: the
+   * caller identity, the session id, the cancellation signal and a progress
+   * reporter live on the EXISTING request context instead of a parallel
+   * ToolContext store. All fields are optional, so non-MCP requests are
+   * unaffected.
+   */
+  principal?: KoattyPrincipal;
+  mcpSessionId?: string;
+  mcpRequestId?: string;
+  mcpToolName?: string;
+  signal?: AbortSignal;
+  progress?: (current: number, total?: number, message?: string) => Promise<void> | void;
 
   /**
   * context metadata operation

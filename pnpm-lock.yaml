@@ -156,12 +156,12 @@ importers:
 
   packages/koatty-ai:
     dependencies:
-      ajv:
-        specifier: ^8.17.1
-        version: 8.17.1
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.1
         version: 1.30.1(zod@4.6.5)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.17.1
       chalk:
         specifier: ^4.1.2
         version: 4.1.2
@@ -744,6 +744,61 @@ importers:
         specifier: ^2.x.x
         version: 2.8.1
 
+  packages/koatty-llm:
+    dependencies:
+      koatty_cacheable:
+        specifier: ^1.0.0
+        version: 1.6.1(koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)))(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
+      koatty_store:
+        specifier: ^1.0.0
+        version: 1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
+      koatty_validation:
+        specifier: workspace:*
+        version: link:../koatty-validation
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@microsoft/api-documenter':
+        specifier: ^7.26.x
+        version: 7.28.2(@types/node@22.19.7)
+      '@microsoft/api-extractor':
+        specifier: ^7.52.x
+        version: 7.55.2(@types/node@22.19.7)
+      '@types/jest':
+        specifier: ^29.5.x
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.x.x
+        version: 22.19.7
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.x.x
+        version: 8.53.1(@typescript-eslint/parser@8.53.1(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.x.x
+        version: 8.53.1(eslint@8.57.1)(typescript@5.9.3)
+      class-validator:
+        specifier: ^0.14.3
+        version: 0.14.3
+      eslint:
+        specifier: ^8.x.x
+        version: 8.57.1
+      eslint-plugin-jest:
+        specifier: ^28.x.x
+        version: 28.14.0(@typescript-eslint/eslint-plugin@8.53.1(@typescript-eslint/parser@8.53.1(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
+      jest:
+        specifier: ^29.x.x
+        version: 29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3))
+      jest-html-reporters:
+        specifier: ^3.x.x
+        version: 3.1.7
+      ts-jest:
+        specifier: ^29.x.x
+        version: 29.4.6(@babel/core@7.28.6)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.28.6))(esbuild@0.27.3)(jest-util@30.3.0)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
+      tslib:
+        specifier: ^2.x.x
+        version: 2.8.1
+
   packages/koatty-loader:
     dependencies:
       globby:
@@ -856,6 +911,73 @@ importers:
       ts-jest:
         specifier: ^29.x.x
         version: 29.4.6(@babel/core@7.28.6)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.28.6))(esbuild@0.27.3)(jest-util@30.3.0)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
+
+  packages/koatty-mcp:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.30.1
+        version: 1.30.1(zod@4.6.5)
+      class-validator:
+        specifier: ^0.14.3
+        version: 0.14.3
+      koatty_container:
+        specifier: workspace:*
+        version: link:../koatty-container
+      koatty_core:
+        specifier: workspace:*
+        version: link:../koatty-core
+      koatty_lib:
+        specifier: workspace:*
+        version: link:../koatty-lib
+      koatty_logger:
+        specifier: workspace:*
+        version: link:../koatty-logger
+      koatty_validation:
+        specifier: workspace:*
+        version: link:../koatty-validation
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@microsoft/api-documenter':
+        specifier: ^7.26.x
+        version: 7.28.2(@types/node@22.19.7)
+      '@microsoft/api-extractor':
+        specifier: ^7.52.x
+        version: 7.55.2(@types/node@22.19.7)
+      '@types/jest':
+        specifier: ^29.5.x
+        version: 29.5.14
+      '@types/koa':
+        specifier: ^2.x.x
+        version: 2.15.0
+      '@types/node':
+        specifier: ^22.x.x
+        version: 22.19.7
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.x.x
+        version: 8.53.1(@typescript-eslint/parser@8.53.1(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.x.x
+        version: 8.53.1(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.x.x
+        version: 8.57.1
+      eslint-plugin-jest:
+        specifier: ^28.x.x
+        version: 28.14.0(@typescript-eslint/eslint-plugin@8.53.1(@typescript-eslint/parser@8.53.1(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
+      jest:
+        specifier: ^29.x.x
+        version: 29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3))
+      jest-html-reporters:
+        specifier: ^3.x.x
+        version: 3.1.7
+      ts-jest:
+        specifier: ^29.x.x
+        version: 29.4.6(@babel/core@7.28.6)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.28.6))(esbuild@0.27.3)(jest-util@30.3.0)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
+      tslib:
+        specifier: ^2.x.x
+        version: 2.8.1
 
   packages/koatty-proto:
     dependencies:
@@ -4311,9 +4433,6 @@ packages:
       ajv:
         optional: true
 
-  ajv@6.12.6:
-    resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
-
   ajv@6.14.0:
     resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
 
@@ -5623,6 +5742,10 @@ packages:
     resolution: {integrity: sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g==}
     engines: {node: '>= 0.4'}
 
+  generic-pool@3.9.0:
+    resolution: {integrity: sha512-hymDOu5B53XvN4QT9dBmZxPX4CWhBPPLguTZ9MMFeFa/Kg0xWVfylOVNlJji/E7yTZWFd/q9GO5TxDLq156D7g==}
+    engines: {node: '>= 4'}
+
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
@@ -5951,10 +6074,6 @@ packages:
   ioredis@5.9.2:
     resolution: {integrity: sha512-tAAg/72/VxOUW7RQSX1pIxJVucYKcjFjfvj60L57jrZpYCHC3XN0WCQ3sNYL4Gmvv+7GPvTAjc+KSdeNuE8oWQ==}
     engines: {node: '>=12.22.0'}
-
-  ip-address@10.1.0:
-    resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
-    engines: {node: '>= 12'}
 
   ip-address@10.7.2:
     resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
@@ -6498,6 +6617,39 @@ packages:
   koa@3.2.0:
     resolution: {integrity: sha512-TrM4/tnNY7uJ1aW55sIIa+dqBvc4V14WRIAlGcWat9wV5pRS9Wr5Zk2ZTjQP1jtfIHDoHiSbPuV08P0fUZo2pg==}
     engines: {node: '>= 18'}
+
+  koatty_cacheable@1.6.1:
+    resolution: {integrity: sha512-hwhvyaojvJamjip9eBQAHTC94Q06x7aedljL22sR2TKXgPmPnoSuEQZMRYN1pz0PxzBYzJbSRQnf8CxORwz1ow==}
+    engines: {node: '>10.0.0'}
+    peerDependencies:
+      koatty_container: ^1.x.x
+      koatty_lib: ^1.x.x
+      koatty_logger: ^2.x.x
+
+  koatty_container@4.0.0:
+    resolution: {integrity: sha512-IMr4Qf+NFbQPcX03scT/qLsUxVZb2aX0ZItZhLdSrEX9wqruF/0DoWGKYGQ5xAbFRwUEp4i1KCOOzzzISCOyqQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      koatty_lib: ^1.6.0
+      koatty_logger: ^3.1.0
+
+  koatty_lib@1.6.0:
+    resolution: {integrity: sha512-tY11u5vIClM82nGGRORQ7NvzXiYepOFxstSvlDWEi1bHSF/mFsQl7mPJqvUmWTTgCAiMoEZz4LZBKf24k47EIA==}
+    engines: {node: '>=18.0.0'}
+
+  koatty_logger@3.1.1:
+    resolution: {integrity: sha512-8CwzUBP3ut1PPicTBfL7UBCDZqSgEKvAFNbJPUZEk4OyH9I4B9xcgIJUnihomgrNqJCdLby0r26FXWjRqAMQsQ==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      koatty_lib: ^1.6.0
+      tslib: ^2.x.x
+
+  koatty_store@1.9.4:
+    resolution: {integrity: sha512-4xAJ4YFnO/mKcUcx5iC68Zp8Mzf+bMb4XzXSKrKpU8iwkvP0JRV24DM5u4shMK5piHkS7SHiMGxRHkk5G/ZZ9A==}
+    engines: {node: '>10.0.0'}
+    peerDependencies:
+      koatty_lib: ^1.4.5
+      koatty_logger: ^2.3.4
 
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
@@ -9130,14 +9282,14 @@ snapshots:
 
   '@eslint/eslintrc@2.1.4':
     dependencies:
-      ajv: 6.12.6
+      ajv: 6.14.0
       debug: 4.4.3
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
       import-fresh: 3.3.1
       js-yaml: 4.1.1
-      minimatch: 3.1.2
+      minimatch: 3.1.5
       strip-json-comments: 3.1.1
     transitivePeerDependencies:
       - supports-color
@@ -9197,7 +9349,7 @@ snapshots:
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
       debug: 4.4.3
-      minimatch: 3.1.2
+      minimatch: 3.1.5
     transitivePeerDependencies:
       - supports-color
 
@@ -11792,13 +11944,6 @@ snapshots:
     optionalDependencies:
       ajv: 8.17.1
 
-  ajv@6.12.6:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      fast-json-stable-stringify: 2.1.0
-      json-schema-traverse: 0.4.1
-      uri-js: 4.4.1
-
   ajv@6.14.0:
     dependencies:
       fast-deep-equal: 3.1.3
@@ -12708,7 +12853,7 @@ snapshots:
   dotgitignore@2.1.0:
     dependencies:
       find-up: 3.0.0
-      minimatch: 3.1.2
+      minimatch: 3.1.5
 
   dunder-proto@1.0.1:
     dependencies:
@@ -12877,7 +13022,7 @@ snapshots:
       '@humanwhocodes/module-importer': 1.0.1
       '@nodelib/fs.walk': 1.2.8
       '@ungap/structured-clone': 1.3.0
-      ajv: 6.12.6
+      ajv: 6.14.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
       debug: 4.4.3
@@ -12902,7 +13047,7 @@ snapshots:
       json-stable-stringify-without-jsonify: 1.0.1
       levn: 0.4.1
       lodash.merge: 4.6.2
-      minimatch: 3.1.2
+      minimatch: 3.1.5
       natural-compare: 1.4.0
       optionator: 0.9.4
       strip-ansi: 6.0.1
@@ -13062,13 +13207,13 @@ snapshots:
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.8
-      qs: 6.14.1
+      qs: 6.16.0
       range-parser: 1.3.0
       router: 2.2.0
       send: 1.2.1
       serve-static: 2.2.1
       statuses: 2.0.2
-      type-is: 2.0.1
+      type-is: 2.1.0
       vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
@@ -13316,6 +13461,8 @@ snapshots:
 
   generator-function@2.0.1: {}
 
+  generic-pool@3.9.0: {}
+
   gensync@1.0.0-beta.2: {}
 
   get-caller-file@2.0.5: {}
@@ -13412,7 +13559,7 @@ snapshots:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.1.2
+      minimatch: 3.1.5
       once: 1.4.0
       path-is-absolute: 1.0.1
 
@@ -13683,9 +13830,6 @@ snapshots:
       standard-as-callback: 2.1.0
     transitivePeerDependencies:
       - supports-color
-
-  ip-address@10.1.0:
-    optional: true
 
   ip-address@10.7.2: {}
 
@@ -14725,6 +14869,48 @@ snapshots:
       type-is: 2.0.1
       vary: 1.1.2
 
+  koatty_cacheable@1.6.1(koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)))(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
+    dependencies:
+      koatty_container: 4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
+      koatty_lib: 1.6.0
+      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
+      koatty_store: 1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
+    transitivePeerDependencies:
+      - supports-color
+
+  koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
+    dependencies:
+      koatty_lib: 1.6.0
+      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
+      lru-cache: 11.2.7
+      tslib: 2.8.1
+
+  koatty_lib@1.6.0:
+    dependencies:
+      co: 4.6.0
+      dayjs: 1.11.19
+      lodash: 4.17.23
+      murmurhash: 2.0.1
+
+  koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1):
+    dependencies:
+      koatty_lib: 1.6.0
+      tslib: 2.8.1
+      winston: 3.19.0
+      winston-daily-rotate-file: 4.7.1(winston@3.19.0)
+
+  koatty_store@1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
+    dependencies:
+      async-lock: 1.4.1
+      generic-pool: 3.9.0
+      ioredis: 5.10.1
+      koatty_lib: 1.6.0
+      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
+      lodash: 4.17.23
+      lru-cache: 11.2.7
+    transitivePeerDependencies:
+      - supports-color
+
   kuler@2.0.0: {}
 
   leven@3.1.0: {}
@@ -14956,7 +15142,7 @@ snapshots:
 
   minimatch@10.0.3:
     dependencies:
-      '@isaacs/brace-expansion': 5.0.0
+      '@isaacs/brace-expansion': 5.0.1
 
   minimatch@10.1.1:
     dependencies:
@@ -15923,7 +16109,7 @@ snapshots:
 
   socks@2.8.7:
     dependencies:
-      ip-address: 10.1.0
+      ip-address: 10.7.2
       smart-buffer: 4.2.0
     optional: true
 
@@ -16164,7 +16350,7 @@ snapshots:
     dependencies:
       '@istanbuljs/schema': 0.1.3
       glob: 7.2.3
-      minimatch: 3.1.2
+      minimatch: 3.1.5
 
   text-extensions@1.9.0: {}
 

@@ -1285,6 +1285,13 @@ export class SupportAgent {
 - [ ] 客户端断开 SSE 连接后，LLM 流式请求在 1 秒内被取消（通过 mock 供应商验证）
 - [ ] Trace 中可以看到"MCP 请求 → 工具调用 → LLM 调用"的完整链路，且默认不含提示词原文
 
+**发布状态**：F-1（`koatty_mcp`）与 F-2（`koatty_llm`）代码与自动回归已完成。
+
+- **F-1**：新增包 `packages/koatty-mcp`（版本文件为 `koatty_mcp@1.0.0`，首次发布），回归用例 `packages/koatty-mcp/test/regression/F-01.mcp-host.test.ts`（19 例）覆盖发现与 schema、白名单校验、scope 拒绝、审批 fail closed、请求作用域与审计脱敏、Origin 校验；配套 `koatty_validation`（`PARAM_DTO_KEY` 桥接）与 `koatty_core`（`KoattyContext` 协议字段）为增量改动，已在各自 CHANGELOG 记录并新增 Changeset。详见 [迁移说明](migration/phase-f-mcp-host.md)。
+- **F-2**：新增包 `packages/koatty-llm`（版本文件为 `koatty_llm@1.0.0`，首次发布，未改动任何既有包行为），回归用例 `packages/koatty-llm/test/regression/F-02.llm-client.test.ts`（19 例）覆盖取消 ≤1s、fallback/重试/熔断、共享预算、结构化输出、工具循环、非流式缓存与 OpenAI 兼容 / Anthropic 两个适配器（测试使用脚本化 `fetch`，离线可跑）。验收门中“客户端断开后 LLM 流式请求 1 秒内被取消”已由该用例覆盖。详见 [迁移说明](migration/phase-f-llm-client.md)。
+
+F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用尚未实现，因此依赖它们的验收门（Trace 中 MCP → 工具 → LLM 完整链路、MCP Inspector/多客户端人工验收）仍待完成。
+
 ---
 
 ## 10. 版本、破坏性变更与迁移指南

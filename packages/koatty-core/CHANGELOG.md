@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0
+
+- `KoattyContext` 新增可选协议字段 `principal`、`mcpSessionId`、`mcpRequestId`、`mcpToolName`、`signal`、`progress`，并导出 `KoattyPrincipal`：由协议适配层（`koatty_mcp`）在既有请求上下文上填充，不新建平行的 ToolContext 存储。非 MCP 请求不受影响（全部可选）。
+
+迁移说明：`docs/migration/phase-f-mcp-host.md`。
+
 ## Unreleased — Phase A–D completion
 
 - appStart 在所有传输真正监听后触发一次，appReady 仅表示初始化完成；createApplication 不提前发出 appStart。
