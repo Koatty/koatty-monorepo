@@ -41,6 +41,10 @@ export interface LlmChunk {
   toolCall?: LlmToolCall;
   finishReason?: string;
   usage?: LlmUsage;
+  /** Actual provider/model for this attempt (including failover). */
+  provider?: string;
+  model?: string;
+  cost?: number;
 }
 
 export interface ProviderRequest {
@@ -78,7 +82,7 @@ export interface ToolRegistryLike {
 
 /** Executes one tool call in-process (a `koatty_mcp` host satisfies this). */
 export interface ToolInvoker {
-  (name: string, args: Record<string, unknown>): Promise<unknown>;
+  (name: string, args: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<unknown>;
 }
 
 export interface ModelRoute {
@@ -108,6 +112,8 @@ export interface BudgetOptions {
   store?: BudgetStore;
   /** Fraction of the budget at which a warning is logged (0..1). Default 0.8. */
   warnAt?: number;
+  /** Use a provider tokenizer when available; the default is an estimate. */
+  estimatePromptTokens?: (messages: LlmMessage[], tools?: LlmToolDefinition[]) => number;
 }
 
 /** Exact-match response cache (a `koatty_cacheable` service satisfies this shape). */
@@ -145,6 +151,13 @@ export interface LlmConfig {
   /** Max tool-call rounds in `withTools()`. Default 5. */
   maxToolRounds?: number;
   logger?: LlmLogger;
+  /** Application tool registry used to resolve names in stream/complete. */
+  registry?: ToolRegistryLike;
+  /** Inspect/mask each outgoing request, including tool results and corrections. */
+  prepareMessages?: (messages: LlmMessage[]) => LlmMessage[] | Promise<LlmMessage[]>;
+  /** One lifecycle per actual provider attempt, including retries and failures. */
+  observeAttempt?: (input: { provider: string; model: string; route: string; messages: LlmMessage[] }) =>
+    { end(result: { usage?: LlmUsage; cost?: number; status: 'success' | 'error' | 'cancelled'; durationMs: number; finishReason?: string }): void };
 }
 
 export interface LlmLogger {
@@ -157,6 +170,7 @@ export interface LlmRequestOptions {
   model?: string;
   messages: LlmMessage[];
   tools?: Array<string | LlmToolDefinition>;
+  registry?: ToolRegistryLike;
   temperature?: number;
   maxTokens?: number;
   /** Cancellation, normally `ctx.signal` (populated by the protocol adapter). */
@@ -182,6 +196,8 @@ export interface LlmResult {
   usage: LlmUsage;
   finishReason?: string;
   model: string;
+  /** Provider-side model id, distinct from the requested logical route. */
+  responseModel?: string;
   provider: string;
   /** Whether the response came from the cache. */
   cached: boolean;

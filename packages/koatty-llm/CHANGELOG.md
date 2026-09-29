@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Phase F audit fixes (2026-09-29)
+
+- 修复工具白名单、逐尝试原子预算预留与流式结算、输出后禁止重试、流资源释放、缓存 DTO 重验；新增流式工具循环、出站消息钩子和每次实际尝试遥测。
+- 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
+
+
 All notable changes to `koatty_llm` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 

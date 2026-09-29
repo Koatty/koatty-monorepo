@@ -20,7 +20,7 @@
  * @License BSD-3-Clause
  */
 import { createHash } from 'crypto';
-import { checkValidated } from 'koatty_validation';
+import { checkValidated, dtoToJsonSchema } from 'koatty_validation';
 import {
   LlmAbortError,
   LlmBudgetError,
@@ -75,6 +75,8 @@ export interface LlmClient {
   complete(options: LlmRequestOptions): Promise<LlmResult>;
   /** Full tool-call loop over a `koatty_mcp` style registry + invoker. */
   withTools(options: ToolLoopOptions): Promise<ToolLoopResult>;
+  /** Stream the same bounded, allowlisted tool loop. */
+  streamWithTools(options: ToolLoopOptions): AsyncGenerator<LlmChunk>;
   /** Cost estimate for a usage, when the route declares prices. */
   estimateCost(model: string, usage: LlmUsage): number | undefined;
 }
@@ -185,8 +187,7 @@ function buildCandidates(config: LlmConfig, model: string): Candidate[] {
   return candidates;
 }
 
-function cacheKeyFor(options: LlmRequestOptions, model: string): string {
-  if (options.cacheKey) return options.cacheKey;
+function cacheKeyFor(options: LlmRequestOptions, model: string, routes: LlmConfig['routes']): string {
   const payload = JSON.stringify({
     model,
     messages: options.messages,
@@ -194,6 +195,9 @@ function cacheKeyFor(options: LlmRequestOptions, model: string): string {
     temperature: options.temperature,
     maxTokens: options.maxTokens,
     schema: options.schema,
+    partial: options.partial,
+    routes,
+    key: options.cacheKey,
   });
   return `llm:${createHash('sha1').update(payload).digest('hex')}`;
 }
@@ -224,46 +228,44 @@ export function createLlmClient(config: LlmConfig): LlmClient {
   const maxToolRounds = config.maxToolRounds ?? DEFAULT_TOOL_ROUNDS;
   const logger: LlmLogger | undefined = config.logger;
   const defaultModel = config.defaultModel ?? 'default';
+  if (config.budget && (!config.budget.store?.incrBy || !Number.isSafeInteger(config.budget.maxTokens) || config.budget.maxTokens <= 0)) {
+    throw new LlmError('Token budgets require a positive integer limit and an atomic incrBy store.', { code: 'bad_request' });
+  }
 
   const budgetKey = (scope: string) => `llm:budget:${config.budget?.scope ?? 'global'}:${scope}`;
 
-  async function chargeBudget(scope: string | undefined, tokens: number, model: string, provider: string): Promise<void> {
+  async function reserveBudget(options: LlmRequestOptions, messages: LlmMessage[], tools?: LlmToolDefinition[]) {
     const budget = config.budget;
-    if (!budget || !scope || tokens <= 0) return;
+    if (!budget) return undefined;
+    const scope = options.budgetScope;
+    if (!scope) throw new LlmError('budgetScope is required when token budgets are enabled.', { code: 'bad_request' });
+    if (options.maxTokens !== undefined && (!Number.isSafeInteger(options.maxTokens) || options.maxTokens <= 0)) throw new LlmError('maxTokens must be a positive integer.', { code: 'bad_request' });
     const key = budgetKey(scope);
-    const store = budget.store;
-    if (!store) return;
-    try {
-      if (typeof store.incrBy === 'function') {
-        const used = await store.incrBy(key, tokens);
-        if (used > budget.maxTokens) {
-          throw new LlmBudgetError(scope, used, budget.maxTokens, { provider, model });
-        }
-        return;
-      }
-      const used = (await store.get(key)) ?? 0;
-      const next = used + tokens;
-      await store.set(key, next);
-      if (next > budget.maxTokens) {
-        throw new LlmBudgetError(scope, next, budget.maxTokens, { provider, model });
-      }
-    } catch (error) {
-      if (error instanceof LlmBudgetError) throw error;
-      logger?.warn('koatty_llm: token accounting failed', { scope, error: (error as Error).message });
+    const store = budget.store!;
+    const used = Number((await store.get(key)) ?? 0);
+    if (!Number.isSafeInteger(used) || used < 0) throw new LlmError('Invalid budget counter.', { code: 'bad_request' });
+    const prompt = budget.estimatePromptTokens?.(messages, tools) ??
+      estimateTokens(messages.map(m => m.content + (m.toolCalls ? JSON.stringify(m.toolCalls) : '')).join('\n') + (tools?.length ? JSON.stringify(tools) : ''));
+    if (!Number.isSafeInteger(prompt) || prompt < 0) throw new LlmError('Invalid prompt token estimate.', { code: 'bad_request' });
+    const maxTokens = Math.min(options.maxTokens ?? budget.maxTokens, budget.maxTokens - used - prompt);
+    if (maxTokens <= 0) throw new LlmBudgetError(scope, used + prompt, budget.maxTokens);
+    const reserved = prompt + maxTokens;
+    // Atomic increment is the admission gate. A competing reservation must be
+    // rolled back before returning; no provider is called on rejected admission.
+    const total = await store.incrBy!(key, reserved);
+    if (!Number.isSafeInteger(total) || total < reserved) throw new LlmError('Invalid atomic budget counter.', { code: 'bad_request' });
+    if (total > budget.maxTokens) {
+      await store.incrBy!(key, -reserved);
+      throw new LlmBudgetError(scope, total, budget.maxTokens);
     }
-  }
-
-  async function guardBudget(scope: string | undefined, model: string, provider: string): Promise<void> {
-    const budget = config.budget;
-    if (!budget || !scope) return;
-    const store = budget.store;
-    if (!store) return;
-    const used = (await store.get(budgetKey(scope))) ?? 0;
-    if (used >= budget.maxTokens) throw new LlmBudgetError(scope, used, budget.maxTokens, { provider, model });
-    const warnAt = budget.warnAt ?? 0.8;
-    if (used >= budget.maxTokens * warnAt) {
+    if (used >= budget.maxTokens * (budget.warnAt ?? 0.8)) {
       logger?.warn('koatty_llm: token budget nearly exhausted', { scope, used, max: budget.maxTokens });
     }
+    return { maxTokens, prompt, reserved, async settle(tokens: number) {
+      const settled = await store.incrBy!(key, Math.max(0, tokens) - reserved);
+      if (!Number.isSafeInteger(settled) || settled < 0) throw new LlmError('Invalid settled budget counter.', { code: 'bad_request' });
+      if (settled > budget.maxTokens) throw new LlmBudgetError(scope, settled, budget.maxTokens);
+    } };
   }
 
   /**
@@ -271,14 +273,16 @@ export function createLlmClient(config: LlmConfig): LlmClient {
    * is converted to {@link LlmError} and only surfaces after the first chunk
    * (partial output cannot be transparently retried).
    */
-  async function* attempt(candidate: Candidate, request: ProviderRequest): AsyncGenerator<LlmChunk> {
+  async function* attempt(candidate: Candidate, request: ProviderRequest, controller: AbortController): AsyncGenerator<LlmChunk> {
     const provider = config.providers.find((item) => item.name === candidate.providerName)!;
     const iterator = provider.stream(request)[Symbol.asyncIterator]();
-    for (;;) {
-      const { value, done } = await iterator.next();
-      if (done) return;
-      yield value;
-    }
+    try {
+      for (;;) {
+        const { value, done } = await iterator.next();
+        if (done) return;
+        yield value;
+      }
+    } finally { controller.abort(); await iterator.return?.(); }
   }
 
   async function* streamRouted(
@@ -302,33 +306,58 @@ export function createLlmClient(config: LlmConfig): LlmClient {
     for (let round = 1; round <= attempts; round += 1) {
       for (const candidate of candidates) {
         if (options.signal?.aborted) throw new LlmAbortError(undefined, { provider: candidate.providerName, model });
-        await guardBudget(options.budgetScope, candidate.model, candidate.providerName);
+        const originalMessages = overrideMessages ?? options.messages;
+        const messages = config.prepareMessages ? await config.prepareMessages(originalMessages) : originalMessages;
+        const reservation = await reserveBudget(options, messages, tools);
         const controller = new AbortController();
         const onAbort = () => controller.abort();
         options.signal?.addEventListener('abort', onAbort, { once: true });
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
         let timedOut = false;
-        const onTimeout = () => {
-          timedOut = true;
-        };
-        controller.signal.addEventListener('abort', onTimeout, { once: true });
+        const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+        if (options.signal?.aborted) controller.abort();
+        let visible = false;
+        let output = '';
+        let usage: LlmUsage | undefined;
+        let completed = false;
+        let started = false;
+        let finishReason: string | undefined;
+        const startedAt = Date.now();
+        let observation: ReturnType<NonNullable<LlmConfig['observeAttempt']>> | undefined;
 
         const request: ProviderRequest = {
           model: candidate.providerModel,
-          messages: overrideMessages ?? options.messages,
+          messages,
           tools,
           temperature: options.temperature,
-          maxTokens: options.maxTokens,
+          maxTokens: reservation?.maxTokens ?? options.maxTokens,
           signal: controller.signal,
           responseSchema: options.schema ? { name: 'structured_output', schema: options.schema } : undefined,
         };
 
         try {
           if (state) state.candidate = candidate;
-          for await (const chunk of attempt(candidate, request)) {
+          if (controller.signal.aborted) throw new LlmAbortError();
+          observation = config.observeAttempt?.({ provider: candidate.providerName, model: candidate.providerModel, route: model, messages });
+          started = true;
+          for await (const chunk of attempt(candidate, request, controller)) {
             if (options.signal?.aborted) throw new LlmAbortError(undefined, { provider: candidate.providerName, model });
-            yield chunk;
+            if (timedOut) throw new LlmTimeoutError();
+            if (chunk.usage) {
+              if (Object.values(chunk.usage).some(value => !Number.isSafeInteger(value) || value < 0)) throw new LlmError('Invalid provider usage.', { code: 'provider_error' });
+              usage = chunk.usage;
+            }
+            if (chunk.finishReason) finishReason = chunk.finishReason;
+            if (chunk.type === 'text') output += chunk.delta ?? '';
+            if (chunk.toolCall) output += JSON.stringify(chunk.toolCall);
+            if (reservation && (usage?.totalTokens ?? reservation.prompt + estimateTokens(output)) > reservation.reserved) {
+              controller.abort();
+              throw new LlmBudgetError(options.budgetScope!, usage?.totalTokens ?? reservation.prompt + estimateTokens(output), config.budget!.maxTokens);
+            }
+            visible = true;
+            yield { ...chunk, provider: candidate.providerName, model: candidate.providerModel,
+              cost: chunk.usage ? costOf(candidate.model, chunk.usage) : undefined };
           }
+          completed = true;
           recordSuccess(candidate);
           return;
         } catch (error) {
@@ -340,12 +369,21 @@ export function createLlmClient(config: LlmConfig): LlmClient {
           if (normalized.retryable) recordFailure(candidate, breakerThreshold);
           failures.push({ model: candidate.model, provider: candidate.providerName, error: normalized.message });
           lastError = normalized;
-          if (!normalized.retryable) {
+          if (visible || !normalized.retryable) {
             throw normalized;
           }
         } finally {
+          controller.abort();
           clearTimeout(timer);
           options.signal?.removeEventListener('abort', onAbort);
+          try { observation?.end({ usage, cost: usage ? costOf(candidate.model, usage) : undefined,
+            status: completed ? 'success' : options.signal?.aborted ? 'cancelled' : 'error',
+            durationMs: Date.now() - startedAt, finishReason }); } catch { /* telemetry cannot prevent budget settlement */ }
+          if (reservation) {
+            // Unknown usage after interruption conservatively retains the entire
+            // reservation. A caller cannot evade charges by disconnecting early.
+            await reservation.settle(usage?.totalTokens ?? (!started ? 0 : completed ? reservation.prompt + estimateTokens(output) : reservation.reserved));
+          }
         }
       }
       if (round < attempts) {
@@ -359,6 +397,16 @@ export function createLlmClient(config: LlmConfig): LlmClient {
     });
   }
 
+  function resolveTools(options: LlmRequestOptions): LlmToolDefinition[] | undefined {
+    const tools = options.tools?.map(entry => {
+      if (typeof entry !== 'string') return entry;
+      const tool = (options.registry ?? config.registry)?.getTool(entry);
+      if (!tool) throw new LlmError(`Tool "${entry}" is not registered.`, { code: 'bad_request' });
+      return { name: tool.name, description: tool.description, inputSchema: tool.inputSchema };
+    });
+    return tools?.length ? tools : undefined;
+  }
+
   function costOf(model: string, usage: LlmUsage): number | undefined {
     const route = config.routes[model];
     if (!route || (route.pricePer1kPrompt === undefined && route.pricePer1kCompletion === undefined)) return undefined;
@@ -368,15 +416,13 @@ export function createLlmClient(config: LlmConfig): LlmClient {
   }
 
   async function runComplete(options: LlmRequestOptions): Promise<LlmResult> {
+    if (options.dto && !options.schema) options.schema = dtoToJsonSchema(options.dto, 0, options.partial);
     const model = options.model ?? defaultModel;
-    const tools = Array.isArray(options.tools)
-      ? options.tools.filter((tool): tool is LlmToolDefinition => typeof tool !== 'string')
-      : undefined;
+    const tools = resolveTools(options);
     let attemptIndex = 0;
     for (;;) {
       const state: { candidate?: Candidate } = {};
       const stream = streamRouted(options, tools?.length ? tools : undefined, undefined, state);
-      const first = await stream.next();
       const chunks: LlmChunk[] = [];
       let text = '';
       const toolCalls: LlmToolCall[] = [];
@@ -390,7 +436,6 @@ export function createLlmClient(config: LlmConfig): LlmClient {
         if (chunk.type === 'tool_call' && chunk.toolCall) toolCalls.push(chunk.toolCall);
         if (chunk.type === 'done') finishReason = chunk.finishReason ?? finishReason;
       };
-      if (!first.done && first.value) await consume(first.value);
       for await (const chunk of stream) await consume(chunk);
 
       const usage = usageOf(chunks, text);
@@ -401,13 +446,13 @@ export function createLlmClient(config: LlmConfig): LlmClient {
         usage,
         finishReason,
         model,
+        responseModel: state.candidate?.providerModel,
         provider,
         cached: false,
-        cost: costOf(model, usage),
+        cost: costOf(state.candidate?.model ?? model, usage),
       };
 
       if (!options.schema && !options.dto) {
-        await chargeBudget(options.budgetScope, usage.totalTokens, model, provider);
         return result;
       }
 
@@ -427,7 +472,6 @@ export function createLlmClient(config: LlmConfig): LlmClient {
         try {
           const { validatedArgs } = await checkValidated([parsed.value], [options.dto], options.partial ?? false);
           const validated = validatedArgs?.[0];
-          await chargeBudget(options.budgetScope, usage.totalTokens, model, provider);
           return { ...result, text: JSON.stringify(validated) };
         } catch (error) {
           const issues = (error as any)?.errors ?? [(error as Error).message];
@@ -442,7 +486,6 @@ export function createLlmClient(config: LlmConfig): LlmClient {
           throw new LlmValidationError('Structured output failed DTO validation.', issues, text, { provider, model });
         }
       }
-      await chargeBudget(options.budgetScope, usage.totalTokens, model, provider);
       return result;
     }
   }
@@ -450,16 +493,26 @@ export function createLlmClient(config: LlmConfig): LlmClient {
   return {
     config,
     stream(options: LlmRequestOptions): AsyncGenerator<LlmChunk> {
-      return streamRouted(options, undefined);
+      return streamRouted(options, resolveTools(options));
     },
     async complete(options: LlmRequestOptions): Promise<LlmResult> {
       const model = options.model ?? defaultModel;
       const cache = config.cache;
       const cacheable = !!cache && options.cache !== false && !options.signal;
-      const key = cacheable ? cacheKeyFor(options, model) : '';
+      const key = cacheable ? cacheKeyFor({ ...options, tools: resolveTools(options) }, model, config.routes) : '';
       if (cacheable) {
         const hit = await cache!.get(key);
         if (hit) {
+          if (options.dto || options.schema) {
+            const parsed = parseJsonOutput(hit.text);
+            if (parsed.error) throw new LlmValidationError('Cached output is not valid JSON.', [parsed.error], hit.text);
+            if (options.dto) {
+              try {
+                const checked = await checkValidated([parsed.value], [options.dto], options.partial ?? false);
+                return { ...hit, text: JSON.stringify(checked.validatedArgs[0]), cached: true };
+              } catch { throw new LlmValidationError('Cached output failed DTO validation.', ['DTO validation failed'], hit.text); }
+            }
+          }
           return { ...(hit as LlmResult), cached: true };
         }
       }
@@ -474,18 +527,10 @@ export function createLlmClient(config: LlmConfig): LlmClient {
       return result;
     },
     async withTools(options: ToolLoopOptions): Promise<ToolLoopResult> {
-      const tools: LlmToolDefinition[] = [];
-      for (const entry of options.tools ?? []) {
-        if (typeof entry !== 'string') {
-          tools.push(entry);
-          continue;
-        }
-        const registered = options.registry.getTool(entry);
-        if (!registered) {
-          throw new LlmError(`koatty_llm: tool "${entry}" is not registered.`, { code: 'bad_request' });
-        }
-        tools.push({ name: registered.name, description: registered.description, inputSchema: registered.inputSchema });
-      }
+      const tools = resolveTools(options) ?? [];
+      const allowed = new Set(tools.map(t => t.name));
+      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      let totalCost = 0;
 
       const messages: LlmMessage[] = [...options.messages];
       const maxRounds = options.maxRounds ?? maxToolRounds;
@@ -501,14 +546,20 @@ export function createLlmClient(config: LlmConfig): LlmClient {
 
       for (;;) {
         result = await this.complete({ ...options, messages, tools: tools.length ? tools : undefined });
+        for (const key of ['promptTokens', 'completionTokens', 'totalTokens'] as const) totalUsage[key] += result.usage[key];
+        totalCost += result.cost ?? 0;
         if (!result.toolCalls.length) break;
         if (rounds >= maxRounds) break;
         rounds += 1;
+        for (const call of result.toolCalls) {
+          if (!allowed.has(call.name)) throw new LlmError(`Tool "${call.name}" is not allowed in this call.`, { code: 'bad_request' });
+        }
         messages.push({ role: 'assistant', content: result.text, toolCalls: result.toolCalls });
         for (const call of result.toolCalls) {
+          if (options.signal?.aborted) throw new LlmAbortError();
           let output: unknown;
           try {
-            output = await options.invoke(call.name, call.args);
+            output = await options.invoke(call.name, call.args, { signal: options.signal });
           } catch (error) {
             output = { error: (error as Error).message };
           }
@@ -516,7 +567,38 @@ export function createLlmClient(config: LlmConfig): LlmClient {
         }
       }
 
-      return { ...result, messages, rounds };
+      return { ...result, usage: totalUsage, cost: result.cost === undefined && !totalCost ? undefined : totalCost, messages, rounds };
+    },
+    async *streamWithTools(options: ToolLoopOptions): AsyncGenerator<LlmChunk> {
+      const tools = resolveTools(options) ?? [];
+      const allowed = new Set(tools.map(t => t.name));
+      const messages = [...options.messages];
+      const total = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      let cost = 0;
+      for (let round = 0; ; round++) {
+        const calls: LlmToolCall[] = [];
+        let text = ''; let done: LlmChunk = { type: 'done' };
+        for await (const chunk of this.stream({ ...options, messages, tools })) {
+          if (chunk.type === 'done') { done = chunk; continue; }
+          if (chunk.toolCall) calls.push(chunk.toolCall);
+          text += chunk.delta ?? '';
+          yield chunk;
+        }
+        const usage = done.usage ?? { promptTokens: 0, completionTokens: estimateTokens(text), totalTokens: estimateTokens(text) };
+        for (const key of ['promptTokens', 'completionTokens', 'totalTokens'] as const) total[key] += usage[key];
+        cost += done.cost ?? 0;
+        if (!calls.length || round >= (options.maxRounds ?? maxToolRounds)) {
+          yield { ...done, usage: total, cost, finishReason: calls.length ? 'tool_round_limit' : done.finishReason };
+          return;
+        }
+        for (const call of calls) if (!allowed.has(call.name)) throw new LlmError(`Tool "${call.name}" is not allowed in this call.`, { code: 'bad_request' });
+        messages.push({ role: 'assistant', content: text, toolCalls: calls });
+        for (const call of calls) {
+          if (options.signal?.aborted) throw new LlmAbortError();
+          const result = await options.invoke(call.name, call.args, { signal: options.signal });
+          messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result ?? null) });
+        }
+      }
     },
     estimateCost(model: string, usage: LlmUsage): number | undefined {
       return costOf(model, usage);

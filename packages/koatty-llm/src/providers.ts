@@ -57,7 +57,7 @@ export async function* readSse(body: any): AsyncGenerator<string> {
     }
   };
 
-  for (;;) {
+  try { for (;;) {
     const { value, done } = stream ? await stream.read() : await iterator!.next();
     if (done) break;
     if (!value) continue;
@@ -71,6 +71,11 @@ export async function* readSse(body: any): AsyncGenerator<string> {
   if (tail.startsWith('data:')) {
     const payload = tail.slice(5).trim();
     if (payload && payload !== '[DONE]') yield payload;
+  }
+  } finally {
+    if (stream) {
+      try { await stream.cancel(); } finally { stream.releaseLock(); }
+    } else { await iterator?.return?.(); }
   }
 }
 
