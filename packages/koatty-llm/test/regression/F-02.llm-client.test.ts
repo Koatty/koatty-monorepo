@@ -122,6 +122,7 @@ describe('F-02 cancellation', () => {
   it('cancels a streaming call within 1 second when the caller aborts', async () => {
     let observedAbort = false;
     const slow = mockProvider('slow', async function* (request) {
+      request.signal?.addEventListener('abort', () => { observedAbort = true; }, { once: true });
       for (let index = 0; index < 100; index += 1) {
         if (request.signal?.aborted) {
           observedAbort = true;

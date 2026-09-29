@@ -36,6 +36,25 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[cost?](./koatty_trace.genaichatinput.cost.md)
+
+
+</td><td>
+
+
+</td><td>
+
+number
+
+
+</td><td>
+
+_(Optional)_
+
+
+</td></tr>
+<tr><td>
+
 [durationMs?](./koatty_trace.genaichatinput.durationms.md)
 
 
@@ -179,6 +198,25 @@ string
 </td><td>
 
 _(Optional)_ Logical name used by the application, recorded as a span attribute.
+
+
+</td></tr>
+<tr><td>
+
+[status?](./koatty_trace.genaichatinput.status.md)
+
+
+</td><td>
+
+
+</td><td>
+
+'success' \| 'error' \| 'cancelled'
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

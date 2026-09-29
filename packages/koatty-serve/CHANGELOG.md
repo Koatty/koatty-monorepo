@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Trust loopback only for default internal metrics; require explicit CIDRs/token for private networks. Enable WebSocket Origin checks even without a security profile.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## Unreleased — Phase A–D completion

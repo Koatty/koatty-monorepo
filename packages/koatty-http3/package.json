@@ -70,11 +70,11 @@
     "jest-html-reporters": "^3.x.x",
     "ts-jest": "^29.x.x",
     "tslib": "^2.x.x",
-    "koa": "^2.x.x"
+    "koa": "^2.x.x",
+    "koatty_serve": "workspace:*"
   },
   "dependencies": {
     "@matrixai/quic": "^2.0.9",
-    "koatty_serve": "workspace:*",
     "koatty_core": "workspace:*"
   },
   "files": [
@@ -82,5 +82,8 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
-  ]
+  ],
+  "peerDependencies": {
+    "koatty_serve": ">=3.5.0 <5.0.0"
+  }
 }

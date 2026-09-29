@@ -61,3 +61,7 @@ npx tsc -p tsconfig.json --noEmit
 ## License
 
 BSD-3-Clause
+
+## Approval migration (2026-09-30)
+
+Always `await service.approve(id)` / `await service.reject(id, reason)`; both return `Promise<boolean>`. Recovery is `resume(id, { tool, caller, sessionId, requestId, args }, { signal })` and validates the original binding. Shared persistence omits raw args. `maxLocalTickets` bounds active requests, while consumed tombstones expire at their original deadline. Supply fresh unique IDs and a shared-store retention policy. See the monorepo `docs/migration/phase-a-f-review-fixes.md` for auditing/masking changes.

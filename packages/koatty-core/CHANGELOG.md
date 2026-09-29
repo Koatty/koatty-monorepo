@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Validate security configuration and prototype/unknown keys; match complete environment names rather than substrings. Document the exact legacyDefaults rollback scope.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## 2.6.0

@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Bound per-attempt reservations; release immediate failures; enforce timeout independently of provider cooperation; isolate/refresh DTO caches; align streaming tool allowlists and contain cleanup/settlement errors. Budget store/incrBy are required.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## Unreleased — Phase F audit fixes (2026-09-29)

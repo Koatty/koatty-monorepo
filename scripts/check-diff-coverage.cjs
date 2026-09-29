@@ -5,13 +5,15 @@ const fs=require('fs'),path=require('path'),{execFileSync}=require('child_proces
 const root=path.resolve(__dirname,'..'),base=process.env.KOATTY_COVERAGE_BASE||'HEAD',threshold=80;
 const git=(cwd,args)=>execFileSync('git',args,{cwd,encoding:'utf8'}).trim();
 const packages=fs.readdirSync(path.join(root,'packages')).map(p=>path.join(root,'packages',p)).filter(p=>fs.existsSync(path.join(p,'package.json')));
+packages.push(path.join(root,'packages/koatty/examples/mcp-order-service'));
 const rows=[],missing=[];
 for(const dir of packages){
+ const nested=dir.endsWith('examples/mcp-order-service');
  const own=fs.existsSync(path.join(dir,'.git'));let reference=base;
- if(own&&base!=='HEAD'){
-  const entry=git(root,['ls-tree',base,path.relative(root,dir)]);reference=entry.split(/\s+/)[2];if(!reference)reference=git(dir,['rev-list','--max-parents=0','HEAD']);
+ if((own||nested)&&base!=='HEAD'){
+  const entry=git(root,['ls-tree',base,nested?'packages/koatty':path.relative(root,dir)]);reference=entry.split(/\s+/)[2];if(!reference)reference=git(dir,['rev-list','--max-parents=0','HEAD']);
  }
- const cwd=own?dir:root,prefix=own?'src/':path.relative(root,dir)+'/src/';
+ const cwd=nested?path.join(root,'packages/koatty'):own?dir:root,prefix=nested?'examples/mcp-order-service/src/':own?'src/':path.relative(root,dir)+'/src/';
  const diff=git(cwd,['diff','--no-ext-diff','--unified=0',reference,'--',prefix]);const changed=new Map();let file;
  for(const line of diff.split('\n')){
   if(line.startsWith('+++ b/')){file=path.resolve(cwd,line.slice(6));if(!changed.has(file))changed.set(file,new Set());}

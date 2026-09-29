@@ -102,14 +102,16 @@ export interface ModelRoute {
 export interface BudgetStore {
   get(key: string): Promise<number | undefined> | number | undefined;
   set(key: string, value: number, ttlMs?: number): Promise<void> | void;
-  incrBy?(key: string, delta: number, ttlMs?: number): Promise<number> | number;
+  incrBy(key: string, delta: number, ttlMs?: number): Promise<number> | number;
 }
 
 export interface BudgetOptions {
   /** Tokens allowed per scope (`options.budgetScope` of the request). */
   maxTokens: number;
   scope?: string;
-  store?: BudgetStore;
+  store: BudgetStore;
+  /** Per-attempt completion reservation when maxTokens is omitted. Default 1024. */
+  defaultMaxTokens?: number;
   /** Fraction of the budget at which a warning is logged (0..1). Default 0.8. */
   warnAt?: number;
   /** Use a provider tokenizer when available; the default is an estimate. */
@@ -185,7 +187,7 @@ export interface LlmRequestOptions {
   budgetScope?: string;
   /** Set to false to bypass the exact-match cache. */
   cache?: boolean;
-  /** Explicit cache key; defaults to a hash of the effective request. */
+  /** Extra cache-key discriminator; scoped to this client, DTO and effective request. */
   cacheKey?: string;
   progress?: (current: number, total?: number, message?: string) => Promise<void> | void;
 }

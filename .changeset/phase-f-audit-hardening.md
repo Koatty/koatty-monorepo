@@ -1,7 +1,7 @@
 ---
-"koatty_mcp": patch
-"koatty_llm": patch
-"koatty_guard": patch
+"koatty_mcp": major
+"koatty_llm": major
+"koatty_guard": major
 "koatty_trace": minor
 "koatty_validation": minor
 "koatty_cli": patch

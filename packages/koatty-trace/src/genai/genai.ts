@@ -11,7 +11,7 @@
  * masking service — this module intentionally does not depend on koatty_guard).
  */
 
-import { context, trace, type Context, type Span, type Tracer } from '@opentelemetry/api';
+import { context, trace, SpanStatusCode, type Context, type Span, type Tracer } from '@opentelemetry/api';
 import { GEN_AI_ATTRIBUTES, GEN_AI_SPAN_NAMES } from './constants';
 
 /**
@@ -96,10 +96,8 @@ function priceFor(price: number | Record<string, number> | undefined, model: str
   if (price === undefined) {
     return undefined;
   }
-  if (typeof price === 'number') {
-    return price;
-  }
-  return price[model];
+  const value = typeof price === 'number' ? price : price[model];
+  return Number.isFinite(value) && value! >= 0 ? value : undefined;
 }
 
 function contentAttributes(
@@ -112,12 +110,14 @@ function contentAttributes(
     return {};
   }
   const attributes: Record<string, unknown> = {};
+  try {
   if (request !== undefined) {
     attributes[GEN_AI_ATTRIBUTES.promptContent] = JSON.stringify(masker(request));
   }
   if (response !== undefined) {
     attributes[GEN_AI_ATTRIBUTES.completionContent] = JSON.stringify(masker(response));
   }
+  } catch { return { 'gen_ai.content_capture_failed': true }; }
   return attributes;
 }
 
@@ -181,8 +181,8 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
         [GEN_AI_ATTRIBUTES.requestModel]: input.model,
         [GEN_AI_ATTRIBUTES.responseModel]: input.responseModel ?? input.model,
       };
-      const inputTokens = input.usage?.promptTokens;
-      const outputTokens = input.usage?.completionTokens;
+      const inputTokens = Number.isSafeInteger(input.usage?.promptTokens) && input.usage!.promptTokens! >= 0 ? input.usage!.promptTokens : undefined;
+      const outputTokens = Number.isSafeInteger(input.usage?.completionTokens) && input.usage!.completionTokens! >= 0 ? input.usage!.completionTokens : undefined;
       if (typeof inputTokens === 'number') {
         attributes[GEN_AI_ATTRIBUTES.inputTokens] = inputTokens;
       }
@@ -221,14 +221,15 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
 
       if (input.status) attributes['gen_ai.status'] = input.status;
       if (input.route) attributes['gen_ai.route'] = input.route;
-      if (input.cost !== undefined) {
+      if (Number.isFinite(input.cost) && input.cost! >= 0) {
         attributes[GEN_AI_ATTRIBUTES.costUsd] = input.cost;
         // Prefer actual routed cost over recorder defaults.
         metrics.costByModel[modelKey] = Number(((metrics.costByModel[modelKey] ?? 0) -
-          (((inputTokens ?? 0) / 1000) * (promptPrice ?? 0) + ((outputTokens ?? 0) / 1000) * (completionPrice ?? 0)) + input.cost).toFixed(6));
+          (((inputTokens ?? 0) / 1000) * (promptPrice ?? 0) + ((outputTokens ?? 0) / 1000) * (completionPrice ?? 0)) + input.cost!).toFixed(6));
       }
       const span = input.span ?? startSpan(GEN_AI_SPAN_NAMES.chat, attributes, input.context);
       if (input.span) span.setAttributes(attributes as any);
+      if (input.status === 'error') span.setStatus({ code: SpanStatusCode.ERROR });
       span.end();
     },
 
@@ -258,6 +259,7 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
 
       const span = input.span ?? startSpan(GEN_AI_SPAN_NAMES.tool, attributes, input.context);
       if (input.span) span.setAttributes(attributes as any);
+      if (input.status === 'error') span.setStatus({ code: SpanStatusCode.ERROR });
       span.end();
     },
 

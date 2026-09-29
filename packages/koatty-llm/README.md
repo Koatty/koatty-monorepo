@@ -59,11 +59,11 @@ export class SupportAgent {
 | Provider abstraction | `createOpenAiCompatibleProvider` (OpenAI, Azure-compatible gateways, most vendors, vLLM/Ollama) and `createAnthropicProvider`. Both are `fetch` + SSE, so a proxy/instrumented `fetchImpl` can be injected. |
 | Model routing | Logical model name → provider + provider-side model id; `fallbacks` are tried in order, and only for retryable failures. |
 | Reliability | Per-attempt timeout, exponential backoff with jitter for **429/5xx only**, circuit breaker per provider+model (`resetBreakers()` for admin use). |
-| Budget | Pre-flight check plus post-call accounting through `BudgetStore` (`get`/`set`/optional `incrBy`), so several instances share one counter. Exceeding the budget aborts the call — it never silently truncates. |
+| Budget | Pre-flight check plus post-call accounting through `BudgetStore` (`get`/`set`/required atomic `incrBy`), so several instances share one counter. Exceeding the budget aborts the call — it never silently truncates. |
 | Cancellation | `options.signal` is propagated to the provider **and** re-checked between chunks, so an aborted call (`ctx.signal`) stops within the provider round-trip. |
 | Structured output | Pass `schema` (provider-side JSON schema) and `dto` (class-validator DTO); the parsed JSON is validated with `koatty_validation`, and `validationRetries` re-asks once with a correction message. |
 | Tool calling | `withTools({ tools, registry, invoke })` runs the tool-call loop in-process: the model asks for a tool → it is invoked through your invoker (a `koatty_mcp` host satisfies it) → the result is fed back, with a hard `maxRounds` cap. |
-| Caching | Exact-match cache for non-streaming `complete()` calls (`cache: false` to bypass, `cacheKey` to control the key). Semantic caching is intentionally not in v1. |
+| Caching | Exact-match cache for non-streaming `complete()` calls (`cache: false` to bypass, `cacheKey` as an additional discriminator; each client and DTO has its own namespace). Semantic caching is intentionally not in v1. |
 | Cost | `estimateCost()` from `pricePer1kPrompt` / `pricePer1kCompletion` on the route. |
 
 Every result carries `model`, `provider`, `usage`, `finishReason`, `cached` and
@@ -95,3 +95,9 @@ npx tsc -p tsconfig.json --noEmit
 ## License
 
 BSD-3-Clause
+
+### Review migration (2026-09-30)
+
+When `budget` is configured, `store` and atomic `incrBy` are required. The default per-attempt completion reservation is 1024 tokens (`budget.defaultMaxTokens`), capped by the remaining scope allowance. An immediate failure before any chunk releases its reservation. Interrupted output without usage retains the bounded reservation. Estimates do not truncate a stream; authoritative usage and provider `maxTokens` enforce accounting. Settlement failures are logged as `budget_settlement_failed` and do not replace completed results; reconcile the counter before reusing an affected scope.
+
+`streamWithTools(options)` is the streaming counterpart of `withTools`; both support detached invocation, validate every tool name before exposing/executing it, pass cancellation, and report invocation failures as tool results. Cache entries include the effective schema and DTO identity, invalid entries refresh, and same-named providers in different clients do not share entries.

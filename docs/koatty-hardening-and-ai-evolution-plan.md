@@ -209,7 +209,7 @@ export function resolveProfile(env = process.env.NODE_ENV): SecurityProfile;
 | `ops.exposeMetrics` | `internal` | `internal` | `public` |
 | `tls.minVersion` | `TLSv1.2` | `TLSv1.2` | `TLSv1.2` |
 
-**选择规则**：`config.security.profile` 显式指定 > `NODE_ENV=production` 取 `strict` > `NODE_ENV=development|test` 取 `development` > 其余取 `standard`。**`NODE_ENV` 未设置时取 `standard` 而非 `development`**，避免"忘设环境变量 = 全开"。
+**选择规则**：`config.security.profile` 显式指定优先；否则读取 `KOATTY_ENV || NODE_ENV`，按完整名称匹配：production/prod → strict，development/dev/test → development，其余（含未设置）→ standard。latest 不会命中 test。
 
 **用户覆盖**：`config/security.ts` 中任意字段可覆盖；启动时打印一次最终生效的安全画像摘要（便于审计）。
 
@@ -217,7 +217,7 @@ export function resolveProfile(env = process.env.NODE_ENV): SecurityProfile;
 
 **决策**：
 
-- `4.3.x`：安全默认值生效，但提供 `security.legacyDefaults: true` 一键回退；回退时启动输出 `WARN` 并列出被回退的项。
+- `4.3.x`：安全默认值生效，但提供 `security.legacyDefaults: true` 回退 `LEGACY_DEFAULTS` 明列的画像字段（不是 TLS/Swagger/ORM/CLI 的全框架兼容模式）；回退时启动输出 `WARN` 并列出被回退的项。
 - `5.0.0`：移除 `legacyDefaults`。
 
 **例外**：SEC-09（`escapeHtml`）、COR-01（插件重复执行）、COR-05（RedLock 重跑）属于**明确缺陷**，直接修复，不提供回退开关。
@@ -701,10 +701,10 @@ export function resolveInside(root: string, p: string): string {
 - [x] 附录 A 中 SEC-01～SEC-15、COR-01/02/09 均有对应回归测试，且全部通过
       （2026-09-28 复跑：`SEC-01` container 7、`SEC-02`+`SEC-05` router、`SEC-03` validation 5、`SEC-04`/`SEC-04b` router、
       `SEC-06`/`SEC-08`/`SEC-12` serve、`SEC-07`+`SEC-15` trace、`SEC-09`+`SEC-13` lib、`SEC-10` cli 8、`SEC-11` typeorm 9、
-      `SEC-14` swagger 6、`COR-01` core、`COR-02` koatty 3、`COR-08` config 5、`COR-09` store 5、B-12 logger 30 —— 全绿）
+      `SEC-14` swagger 6、`COR-01` core、`COR-02` koatty 3、`COR-08` config 5、`COR-09` store 5、B-12 logger 6 —— 全绿）
 - [ ] `koatty new` 生成的空项目在 `NODE_ENV=production` 下，运行附录 B 的检查脚本全部通过
       （2026-09-28 审计确认旧 PASS 6 / SKIP 5 存在假阳性。修复后的 `pnpm security:baseline` 使用专用生产画像、多协议 fixture，必测项不允许跳过；它不等同于 `koatty new` 独立生成项目验收，详见 [修复记录](audits/phase-ab-remediation-2026-09-28.md)。）
-- [x] `security.legacyDefaults: true` 能恢复旧行为，并在启动时打印回退清单
+- [x] `security.legacyDefaults: true` 能恢复其明确列出的画像字段，并在启动时打印回退清单
       （`packages/koatty-core/test/security/B-0.security-profile.test.ts`：回退清单逐项覆盖 + `legacyDefaults is enabled` 启动 WARN 断言）
 - [x] 迁移指南（§10）已随 `4.3.0` 发布（`docs/migration/4.3.0.md`）
 
@@ -1266,7 +1266,7 @@ export class SupportAgent {
 - 遵循 OpenTelemetry GenAI 语义约定（`gen_ai.*` 属性）：记录供应商、模型、输入/输出 token 数、耗时、结束原因；
 - 工具调用 Span：`gen_ai.tool.name` 等属性，与 HTTP/MCP 请求 Span 形成完整调用链；
 - 指标：每个模型的 token 消耗与成本（按配置的单价计算）、工具调用成功率、审批通过率；
-- **默认不记录提示词与模型输出的原文**（隐私与合规要求），需要通过 `trace.genai.captureContent: true` 显式开启，开启后调用 F-3 同一脱敏服务处理；
+- **默认不记录提示词与模型输出的原文**（隐私与合规要求），需要通过 `trace.genai.captureContent: true` 显式开启，开启后必须显式注入 mask（可使用 F-3 服务），本包不隐式依赖 Guard；
 - 注意：OTel 的 GenAI 语义约定目前仍处于 development 状态，属性名可能变化；实现时把属性名集中在一个常量文件中，便于后续跟进。
 
 **工作量**：4 人天。
@@ -1285,19 +1285,20 @@ export class SupportAgent {
 - [x] 客户端断开 SSE 连接后，LLM 流式请求在 1 秒内被取消（通过 mock 供应商验证）—— `F-02`（取消 ≤1s）与 `F-05`（真实 Koatty 监听器 + HTTP socket 断连）
 - [x] Trace 中可以看到"MCP 请求 → 工具调用 → LLM 调用"的完整链路，且默认不含提示词原文 —— `F-04` + `F-05`（`F-05.trace-chain.test.ts`：真实协议工具内部调用 LLM，验证 span parent ID）
 
-**当前状态（2026-09-29 审计修复）**：F-A01～F-A23 已落实源码修复、回归与迁移；详见 [修复验证报告](phase-f-repair-2026-09-29.md)。已完成本地协议/编译产物测试，未发布；外部系统及部署验收仍开放。以下初版记录以修复报告为准。
+**当前状态（2026-09-30 二轮修复）**：以 [全面审查](phase-a-f-review-2026-09-29.md) 与 [逐项修复验证](phase-a-f-remediation-2026-09-30.md) 为准。源码/本地回归和外部发布验收分别记录；下方勾选只表示对应本地路径，不表示 Phase F 可发布。
 
-- **F-3**：填充 `packages/koatty-guard`（版本文件 `koatty_guard@1.0.0`，首次发布）。`createGuard()` 用**一个** `@Around` 普通切面串起脱敏 → 内容检查 → 限流 → 审批 → 审计，避免依赖多切面叠加语义；`destructiveHint` 工具在 strict 画像下默认需要审批（除非显式 `requireApproval: false`）。回归用例 `packages/koatty-guard/test/regression/F-03.guard.test.ts`。详见 [迁移说明](migration/phase-f-guard.md)。
-- **F-4**：扩展 `koatty-trace`（版本文件提升到 `koatty_trace@2.5.0`，新增导出为增量能力）。`createGenAiRecorder()` 记录 `gen_ai.*` 属性（供应商、模型、token、耗时、结束原因）与工具调用 span，属性名集中在 `src/genai/constants.ts`；token 成本按配置单价计算；**默认不记录提示词与模型输出原文**，`captureContent: true` 时复用 F-3 的脱敏服务。回归用例 `packages/koatty-trace/test/regression/F-04.genai.test.ts`。详见 [迁移说明](migration/phase-f-genai.md)。
-- **F-5**：参考应用 `packages/koatty/examples/mcp-order-service`（私有包，不发布）：2 个只读工具 + 1 个需审批的写工具 + 1 个 Resource + `/ask` SSE 问答 + `deploy/`（Docker 与 Kubernetes 探针模板），回归用例 `test/regression/F-05.reference-app.test.ts`及 live-loop / trace-chain 共 13 例，作为 F-1～F-4 的本地集成验证。
-- **版本说明**：本次只提升 AI 组件版本（`koatty_mcp@1.0.0`、`koatty_llm@1.0.0`、`koatty_guard@1.0.0`、`koatty_trace@2.5.0`）。主框架 `5.0.0`（W16）的破坏性清理（移除 `legacyDefaults` 与 `process.env` 路径变量）不属于 Phase F 的代码范围，仍按 §10.1 的 W16 排期单独执行，因此 `koatty` 版本文件保持 `4.4.0`。
+- **F-3**：填充 `packages/koatty-guard`（目标 `koatty_guard@1.0.0`，由 changeset 生成首次发布）。`createGuard()` 用**一个** `@Around` 普通切面串起脱敏 → 内容检查 → 限流 → 审批 → 审计，避免依赖多切面叠加语义；`destructiveHint` 工具在 strict 画像下默认需要审批（除非显式 `requireApproval: false`）。回归用例 `packages/koatty-guard/test/regression/F-03.guard.test.ts`。详见 [迁移说明](migration/phase-f-guard.md)。
+- **F-4**：扩展 `koatty-trace`（目标 `koatty_trace@2.5.0`，版本基线保持 2.4.0 等待 changeset）。`createGenAiRecorder()` 记录 `gen_ai.*` 属性（供应商、模型、token、耗时、结束原因）与工具调用 span，属性名集中在 `src/genai/constants.ts`；token 成本按配置单价计算；**默认不记录提示词与模型输出原文**，`captureContent: true` 时必须显式注入 mask（可使用 F-3 服务）。回归用例 `packages/koatty-trace/test/regression/F-04.genai.test.ts`。详见 [迁移说明](migration/phase-f-genai.md)。
+- **F-5**：参考应用 `packages/koatty/examples/mcp-order-service`（私有包，不发布）：2 个只读工具 + 1 个需审批的写工具 + 1 个 Resource + `/ask` SSE 问答 + `deploy/`（Docker 与 Kubernetes 探针模板），回归用例 `test/regression/F-05.reference-app.test.ts`及 live-loop / trace-chain 当前共 17 例，作为 F-1～F-4 的本地集成验证。
+- **版本说明**：版本应用尚未执行。新包从 0.0.0 生成 1.0.0，trace 从 2.4.0 生成 2.5.0；完整待发布 changeset 还包含既有 koatty/serve/validation major。具体目标以 Changesets 预演为准，不再手工预升版本。
+
 
 待验收：MCP Inspector 与至少两个主流客户端、真实 provider、真实共享存储/跨进程恢复、Docker/Kubernetes、隔离包安装与 p99 基准；不得把本地 mock/SDK 自动测试等同这些验收。
 
 **上一轮状态（保留记录）**：F-1（`koatty_mcp`）与 F-2（`koatty_llm`）代码与自动回归已完成。
 
-- **F-1**：新增包 `packages/koatty-mcp`（版本文件为 `koatty_mcp@1.0.0`，首次发布），回归用例 `packages/koatty-mcp/test/regression/F-01.mcp-host.test.ts`（19 例）覆盖发现与 schema、白名单校验、scope 拒绝、审批 fail closed、请求作用域与审计脱敏、Origin 校验；配套 `koatty_validation`（`PARAM_DTO_KEY` 桥接）与 `koatty_core`（`KoattyContext` 协议字段）为增量改动，已在各自 CHANGELOG 记录并新增 Changeset。详见 [迁移说明](migration/phase-f-mcp-host.md)。
-- **F-2**：新增包 `packages/koatty-llm`（版本文件为 `koatty_llm@1.0.0`，首次发布，未改动任何既有包行为），回归用例 `packages/koatty-llm/test/regression/F-02.llm-client.test.ts`（19 例）覆盖取消 ≤1s、fallback/重试/熔断、共享预算、结构化输出、工具循环、非流式缓存与 OpenAI 兼容 / Anthropic 两个适配器（测试使用脚本化 `fetch`，离线可跑）。验收门中“客户端断开后 LLM 流式请求 1 秒内被取消”已由该用例覆盖。详见 [迁移说明](migration/phase-f-llm-client.md)。
+- **F-1**：新增包 `packages/koatty-mcp`（首次发布目标 `koatty_mcp@1.0.0`，现由 changeset 生成），回归用例 `packages/koatty-mcp/test/regression/F-01.mcp-host.test.ts`（19 例）覆盖发现与 schema、白名单校验、scope 拒绝、审批 fail closed、请求作用域与审计脱敏、Origin 校验；配套 `koatty_validation`（`PARAM_DTO_KEY` 桥接）与 `koatty_core`（`KoattyContext` 协议字段）为增量改动，已在各自 CHANGELOG 记录并新增 Changeset。详见 [迁移说明](migration/phase-f-mcp-host.md)。
+- **F-2**：新增包 `packages/koatty-llm`（首次发布目标 `koatty_llm@1.0.0`，现由 changeset 生成），回归用例 `packages/koatty-llm/test/regression/F-02.llm-client.test.ts`（19 例）覆盖取消 ≤1s、fallback/重试/熔断、共享预算、结构化输出、工具循环、非流式缓存与 OpenAI 兼容 / Anthropic 两个适配器（测试使用脚本化 `fetch`，离线可跑）。验收门中“客户端断开后 LLM 流式请求 1 秒内被取消”已由该用例覆盖。详见 [迁移说明](migration/phase-f-llm-client.md)。
 
 F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用均已实现，Trace 完整链路验收门由自动回归关闭；真实系统与发布验收仍按上面的当前状态保留。
 

@@ -1,4 +1,4 @@
-import { createMaskingService } from './masking';
+import { createMaskingService, isSensitiveKey } from './masking';
 /**
  * Auditing service (roadmap Phase F, item F-3).
  *
@@ -29,9 +29,12 @@ export function summarizeArguments(args: unknown): Record<string, unknown> {
   if (!args || typeof args !== 'object') {
     return { value: typeof args };
   }
+  if (Buffer.isBuffer(args)) return { type: 'buffer', bytes: args.byteLength };
+  if (args instanceof Map || args instanceof Set) return { type: args instanceof Map ? 'map' : 'set', size: args.size };
+  if (Array.isArray(args)) return { type: 'array', length: args.length };
   const summary: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
-    if (/(password|passwd|secret|token|authorization|api[_-]?key|cookie)/i.test(key)) {
+    if (isSensitiveKey(key)) {
       summary[key] = '***';
     } else if (value === null || value === undefined) {
       summary[key] = value;
@@ -61,7 +64,7 @@ export function createAuditService(options: {
 } = {}): AuditService {
   const now = options.now ?? (() => Date.now());
   const safeMask = createMaskingService().mask;
-  const mask = (value: unknown) => safeMask(options.mask ? options.mask(value) : value);
+  const mask = (value: unknown) => { try { return safeMask(options.mask ? options.mask(value) : value); } catch { return '***'; } };
 
   return {
     record(record) {

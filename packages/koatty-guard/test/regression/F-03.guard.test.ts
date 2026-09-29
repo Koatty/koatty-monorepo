@@ -26,6 +26,7 @@ describe('F-03 masking', () => {
     expect(masked).not.toContain('110101199001011234');
     expect(masked).toContain('***');
     expect(DEFAULT_MASKING_RULES.map((rule) => rule.name)).toEqual([
+      'bearer', 'credential-url', 'private-key',
       'email',
       'phone-cn',
       'id-card-cn',
@@ -93,12 +94,12 @@ describe('F-03 approval', () => {
     const service = createApprovalService({ timeoutMs: 1000 });
     const pending = service.request({ id: 'tk-1', tool: 'refund' });
     expect(service.list().map((ticket) => ticket.id)).toEqual(['tk-1']);
-    expect(service.approve('tk-2')).toBe(false);
-    expect(service.approve('tk-1', 'alice')).toBe(true);
+    expect(await service.approve('tk-2')).toBe(false);
+    expect(await service.approve('tk-1', 'alice')).toBe(true);
     await expect(pending).resolves.toEqual({ approved: true, approver: 'alice' });
 
     const other = service.request({ id: 'tk-3', tool: 'refund' });
-    expect(service.reject('tk-3', 'not authorised')).toBe(true);
+    expect(await service.reject('tk-3', 'not authorised')).toBe(true);
     await expect(other).resolves.toEqual({ approved: false, reason: 'not authorised' });
   });
 
@@ -194,7 +195,7 @@ describe('F-03 guard aspect', () => {
       code: 'rate-limited',
     });
     expect(records).toHaveLength(2);
-    expect(records[1].status).toBe('error');
+    expect(records[1].status).toBe('rejected');
   });
 
   it('fails closed when a destructive call needs approval but no backend is wired', async () => {
@@ -209,7 +210,7 @@ describe('F-03 guard aspect', () => {
     });
   });
 
-  it('records a pending-approval audit entry when the approver rejects', async () => {
+  it('records a single rejected audit entry when the approver rejects', async () => {
     const records: GuardAuditRecord[] = [];
     const approval = createApprovalService({ timeoutMs: 30 });
     const aspect = createGuardAspect({
@@ -221,9 +222,9 @@ describe('F-03 guard aspect', () => {
     } }),
     });
     await expect(aspect.runGuarded('order.refund', [{ amount: 10 }], async () => 'refunded')).rejects.toMatchObject({
-      code: 'approval-denied',
+      code: 'approval-timeout',
     });
-    expect(records[0]).toMatchObject({ target: 'order.refund', status: 'pending-approval' });
+    expect(records[0]).toMatchObject({ target: 'order.refund', status: 'rejected' });
     expect(records[0].error).toBe('approval-timeout');
   });
 

@@ -146,3 +146,7 @@ npx tsc -p tsconfig.json --noEmit
 ## License
 
 BSD-3-Clause
+
+## Review migration (2026-09-30)
+
+Tools without a DTO accept only empty arguments. Bearer claims must identify `sub` or `client_id`. Approval timeouts use one deadline owner and one terminal denied audit. HTTP sessions default to 1000 active transports and a 5-minute idle expiry; configure `maxSessions`/`sessionTtlMs` for long-lived work. Redeclare MCP decorators on overrides that should remain exposed. TC39 support covers method metadata, not third-party DTO property decorators. See `docs/migration/phase-a-f-review-fixes.md` in the monorepo.

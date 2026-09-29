@@ -137,8 +137,10 @@ export function createBearerAuth(options: {
         }
       }
 
+      const subject = claims.sub ?? claims.client_id;
+      if (typeof subject !== 'string' || !subject.trim()) throw new McpAuthError('Token must identify a subject or client.');
       return {
-        id: String(claims.sub ?? claims.client_id ?? 'oauth-client'),
+        id: subject,
         scopes,
         kind: 'oauth',
         claims,

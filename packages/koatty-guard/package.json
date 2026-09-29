@@ -1,6 +1,6 @@
 {
   "name": "koatty_guard",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "AI guardrails for Koatty: masking, prompt-injection detection, human approval, rate limiting and auditing.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:cp",

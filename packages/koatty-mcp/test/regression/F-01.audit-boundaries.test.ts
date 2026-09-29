@@ -84,3 +84,62 @@ describe.each([false, true])('F-A01 real HTTP sessionful=%s', sessionful => {
     expect(results.every(r => !r.isError)).toBe(true);
   });
 });
+
+test('P1-01 nonempty arguments without DTO fail explicitly', async () => {
+  await expect(fixture().callTool('read', { ignored: 1 }, identity)).rejects.toMatchObject({ code: -32602 });
+});
+test('P2 throwing approval observer preserves one denied audit', async () => {
+  const records: any[] = [];
+  const host = fixture({ approval: { request: async () => ({ approved: false, reason: 'policy' }) }, onApproval: () => { throw new Error('observer'); }, audit: { record: (r: any) => records.push(r) } });
+  await expect(host.callTool('write', {}, identity)).rejects.toMatchObject({ code: -32600 });
+  expect(records).toHaveLength(1); expect(records[0].status).toBe('denied');
+});
+test('P2 missing bearer identity fails instead of sharing oauth-client', async () => {
+  const { createBearerAuth } = await import('../../src/security');
+  const auth = createBearerAuth({ audience: 'resource', verify: () => ({ aud: 'resource' }) });
+  await expect(auth.authenticate({ headers: { authorization: 'Bearer fixture' } })).rejects.toThrow(/subject|client/);
+});
+test('P2 undecorated override is private in legacy and TC39 metadata discovery', () => {
+  class Base { @Tool({ name: 'base' }) method() {} }
+  class Derived extends Base { method() {} }
+  const container = new Container(); container.reg('Derived', Derived, { type: 'SERVICE' } as any);
+  expect(createMcpHost({ app: { container } }).registry.tools).toHaveLength(0);
+});
+
+test('P2 request-scoped progress reaches a stateless HTTP client', async () => {
+  class ProgressTools { @Tool({ name: 'progress' }) async run(_args: any, ctx: any) { await ctx.progress(1, 2, 'working'); return 'ok'; } }
+  const container = new Container(); container.reg('ProgressTools', ProgressTools, { type: 'SERVICE' } as any);
+  const host = createMcpHost({ app: { container } }); const adapter = createMcpHttpAdapter({ host });
+  const server = createServer(async (req, res) => { let raw = ''; for await (const c of req) raw += c; await adapter.middleware({ path: '/mcp', method: req.method, req, res, request: { headers: req.headers, body: raw ? JSON.parse(raw) : undefined } }, async () => {}); });
+  const client = new Client({ name: 'progress-test', version: '1' });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  try {
+    await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${(server.address() as any).port}/mcp`)));
+    const progress: any[] = [];
+    await client.callTool({ name: 'progress' }, undefined, { onprogress: p => progress.push(p) });
+    expect(progress).toEqual([expect.objectContaining({ progress: 1, total: 2 })]);
+  } finally { await client.close(); await adapter.close(); await new Promise<void>(r => server.close(() => r())); }
+});
+
+test('P2 session capacity is bounded and idle expiry permits a new session', async () => {
+  const host = fixture(); const adapter = createMcpHttpAdapter({ host, sessionful: true, maxSessions: 1, sessionTtlMs: 100, enableJsonResponse: true });
+  const server = createServer(async (req, res) => {
+    let raw = ''; for await (const c of req) raw += c;
+    const ctx: any = { path: '/mcp', method: req.method, req, res, request: { headers: req.headers, body: raw ? JSON.parse(raw) : undefined } };
+    await adapter.middleware(ctx, async () => {});
+    if (ctx.respond !== false) { res.statusCode = ctx.status; res.end(JSON.stringify(ctx.body)); }
+  });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${(server.address() as any).port}/mcp`;
+  const init = () => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'fixture', version: '1' } } }) });
+  try { const first = await init(); expect(first.status).toBe(200); await first.text(); const second = await init(); expect(second.status).toBe(503); await second.text(); await new Promise(r => setTimeout(r, 220)); const third = await init(); expect(third.status).toBe(200); await third.text(); }
+  finally { await adapter.close(); await new Promise<void>(r => server.close(() => r())); }
+});
+
+test('P2 outer guard rejection and pre-aborted calls each retain one terminal audit', async () => {
+  const records: any[] = []; const audit = { record: (r: any) => records.push(r) };
+  await expect(fixture({ audit, aroundTool: async () => { throw new Error('guard rejected'); } }).callTool('read', {}, identity)).rejects.toThrow();
+  const controller = new AbortController(); controller.abort();
+  await expect(fixture({ audit }).callTool('read', {}, identity, { signal: controller.signal })).rejects.toThrow();
+  expect(records.map(r => r.status)).toEqual(['denied', 'cancelled']);
+});

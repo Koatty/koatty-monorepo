@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Strengthen regression coverage through the actual GraphQL middleware introspection rejection path.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## Unreleased — Phase E generated HTTP verification

@@ -128,13 +128,19 @@ export async function evaluateApproval(
 
   let decision: ApprovalDecision;
   try {
-    decision = await withTimeout(input.service.request(ticket, { signal: input.signal }), timeoutMs, input.signal);
+    const controller = new AbortController();
+    const signal = input.signal ? AbortSignal.any([input.signal, controller.signal]) : controller.signal;
+    try {
+      const request = input.service.request(ticket, { signal });
+      decision = input.service.managesTimeout ? await request : await withTimeout(request, timeoutMs, signal);
+    } finally { controller.abort(); }
     input.signal?.throwIfAborted();
   } catch (error) {
     if (error instanceof McpApprovalTimeoutError) throw error;
     throw new McpApprovalError(`Approval backend failed: ${(error as Error).message}`);
   }
 
+  if (decision?.approved === false && decision.reason === 'approval-timeout') throw new McpApprovalTimeoutError(`Approval timed out after ${timeoutMs}ms.`);
   if (decision?.approved === true) return { approved: true, ticketId: ticket.id };
   return { approved: false, ticketId: ticket.id, reason: decision?.reason ?? 'rejected' };
 }

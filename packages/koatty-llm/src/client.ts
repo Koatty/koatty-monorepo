@@ -19,7 +19,7 @@
  *
  * @License BSD-3-Clause
  */
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { checkValidated, dtoToJsonSchema } from 'koatty_validation';
 import {
   LlmAbortError,
@@ -228,9 +228,13 @@ export function createLlmClient(config: LlmConfig): LlmClient {
   const maxToolRounds = config.maxToolRounds ?? DEFAULT_TOOL_ROUNDS;
   const logger: LlmLogger | undefined = config.logger;
   const defaultModel = config.defaultModel ?? 'default';
+  const cacheNamespace = randomUUID();
+  const dtoKeys = new WeakMap<object, string>();
   if (config.budget && (!config.budget.store?.incrBy || !Number.isSafeInteger(config.budget.maxTokens) || config.budget.maxTokens <= 0)) {
     throw new LlmError('Token budgets require a positive integer limit and an atomic incrBy store.', { code: 'bad_request' });
   }
+
+  if (config.budget?.defaultMaxTokens !== undefined && (!Number.isSafeInteger(config.budget.defaultMaxTokens) || config.budget.defaultMaxTokens <= 0)) throw new LlmError('defaultMaxTokens must be a positive integer.', { code: 'bad_request' });
 
   const budgetKey = (scope: string) => `llm:budget:${config.budget?.scope ?? 'global'}:${scope}`;
 
@@ -247,7 +251,7 @@ export function createLlmClient(config: LlmConfig): LlmClient {
     const prompt = budget.estimatePromptTokens?.(messages, tools) ??
       estimateTokens(messages.map(m => m.content + (m.toolCalls ? JSON.stringify(m.toolCalls) : '')).join('\n') + (tools?.length ? JSON.stringify(tools) : ''));
     if (!Number.isSafeInteger(prompt) || prompt < 0) throw new LlmError('Invalid prompt token estimate.', { code: 'bad_request' });
-    const maxTokens = Math.min(options.maxTokens ?? budget.maxTokens, budget.maxTokens - used - prompt);
+    const maxTokens = Math.min(options.maxTokens ?? budget.defaultMaxTokens ?? 1024, budget.maxTokens - used - prompt);
     if (maxTokens <= 0) throw new LlmBudgetError(scope, used + prompt, budget.maxTokens);
     const reserved = prompt + maxTokens;
     // Atomic increment is the admission gate. A competing reservation must be
@@ -278,11 +282,21 @@ export function createLlmClient(config: LlmConfig): LlmClient {
     const iterator = provider.stream(request)[Symbol.asyncIterator]();
     try {
       for (;;) {
-        const { value, done } = await iterator.next();
+        const { value, done } = await new Promise<IteratorResult<LlmChunk>>((resolve, reject) => {
+          const abort = () => { cleanup(); reject(new LlmAbortError()); };
+          const cleanup = () => controller.signal.removeEventListener('abort', abort);
+          controller.signal.addEventListener('abort', abort, { once: true });
+          if (controller.signal.aborted) { abort(); return; }
+          Promise.resolve().then(() => iterator.next()).then(value => { cleanup(); resolve(value); }, error => { cleanup(); reject(error); });
+        });
         if (done) return;
         yield value;
       }
-    } finally { controller.abort(); await iterator.return?.(); }
+    } finally {
+      controller.abort();
+      // An uncooperative provider must not hold timeout/cancellation open.
+      void Promise.resolve().then(() => iterator.return?.()).catch(() => {});
+    }
   }
 
   async function* streamRouted(
@@ -338,8 +352,8 @@ export function createLlmClient(config: LlmConfig): LlmClient {
           if (state) state.candidate = candidate;
           if (controller.signal.aborted) throw new LlmAbortError();
           observation = config.observeAttempt?.({ provider: candidate.providerName, model: candidate.providerModel, route: model, messages });
-          started = true;
           for await (const chunk of attempt(candidate, request, controller)) {
+            started = true;
             if (options.signal?.aborted) throw new LlmAbortError(undefined, { provider: candidate.providerName, model });
             if (timedOut) throw new LlmTimeoutError();
             if (chunk.usage) {
@@ -349,7 +363,7 @@ export function createLlmClient(config: LlmConfig): LlmClient {
             if (chunk.finishReason) finishReason = chunk.finishReason;
             if (chunk.type === 'text') output += chunk.delta ?? '';
             if (chunk.toolCall) output += JSON.stringify(chunk.toolCall);
-            if (reservation && (usage?.totalTokens ?? reservation.prompt + estimateTokens(output)) > reservation.reserved) {
+            if (reservation && usage && usage.totalTokens > reservation.reserved) {
               controller.abort();
               throw new LlmBudgetError(options.budgetScope!, usage?.totalTokens ?? reservation.prompt + estimateTokens(output), config.budget!.maxTokens);
             }
@@ -382,7 +396,12 @@ export function createLlmClient(config: LlmConfig): LlmClient {
           if (reservation) {
             // Unknown usage after interruption conservatively retains the entire
             // reservation. A caller cannot evade charges by disconnecting early.
-            await reservation.settle(usage?.totalTokens ?? (!started ? 0 : completed ? reservation.prompt + estimateTokens(output) : reservation.reserved));
+            try {
+              await reservation.settle(usage?.totalTokens ?? (!started ? 0 : completed ? Math.min(reservation.reserved, reservation.prompt + estimateTokens(output)) : reservation.reserved));
+            } catch {
+              // Keep the reservation conservative; do not replace a business result/error.
+              try { logger?.error('koatty_llm: budget settlement failed', { code: 'budget_settlement_failed' }); } catch { /* observer only */ }
+            }
           }
         }
       }
@@ -490,7 +509,7 @@ export function createLlmClient(config: LlmConfig): LlmClient {
     }
   }
 
-  return {
+  const client: LlmClient = {
     config,
     stream(options: LlmRequestOptions): AsyncGenerator<LlmChunk> {
       return streamRouted(options, resolveTools(options));
@@ -499,10 +518,13 @@ export function createLlmClient(config: LlmConfig): LlmClient {
       const model = options.model ?? defaultModel;
       const cache = config.cache;
       const cacheable = !!cache && options.cache !== false && !options.signal;
-      const key = cacheable ? cacheKeyFor({ ...options, tools: resolveTools(options) }, model, config.routes) : '';
+      if (options.dto && !dtoKeys.has(options.dto)) dtoKeys.set(options.dto, randomUUID());
+      const effective = { ...options, schema: options.schema ?? (options.dto ? dtoToJsonSchema(options.dto, 0, options.partial) : undefined) };
+      const key = cacheable ? `${cacheNamespace}:${options.dto ? dtoKeys.get(options.dto) : ''}:${cacheKeyFor({ ...effective, tools: resolveTools(options) }, model, config.routes)}` : '';
       if (cacheable) {
         const hit = await cache!.get(key);
         if (hit) {
+          try {
           if (options.dto || options.schema) {
             const parsed = parseJsonOutput(hit.text);
             if (parsed.error) throw new LlmValidationError('Cached output is not valid JSON.', [parsed.error], hit.text);
@@ -514,6 +536,7 @@ export function createLlmClient(config: LlmConfig): LlmClient {
             }
           }
           return { ...(hit as LlmResult), cached: true };
+          } catch { /* Invalid/stale cached DTO output is a cache miss. */ }
         }
       }
       const result = await runComplete({ ...options });
@@ -545,15 +568,15 @@ export function createLlmClient(config: LlmConfig): LlmClient {
       };
 
       for (;;) {
-        result = await this.complete({ ...options, messages, tools: tools.length ? tools : undefined });
+        result = await client.complete({ ...options, messages, tools: tools.length ? tools : undefined });
         for (const key of ['promptTokens', 'completionTokens', 'totalTokens'] as const) totalUsage[key] += result.usage[key];
         totalCost += result.cost ?? 0;
         if (!result.toolCalls.length) break;
-        if (rounds >= maxRounds) break;
-        rounds += 1;
         for (const call of result.toolCalls) {
           if (!allowed.has(call.name)) throw new LlmError(`Tool "${call.name}" is not allowed in this call.`, { code: 'bad_request' });
         }
+        if (rounds >= maxRounds) break;
+        rounds += 1;
         messages.push({ role: 'assistant', content: result.text, toolCalls: result.toolCalls });
         for (const call of result.toolCalls) {
           if (options.signal?.aborted) throw new LlmAbortError();
@@ -578,9 +601,12 @@ export function createLlmClient(config: LlmConfig): LlmClient {
       for (let round = 0; ; round++) {
         const calls: LlmToolCall[] = [];
         let text = ''; let done: LlmChunk = { type: 'done' };
-        for await (const chunk of this.stream({ ...options, messages, tools })) {
+        for await (const chunk of client.stream({ ...options, messages, tools })) {
           if (chunk.type === 'done') { done = chunk; continue; }
-          if (chunk.toolCall) calls.push(chunk.toolCall);
+          if (chunk.toolCall) {
+            if (!allowed.has(chunk.toolCall.name)) throw new LlmError(`Tool "${chunk.toolCall.name}" is not allowed in this call.`, { code: 'bad_request' });
+            calls.push(chunk.toolCall);
+          }
           text += chunk.delta ?? '';
           yield chunk;
         }
@@ -595,7 +621,9 @@ export function createLlmClient(config: LlmConfig): LlmClient {
         messages.push({ role: 'assistant', content: text, toolCalls: calls });
         for (const call of calls) {
           if (options.signal?.aborted) throw new LlmAbortError();
-          const result = await options.invoke(call.name, call.args, { signal: options.signal });
+          let result: unknown;
+          try { result = await options.invoke(call.name, call.args, { signal: options.signal }); }
+          catch (error) { result = { error: (error as Error).message }; }
           messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result ?? null) });
         }
       }
@@ -604,6 +632,7 @@ export function createLlmClient(config: LlmConfig): LlmClient {
       return costOf(model, usage);
     },
   };
+  return client;
 }
 
 function withCorrection(messages: LlmMessage[], note: string): LlmMessage[] {

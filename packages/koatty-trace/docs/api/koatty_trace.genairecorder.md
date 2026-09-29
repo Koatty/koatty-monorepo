@@ -25,6 +25,24 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[beginChat(input)](./koatty_trace.genairecorder.beginchat.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
+[beginTool(input)](./koatty_trace.genairecorder.begintool.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [metrics()](./koatty_trace.genairecorder.metrics.md)
 
 

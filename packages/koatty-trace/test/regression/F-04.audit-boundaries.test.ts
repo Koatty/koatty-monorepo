@@ -2,11 +2,14 @@ import { createGenAiRecorder } from '../../src/genai/genai';
 test('F-A16: content capture cannot be enabled without a masker', () => {
   expect(() => createGenAiRecorder({ captureContent: true })).toThrow(/mask/i);
 });
-test('F-A16: masking failures cannot fall back to raw content', () => {
-  const startSpan = jest.fn();
+test('F-A16: masking failures retain non-content attributes without raw content', () => {
+  const span = { end: jest.fn(), setStatus: jest.fn() }; const startSpan = jest.fn((_name: string, _options: any, _context: any) => span);
   const recorder = createGenAiRecorder({ captureContent: true, mask: () => { throw new Error('mask failed'); }, tracer: { startSpan } as any });
-  expect(() => recorder.recordChat({ provider: 'test', model: 'test', request: { secret: 'fixture' } })).toThrow();
-  expect(startSpan).not.toHaveBeenCalled();
+  expect(() => recorder.recordChat({ provider: 'test', model: 'test', status: 'error', cost: NaN, request: { secret: 'fixture' } })).not.toThrow();
+  expect(JSON.stringify(startSpan.mock.calls)).not.toContain('fixture');
+  expect(startSpan.mock.calls[0][1].attributes['gen_ai.request.model']).toBe('test');
+  expect(span.setStatus).toHaveBeenCalledWith({ code: 2 });
+  expect(JSON.stringify(recorder.metrics())).not.toContain('null');
 });
 
 test('F-A21: live tool and chat spans preserve parentage, duration and failed status', async () => {

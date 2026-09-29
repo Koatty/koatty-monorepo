@@ -109,7 +109,9 @@ export function createContentGuard(options: {
       if (typeof text !== 'string' || text.length === 0) {
         return { risk: 'none' as ContentRisk, findings: [], decision: 'allow' as ContentDecision };
       }
-      const findings = detector(text);
+      const confusables: Record<string, string> = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'і': 'i', 'у': 'y', 'Α': 'A', 'Ε': 'E', 'Ο': 'O' };
+      const normalized = text.normalize('NFKC').replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '').replace(/[аеорсхіуΑΕΟ]/g, char => confusables[char]);
+      const findings = detector(normalized);
       if (findings.length === 0) {
         return { risk: 'none' as ContentRisk, findings, decision: 'allow' as ContentDecision };
       }

@@ -214,6 +214,12 @@ importers:
       jest:
         specifier: ^30.2.0
         version: 30.3.0(@types/node@20.19.37)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@20.19.37)(typescript@5.9.3))
+      koatty:
+        specifier: workspace:*
+        version: link:../koatty
+      koatty_testing:
+        specifier: workspace:*
+        version: link:../koatty-testing
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
@@ -691,9 +697,6 @@ importers:
       koatty_core:
         specifier: workspace:*
         version: link:../koatty-core
-      koatty_serve:
-        specifier: workspace:*
-        version: link:../koatty-serve
     devDependencies:
       '@microsoft/api-documenter':
         specifier: ^7.26.x
@@ -731,6 +734,9 @@ importers:
       koa:
         specifier: ^2.x.x
         version: 2.16.3
+      koatty_serve:
+        specifier: workspace:*
+        version: link:../koatty-serve
       ts-jest:
         specifier: ^29.x.x
         version: 29.4.6(@babel/core@7.28.6)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.28.6))(esbuild@0.27.3)(jest-util@30.3.0)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
@@ -804,12 +810,6 @@ importers:
 
   packages/koatty-llm:
     dependencies:
-      koatty_cacheable:
-        specifier: ^1.0.0
-        version: 1.6.1(koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)))(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
-      koatty_store:
-        specifier: ^1.0.0
-        version: 1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
       koatty_validation:
         specifier: workspace:*
         version: link:../koatty-validation
@@ -850,6 +850,12 @@ importers:
       jest-html-reporters:
         specifier: ^3.x.x
         version: 3.1.7
+      koatty_cacheable:
+        specifier: workspace:*
+        version: link:../koatty-cacheable
+      koatty_store:
+        specifier: workspace:*
+        version: link:../koatty-store
       ts-jest:
         specifier: ^29.x.x
         version: 29.4.6(@babel/core@7.28.6)(@jest/transform@30.3.0)(@jest/types@30.3.0)(babel-jest@30.3.0(@babel/core@7.28.6))(esbuild@0.27.3)(jest-util@30.3.0)(jest@29.7.0(@types/node@22.19.7)(ts-node@10.9.2(@swc/core@1.15.11)(@types/node@22.19.7)(typescript@5.9.3)))(typescript@5.9.3)
@@ -1923,6 +1929,9 @@ importers:
 
   packages/koatty-validation:
     dependencies:
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
       class-validator:
         specifier: ^0.14.3
         version: 0.14.3
@@ -1993,15 +2002,21 @@ importers:
 
   packages/koatty/examples/mcp-order-service:
     dependencies:
-      "@modelcontextprotocol/sdk":
+      '@modelcontextprotocol/sdk':
         specifier: ^1.30.1
         version: 1.30.1(zod@4.6.5)
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.0
       class-validator:
         specifier: ^0.14.3
         version: 0.14.3
       koatty:
         specifier: workspace:*
         version: link:../..
+      koatty_container:
+        specifier: workspace:*
+        version: link:../../../koatty-container
       koatty_core:
         specifier: workspace:*
         version: link:../../../koatty-core
@@ -2014,6 +2029,9 @@ importers:
       koatty_mcp:
         specifier: workspace:*
         version: link:../../../koatty-mcp
+      koatty_router:
+        specifier: workspace:*
+        version: link:../../../koatty-router
       koatty_trace:
         specifier: workspace:*
         version: link:../../../koatty-trace
@@ -2023,23 +2041,14 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
-      koatty_router:
-        specifier: workspace:*
-        version: link:../../../koatty-router
-      koatty_container:
-        specifier: workspace:*
-        version: link:../../../koatty-container
-      "@opentelemetry/api":
-        specifier: ^1.9.0
-        version: 1.9.0
     devDependencies:
-      "@opentelemetry/sdk-trace-base":
+      '@opentelemetry/sdk-trace-base':
         specifier: ^2.5.0
         version: 2.5.0(@opentelemetry/api@1.9.0)
-      "@types/jest":
+      '@types/jest':
         specifier: ^29.5.x
         version: 29.5.14
-      "@types/node":
+      '@types/node':
         specifier: ^22.x.x
         version: 22.19.7
       jest:
@@ -4865,6 +4874,9 @@ packages:
   cjs-module-lexer@2.2.0:
     resolution: {integrity: sha512-4bHTS2YuzUvtoLjdy+98ykbNB5jS0+07EvFNXerqZQJ89F7DI6ET7OQo/HJuW6K0aVsKA9hj9/RVb2kQVOrPDQ==}
 
+  class-transformer@0.5.1:
+    resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
+
   class-validator@0.14.3:
     resolution: {integrity: sha512-rXXekcjofVN1LTOSw+u4u9WXVEUvNBVjORW154q/IdmYWy1nMbOU9aNtZB0t8m+FJQ9q91jlr2f9CwwUFdFMRA==}
 
@@ -5552,6 +5564,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -5860,10 +5873,6 @@ packages:
   generator-function@2.0.1:
     resolution: {integrity: sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g==}
     engines: {node: '>= 0.4'}
-
-  generic-pool@3.9.0:
-    resolution: {integrity: sha512-hymDOu5B53XvN4QT9dBmZxPX4CWhBPPLguTZ9MMFeFa/Kg0xWVfylOVNlJji/E7yTZWFd/q9GO5TxDLq156D7g==}
-    engines: {node: '>= 4'}
 
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
@@ -6736,39 +6745,6 @@ packages:
   koa@3.2.0:
     resolution: {integrity: sha512-TrM4/tnNY7uJ1aW55sIIa+dqBvc4V14WRIAlGcWat9wV5pRS9Wr5Zk2ZTjQP1jtfIHDoHiSbPuV08P0fUZo2pg==}
     engines: {node: '>= 18'}
-
-  koatty_cacheable@1.6.1:
-    resolution: {integrity: sha512-hwhvyaojvJamjip9eBQAHTC94Q06x7aedljL22sR2TKXgPmPnoSuEQZMRYN1pz0PxzBYzJbSRQnf8CxORwz1ow==}
-    engines: {node: '>10.0.0'}
-    peerDependencies:
-      koatty_container: ^1.x.x
-      koatty_lib: ^1.x.x
-      koatty_logger: ^2.x.x
-
-  koatty_container@4.0.0:
-    resolution: {integrity: sha512-IMr4Qf+NFbQPcX03scT/qLsUxVZb2aX0ZItZhLdSrEX9wqruF/0DoWGKYGQ5xAbFRwUEp4i1KCOOzzzISCOyqQ==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      koatty_lib: ^1.6.0
-      koatty_logger: ^3.1.0
-
-  koatty_lib@1.6.0:
-    resolution: {integrity: sha512-tY11u5vIClM82nGGRORQ7NvzXiYepOFxstSvlDWEi1bHSF/mFsQl7mPJqvUmWTTgCAiMoEZz4LZBKf24k47EIA==}
-    engines: {node: '>=18.0.0'}
-
-  koatty_logger@3.1.1:
-    resolution: {integrity: sha512-8CwzUBP3ut1PPicTBfL7UBCDZqSgEKvAFNbJPUZEk4OyH9I4B9xcgIJUnihomgrNqJCdLby0r26FXWjRqAMQsQ==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      koatty_lib: ^1.6.0
-      tslib: ^2.x.x
-
-  koatty_store@1.9.4:
-    resolution: {integrity: sha512-4xAJ4YFnO/mKcUcx5iC68Zp8Mzf+bMb4XzXSKrKpU8iwkvP0JRV24DM5u4shMK5piHkS7SHiMGxRHkk5G/ZZ9A==}
-    engines: {node: '>10.0.0'}
-    peerDependencies:
-      koatty_lib: ^1.4.5
-      koatty_logger: ^2.3.4
 
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
@@ -12437,6 +12413,8 @@ snapshots:
 
   cjs-module-lexer@2.2.0: {}
 
+  class-transformer@0.5.1: {}
+
   class-validator@0.14.3:
     dependencies:
       '@types/validator': 13.15.10
@@ -13579,8 +13557,6 @@ snapshots:
       - supports-color
 
   generator-function@2.0.1: {}
-
-  generic-pool@3.9.0: {}
 
   gensync@1.0.0-beta.2: {}
 
@@ -14987,48 +14963,6 @@ snapshots:
       statuses: 2.0.2
       type-is: 2.0.1
       vary: 1.1.2
-
-  koatty_cacheable@1.6.1(koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)))(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
-    dependencies:
-      koatty_container: 4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
-      koatty_lib: 1.6.0
-      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
-      koatty_store: 1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1))
-    transitivePeerDependencies:
-      - supports-color
-
-  koatty_container@4.0.0(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
-    dependencies:
-      koatty_lib: 1.6.0
-      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
-      lru-cache: 11.2.7
-      tslib: 2.8.1
-
-  koatty_lib@1.6.0:
-    dependencies:
-      co: 4.6.0
-      dayjs: 1.11.19
-      lodash: 4.17.23
-      murmurhash: 2.0.1
-
-  koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1):
-    dependencies:
-      koatty_lib: 1.6.0
-      tslib: 2.8.1
-      winston: 3.19.0
-      winston-daily-rotate-file: 4.7.1(winston@3.19.0)
-
-  koatty_store@1.9.4(koatty_lib@1.6.0)(koatty_logger@3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)):
-    dependencies:
-      async-lock: 1.4.1
-      generic-pool: 3.9.0
-      ioredis: 5.10.1
-      koatty_lib: 1.6.0
-      koatty_logger: 3.1.1(koatty_lib@1.6.0)(tslib@2.8.1)
-      lodash: 4.17.23
-      lru-cache: 11.2.7
-    transitivePeerDependencies:
-      - supports-color
 
   kuler@2.0.0: {}
 

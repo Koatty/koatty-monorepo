@@ -1,3 +1,7 @@
+# 后续更新
+
+本文件保留首轮背景；审批签名/容量、缓存、DTO 转换与 schema 的现行契约以 [二轮迁移说明](phase-a-f-review-fixes.md) 为准。
+
 # Phase F 审计修复迁移（2026-09-29）
 
 对应 `phase-f-audit-2026-09-29.md` 的 F-A01～F-A23。版本号未应用、未发布；以下行为以本工作区修复后的源码为准。
@@ -32,7 +36,7 @@
 
 ## Schema、追踪与参考应用
 
-- 运行时 DTO schema 集中在 koatty_validation；CLI E1 使用无运行时副作用的 `koatty_validation/schema-rules` 共享规则，不导入目标应用。port/JSON 是字符串；可选支持 null；each、partial、nested 修正，不能忠实映射的规则保留 unresolved。
+- 运行时 DTO schema 集中在 koatty_validation；CLI E1 使用无运行时副作用的 `koatty_validation/schema-rules` 共享规则，不导入目标应用。port/JSON 是字符串；可选支持 null；each/partial 提供结构映射；nested 及无法忠实映射的规则以二轮修复后的 unresolved 标记为准。
 - captureContent=true 必须显式提供 masker，失败不会回退原文。新增 beginChat/beginTool，在执行前开始 span、执行后结束；LLM observeAttempt 覆盖实际尝试与失败，显式 context 保持父子关系。旧 record API 仍适用于完成事件，不能独自证明 live span 链路。
 - 示例已加入 pnpm workspace 与默认 test，提供 build/start、main.ts、healthz/readyz 和审批管理端点；SSE 使用 streamSSE。readyz 只说明本地初始化，不代表远端 provider 可用。
 - 示例使用内存订单、审批、限流，Kubernetes 模板改为单副本；Docker 使用仓库根目录上下文。多副本生产需替换共享业务存储/审批后端。远端供应商、Docker/Kubernetes、Inspector 和第三方客户端仍需独立部署验收。

@@ -1,6 +1,6 @@
 {
   "name": "koatty_mcp",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "MCP Server host for Koatty: expose Service methods as MCP tools, resources and prompts.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:cp",
@@ -73,7 +73,7 @@
     "koatty_core": "^2.6.0",
     "koatty_lib": "^1.6.0",
     "koatty_logger": "^3.1.0",
-    "koatty_validation": "^4.1.0"
+    "koatty_validation": "^5.0.0"
   },
   "types": "./dist/index.d.ts"
 }

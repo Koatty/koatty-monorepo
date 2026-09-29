@@ -29,6 +29,8 @@ function saveMetadata(
     Reflect.defineMetadata(key, meta, method);
     return;
   }
+  Reflect.defineMetadata(`${key}:own`, meta, target, methodName);
+  Reflect.defineMetadata(key, meta, method ?? Object.getOwnPropertyDescriptor(target, methodName)?.value);
   save(target);
 }
 

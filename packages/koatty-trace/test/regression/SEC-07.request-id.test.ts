@@ -122,3 +122,19 @@ describe("SEC-15: topology service header", () => {
     expect(SERVICE_NAME_RE.test("service;drop")).toBe(false);
   });
 });
+
+test('P2 actual trace middleware trusts service headers only after explicit opt-in', async () => {
+  const { Trace } = await import('../../src/trace/trace');
+  const { HandlerFactory } = await import('../../src/handler/factory');
+  const { TopologyAnalyzer } = await import('../../src/opentelemetry/topology');
+  const recordServiceDependency = jest.fn();
+  const topology = jest.spyOn(TopologyAnalyzer, 'getInstance').mockReturnValue({ recordServiceDependency } as any);
+  const handler = jest.spyOn(HandlerFactory, 'getHandler').mockReturnValue({ handle: async () => undefined } as any);
+  try {
+    for (const [trust, header, expected] of [[false, 'caller', 'unknown'], [true, 'caller', 'caller'], [true, 'bad\nheader', 'unknown']] as const) {
+      const middleware = Trace({ enableTrace: false, opentelemetryConf: { enableTopology: true, trustServiceHeader: trust } } as any, { name: 'app', once: jest.fn(), server: { status: 200 } } as any);
+      await middleware(mockCtx({ protocol: 'http', headers: { service: header }, req: { method: 'GET' }, set: jest.fn() }), async () => undefined);
+      expect(recordServiceDependency).toHaveBeenLastCalledWith('app', expected);
+    }
+  } finally { topology.mockRestore(); handler.mockRestore(); }
+});

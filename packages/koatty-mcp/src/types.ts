@@ -123,6 +123,8 @@ export type ApprovalDecision =
 
 /** Human-in-the-loop approval backend (roadmap F-3 implements one). */
 export interface ApprovalService {
+  /** Backend enforces the ticket deadline, including unresponsive storage. */
+  readonly managesTimeout?: boolean;
   request(ticket: ApprovalTicket, options?: { signal?: AbortSignal }): Promise<ApprovalDecision>;
 }
 

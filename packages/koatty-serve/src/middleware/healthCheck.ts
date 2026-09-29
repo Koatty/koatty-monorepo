@@ -192,12 +192,9 @@ export class HealthCheckMiddleware {
     res.end(JSON.stringify(data, null, 2));
   }
 }
-/** loopback + RFC1918 defaults (IPv4), matched as integer ranges */
+/** loopback defaults (IPv4), matched as integer ranges */
 const TRUSTED_V4_RANGES: Array<[number, number]> = [
   [ipv4ToInt('127.0.0.0'), ipv4ToInt('127.255.255.255')],
-  [ipv4ToInt('10.0.0.0'), ipv4ToInt('10.255.255.255')],
-  [ipv4ToInt('172.16.0.0'), ipv4ToInt('172.31.255.255')],
-  [ipv4ToInt('192.168.0.0'), ipv4ToInt('192.168.255.255')],
 ];
 
 function ipv4ToInt(ip: string): number {
@@ -213,7 +210,7 @@ function ipv4ToInt(ip: string): number {
 }
 
 /**
- * True when the client IP is a loopback/private-network address (based on
+ * True when the client IP is a loopback address (based on
  * `socket.remoteAddress` only) or falls into one of the configured CIDRs.
  */
 export function isTrustedRemoteIp(ip: string, allowCidrs: string[] = []): boolean {

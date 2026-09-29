@@ -147,3 +147,12 @@ describe("SEC-04: profile-driven router defaults", () => {
     expect(html).toContain("<script>");
   });
 });
+
+test('P2 actual GraphQL middleware rejects introspection before resolver execution', async () => {
+  const router = new GraphQLRouter(makeApp({ introspection: false }), OPTIONS_WITH_SCHEMA);
+  const resolver = jest.fn(() => 'secret');
+  router.SetRouter('/graphql', { schema: TEST_SCHEMA, implementation: { a: resolver } } as any);
+  const ctx: any = { method: 'POST', url: '/graphql', protocol: 'http', host: 'localhost', headers: { 'content-type': 'application/json', accept: 'application/graphql-response+json' }, request: { body: { query: '{ __schema { queryType { name } } }' } }, set: jest.fn() };
+  await (router as any).router.stack[0].stack[0](ctx);
+  expect(JSON.parse(ctx.body).errors[0].message).toMatch(/introspection/i); expect(resolver).not.toHaveBeenCalled();
+});

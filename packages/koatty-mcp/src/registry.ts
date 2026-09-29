@@ -228,6 +228,8 @@ export function createRegistry(options: RegistryOptions): McpRegistry {
             if (seen.has(name)) continue; seen.add(name);
             const method = Object.getOwnPropertyDescriptor(p, name)?.value;
             if (typeof method === 'function' && Reflect.hasOwnMetadata(key, method)) result[name] = Reflect.getOwnMetadata(key, method);
+            else if (Reflect.hasOwnMetadata(`${key}:own`, p, name)) result[name] = Reflect.getOwnMetadata(`${key}:own`, p, name);
+            else if ([MCP_TOOL_KEY, MCP_RESOURCE_KEY, MCP_PROMPT_KEY].includes(key)) delete result[name];
           }
         }
         return result;

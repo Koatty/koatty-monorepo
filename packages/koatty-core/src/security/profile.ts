@@ -159,12 +159,13 @@ const PROFILES: Record<ProfileName, SecurityProfile> = {
  */
 export function resolveProfileName(env = process.env.KOATTY_ENV || process.env.NODE_ENV): ProfileName {
   const value = (env || '').toLowerCase();
-  if (value.includes('pro')) return 'strict';
-  if (value.includes('dev') || value.includes('test')) return 'development';
+  if (['production', 'prod'].includes(value)) return 'strict';
+  if (['development', 'dev', 'test'].includes(value)) return 'development';
   return 'standard';
 }
 
 function cloneProfile(name: ProfileName): MutableSecurityProfile {
+  if (!Object.prototype.hasOwnProperty.call(PROFILES, name)) throw new Error('Invalid security profile name');
   const base = PROFILES[name];
   return {
     name: base.name,
@@ -200,10 +201,16 @@ function applyUserOverrides(profile: MutableSecurityProfile, options: SecurityCo
     ['payload', 'validation', 'aop', 'graphql', 'ws', 'ops', 'tls'];
   for (const section of sections) {
     const overrides = options[section] as Record<string, unknown> | undefined;
-    if (!overrides) continue;
+    if (overrides === undefined) continue;
+    if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error(`Invalid security section: ${section}`);
     const target = profile[section] as Record<string, unknown>;
     for (const [key, value] of Object.entries(overrides)) {
-      if (value !== undefined) target[key] = value;
+      if (!Object.prototype.hasOwnProperty.call(target, key)) throw new Error(`Unknown security field: ${section}.${key}`);
+      if (value === undefined) continue;
+      if (typeof value !== typeof target[key] || (typeof value === 'number' && (!Number.isFinite(value) || value < 0))) throw new Error(`Invalid security field: ${section}.${key}`);
+      const choices: Record<string, readonly string[]> = { 'payload.onParseError': ['reject', 'empty'], 'aop.onAspectError': ['throw', 'log'], 'ops.exposeMetrics': ['off', 'internal', 'public'], 'tls.minVersion': ['TLSv1.2', 'TLSv1.3'] };
+      if (choices[`${section}.${key}`] && !choices[`${section}.${key}`].includes(value as string)) throw new Error(`Invalid security field: ${section}.${key}`);
+      target[key] = value;
     }
   }
 }
@@ -220,6 +227,8 @@ export function resolveProfile(
   options?: SecurityConfigOptions | null,
   env = process.env.KOATTY_ENV || process.env.NODE_ENV
 ): SecurityProfile {
+  if (options != null && (typeof options !== 'object' || Array.isArray(options))) throw new Error('Invalid security options');
+  for (const key of Object.keys(options ?? {})) if (!['profile', 'legacyDefaults', 'payload', 'validation', 'aop', 'graphql', 'ws', 'ops', 'tls'].includes(key)) throw new Error('Unknown security option');
   const profileName = options?.profile ?? resolveProfileName(env);
   const profile = cloneProfile(profileName);
   let reverted: string[] = [];

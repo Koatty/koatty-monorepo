@@ -25,9 +25,7 @@ logs/
 Thumbs.db
 
 # Changesets
-.changeset/*.md
-!.changeset/README.md
-!.changeset/phase-f-audit-hardening.md
+# Changeset Markdown must travel with source and CI.
 
 # Local scratch and generated runtime state
 .tmp/

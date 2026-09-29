@@ -1,5 +1,6 @@
 /** Durable, single-use approval tickets. Only explicit approval can execute. */
 import { createHash, randomUUID } from 'crypto';
+import { createMaskingService } from './masking';
 
 export interface ApprovalTicketLike {
   id: string;
@@ -21,12 +22,13 @@ export interface KeyValueStore {
   compareAndSet?(key: string, expected: string | null, value: string): Promise<boolean> | boolean;
 }
 export interface ApprovalService {
+  readonly managesTimeout?: boolean;
   request(ticket: ApprovalTicketInput, options?: { signal?: AbortSignal }): Promise<ApprovalDecisionLike>;
-  approve(id: string, approver?: string): boolean | Promise<boolean>;
-  reject(id: string, reason: string): boolean | Promise<boolean>;
+  approve(id: string, approver?: string): Promise<boolean>;
+  reject(id: string, reason: string): Promise<boolean>;
   list(): ApprovalTicketLike[];
   /** Resume a persisted pending ticket after restart; a decision is consumed once. */
-  resume?(id: string, options?: { signal?: AbortSignal }): Promise<ApprovalDecisionLike>;
+  resume?(id: string, context: Omit<ApprovalTicketInput, 'id'>, options?: { signal?: AbortSignal }): Promise<ApprovalDecisionLike>;
 }
 interface RecordState {
   ticket: ApprovalTicketLike;
@@ -56,12 +58,13 @@ export function createApprovalService(options: {
   store?: KeyValueStore;
   notify?: (ticket: ApprovalTicketLike) => void | Promise<void>;
   now?: () => number;
-  /** Local mode keeps single-use tombstones and refuses growth above this bound. */
+  /** Bound active local tickets; replay tombstones expire at the original deadline. */
   maxLocalTickets?: number;
 } = {}): ApprovalService {
   const timeoutMs = options.timeoutMs ?? 300_000;
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error('approval timeout must be positive');
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) throw new Error('approval timeout must be positive');
   if (options.store && !options.store.compareAndSet) throw new Error('Shared approval stores require atomic compareAndSet');
+  if (options.maxLocalTickets !== undefined && (!Number.isSafeInteger(options.maxLocalTickets) || options.maxLocalTickets <= 0)) throw new Error('Invalid approval capacity');
   const now = options.now ?? Date.now;
   const memory = new Map<string, string>();
   const store: KeyValueStore = options.store ?? {
@@ -73,6 +76,28 @@ export function createApprovalService(options: {
     },
   };
   const pending = new Map<string, ApprovalTicketLike>();
+  const observed = new Map<string, string>();
+  const fingerprintOf = (ticket: ApprovalTicketInput) => {
+    const canonical = (value: any): any => value instanceof Date ? value.toISOString() : Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+    return createHash('sha256').update(JSON.stringify(canonical([ticket.tool, ticket.caller, ticket.sessionId, ticket.requestId, ticket.args]))).digest('hex');
+  };
+  const prune = () => {
+    for (const [key, raw] of memory) if (JSON.parse(raw).ticket.expiresAt <= now()) memory.delete(key);
+  };
+  const terminalize = async (id: string) => {
+    const key = PREFIX + id;
+    const known = observed.get(id);
+    if (known) {
+      const record = JSON.parse(known) as RecordState;
+      if (record.state === 'consumed') return;
+      if (await store.compareAndSet!(key, known, JSON.stringify({ ...record, state: 'consumed', decision: undefined }))) return;
+    }
+    const raw = await store.get(key);
+    if (!raw) return;
+    const record = JSON.parse(raw) as RecordState;
+    if (record.state !== 'consumed') await store.compareAndSet!(key, raw, JSON.stringify({ ...record, state: 'consumed', decision: undefined }));
+  };
 
   const nextDecision = (raw: string | null, decision: ApprovalDecisionLike): string | undefined => {
     if (!raw) return;
@@ -80,7 +105,7 @@ export function createApprovalService(options: {
     if (record.state !== 'pending' || now() >= record.ticket.expiresAt!) return;
     return JSON.stringify({ ...record, state: 'decided', decision: normalize(decision) });
   };
-  const decide = (id: string, decision: ApprovalDecisionLike): boolean | Promise<boolean> => {
+  const decide = async (id: string, decision: ApprovalDecisionLike): Promise<boolean> => {
     const key = PREFIX + id;
     if (!options.store) {
       const raw = memory.get(key) ?? null;
@@ -101,6 +126,7 @@ export function createApprovalService(options: {
       if (now() >= deadline) return denied('approval-timeout');
       const raw = await bounded(store.get(key), deadline, now, signal);
       if (!raw) return denied('approval-not-found');
+      observed.set(id, raw);
       const record = JSON.parse(raw) as RecordState;
       if (record.state === 'consumed') return denied('approval-already-consumed');
       if (record.state === 'decided') {
@@ -116,37 +142,34 @@ export function createApprovalService(options: {
 
   async function finish(ticket: ApprovalTicketLike, signal?: AbortSignal): Promise<ApprovalDecisionLike> {
     try { return await wait(ticket.id, ticket.expiresAt!, signal); }
-    catch (error) { return denied((error as Error).message === 'approval-cancelled' ? 'approval-cancelled' : 'approval-timeout'); }
+    catch (error) { return denied(['approval-cancelled', 'approval-timeout'].includes((error as Error).message) ? (error as Error).message : 'approval-backend-failed'); }
     finally {
       pending.delete(ticket.id);
-      // Timeout/cancellation terminalization is best effort. Even if storage is
-      // unavailable the immutable deadline still prevents a late approval.
-      if (signal?.aborted || now() >= ticket.expiresAt!) {
-        void Promise.resolve().then(async () => {
-          const raw = await store.get(PREFIX + ticket.id);
-          if (!raw) return;
-          const record = JSON.parse(raw) as RecordState;
-          if (record.state === 'consumed') return;
-          await store.compareAndSet!(PREFIX + ticket.id, raw, JSON.stringify({ state: 'consumed', fingerprint: record.fingerprint,
-            ticket: { id: ticket.id, tool: ticket.tool, expiresAt: ticket.expiresAt } }));
-        }).catch(() => {});
-      }
+      // Terminalize on every outcome, including a transient read failure.
+      try { await bounded(terminalize(ticket.id), now() + Math.min(timeoutMs, 100), now); } catch { /* immutable expiry remains authoritative */ }
+      observed.delete(ticket.id);
     }
   }
   return {
+    managesTimeout: true,
     async request(input, call = {}) {
       if (call.signal?.aborted) return denied('approval-cancelled');
-      if (!options.store && memory.size >= (options.maxLocalTickets ?? 10_000)) return denied('approval-capacity');
+      prune();
+      if (!options.store && [...memory.values()].filter(raw => JSON.parse(raw).state !== 'consumed').length >= (options.maxLocalTickets ?? 10_000)) return denied('approval-capacity');
       const createdAt = input.createdAt ?? now();
+      if (!Number.isFinite(createdAt) || createdAt > now()) return denied('invalid-created-at');
       const ticket: ApprovalTicketLike = { ...input, id: input.id || randomUUID(), createdAt,
         expiresAt: Math.min(input.expiresAt ?? createdAt + timeoutMs, createdAt + timeoutMs) };
       if (!Number.isFinite(ticket.expiresAt) || ticket.expiresAt! <= now()) return denied('approval-timeout');
-      const fingerprint = createHash('sha256').update(JSON.stringify([ticket.tool, ticket.caller, ticket.sessionId, ticket.requestId, ticket.args])).digest('hex');
+      const fingerprint = fingerprintOf(ticket);
+      const storedTicket: ApprovalTicketLike = { ...ticket, args: undefined, argumentSummary: createMaskingService().mask(ticket.argumentSummary ?? {}) };
       if (pending.has(ticket.id)) return denied('duplicate-ticket');
       pending.set(ticket.id, ticket);
       try {
-        const created = await bounded(store.compareAndSet!(PREFIX + ticket.id, null, JSON.stringify({ ticket, fingerprint, state: 'pending' })), ticket.expiresAt!, now, call.signal);
+        const raw = JSON.stringify({ ticket: storedTicket, fingerprint, state: 'pending' });
+        const created = await bounded(store.compareAndSet!(PREFIX + ticket.id, null, raw), ticket.expiresAt!, now, call.signal);
         if (!created) { pending.delete(ticket.id); return denied('duplicate-ticket'); }
+        observed.set(ticket.id, raw);
         // Notification never delays deadline enforcement. A failed notifier
         // rejects the same persisted ticket instead of authorizing it.
         void Promise.resolve().then(() => options.notify?.(ticket)).catch(() => decide(ticket.id, denied('notification-failed'))).catch(() => {});
@@ -156,12 +179,14 @@ export function createApprovalService(options: {
     approve: (id, approver) => decide(id, { approved: true, approver }),
     reject: (id, reason) => decide(id, denied(reason)),
     list: () => [...pending.values()],
-    async resume(id, call = {}) {
+    async resume(id, context, call = {}) {
       try {
         const raw = await bounded(store.get(PREFIX + id), now() + timeoutMs, now, call.signal);
         if (!raw) return denied('approval-not-found');
         const record = JSON.parse(raw) as RecordState;
         if (record.state === 'consumed') return denied('approval-already-consumed');
+        if (!context || fingerprintOf(context) !== record.fingerprint) return denied('approval-context-mismatch');
+        observed.set(id, raw);
         pending.set(id, record.ticket);
         return await finish(record.ticket, call.signal);
       } catch { return denied('approval-backend-failed'); }
@@ -179,5 +204,5 @@ export function createCallbackApprovalService(options: {
     if (decision.approved === true) await service.approve(ticket.id, decision.approver);
     else await service.reject(ticket.id, decision.reason);
   } });
-  return { ...service, approve: () => false, reject: () => false };
+  return { ...service, approve: async () => false, reject: async () => false };
 }

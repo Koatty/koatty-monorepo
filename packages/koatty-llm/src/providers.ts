@@ -74,7 +74,7 @@ export async function* readSse(body: any): AsyncGenerator<string> {
   }
   } finally {
     if (stream) {
-      try { await stream.cancel(); } finally { stream.releaseLock(); }
+      try { await stream.cancel(); } catch { /* cleanup cannot replace the result */ } finally { stream.releaseLock(); }
     } else { await iterator?.return?.(); }
   }
 }

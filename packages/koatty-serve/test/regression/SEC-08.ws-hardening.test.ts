@@ -116,7 +116,7 @@ describe("SEC-08: WebSocket server defaults", () => {
 
   test("upgrades beyond the connection limit are rejected with 503", () => {
     const server = makeWsServer({
-      wsConfig: { maxConnections: 1 },
+      wsConfig: { maxConnections: 1, allowedOrigins: ["https://app.example.com"] },
     });
     (server as any).tracker.add(Object.assign(new EventEmitter(), {close: jest.fn()}));
 
@@ -126,7 +126,7 @@ describe("SEC-08: WebSocket server defaults", () => {
       destroy: () => { (socket as any).destroyed = true; },
       destroyed: false,
     };
-    (server as any).upgradeHandler({ headers: {} }, socket, Buffer.alloc(0));
+    (server as any).upgradeHandler({ headers: { origin: "https://app.example.com" } }, socket, Buffer.alloc(0));
     expect(writes.some((w) => w.includes("503 Service Unavailable"))).toBe(true);
     expect(socket.destroyed).toBe(true);
   });

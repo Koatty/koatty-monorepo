@@ -135,9 +135,9 @@ describe("SEC-06: metrics exposure policy", () => {
     expect(res.body).not.toContain("test_metric");
   });
 
-  test("internal policy serves loopback and private-range sources", async () => {
+  test("internal policy serves loopback sources", async () => {
     const mw = createHealthCheckMiddleware({ metricsProvider });
-    for (const ip of ["127.0.0.1", "::1", "10.0.0.5", "172.20.1.9", "192.168.1.10", "::ffff:192.168.0.3"]) {
+    for (const ip of ["127.0.0.1", "::1", "::ffff:127.0.0.1"]) {
       const { res } = await run(mw, makeReq({ url: "/metrics", remoteAddress: ip }));
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("test_metric");
@@ -187,9 +187,9 @@ describe("SEC-06: source address handling", () => {
   test("isTrustedRemoteIp", () => {
     expect(isTrustedRemoteIp("127.0.0.1")).toBe(true);
     expect(isTrustedRemoteIp("::1")).toBe(true);
-    expect(isTrustedRemoteIp("::ffff:10.1.2.3")).toBe(true);
-    expect(isTrustedRemoteIp("172.16.255.254")).toBe(true);
-    expect(isTrustedRemoteIp("192.168.0.1")).toBe(true);
+    expect(isTrustedRemoteIp("::ffff:10.1.2.3")).toBe(false);
+    expect(isTrustedRemoteIp("172.16.255.254")).toBe(false);
+    expect(isTrustedRemoteIp("192.168.0.1")).toBe(false);
     expect(isTrustedRemoteIp("8.8.8.8")).toBe(false);
     expect(isTrustedRemoteIp("172.32.0.1")).toBe(false);
     expect(isTrustedRemoteIp("")).toBe(false);
@@ -211,4 +211,10 @@ describe("SEC-06: resolveOpsConfig", () => {
   test("falls back to internal without an app", () => {
     expect(resolveOpsConfig(undefined).exposeMetrics).toBe("internal");
   });
+});
+
+test('P1-06 a private proxy source is denied until explicitly allowlisted', async () => {
+  const req = makeReq({ url: '/metrics', remoteAddress: '10.1.2.3' });
+  expect((await run(createHealthCheckMiddleware({ metricsProvider: () => 'm' }), req)).res.statusCode).toBe(403);
+  expect((await run(createHealthCheckMiddleware({ metricsProvider: () => 'm', allowCidrs: ['10.1.2.0/24'] }), req)).res.statusCode).toBe(200);
 });

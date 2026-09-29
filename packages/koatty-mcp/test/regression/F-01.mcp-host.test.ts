@@ -383,7 +383,7 @@ describe('F-01 context isolation, audit and protocol safety', () => {
     const client = await connectClient(host);
     await expect(client.callTool({ name: 'order_cancel', arguments: { orderNo: 'A-1', reason: 'x' } })).rejects.toBeTruthy();
     const record = records.find((item) => item.tool === 'order_cancel');
-    expect(record.status).toBe('pending-approval');
+    expect(record.status).toBe('denied');
   });
 
   it('validates the Origin header for DNS-rebinding protection', () => {

@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Record OTel ERROR status; preserve non-content attributes on masker failure; reject invalid metric values. Strengthen service-header trust regression at middleware boundary.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## Unreleased — Phase F audit fixes (2026-09-29)

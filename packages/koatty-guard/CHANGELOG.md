@@ -1,3 +1,9 @@
+## Unreleased — Phase A–F review (2026-09-30)
+
+Expire replay tombstones without exhausting active capacity; bind resume context; async approval decisions; omit persisted raw args; distinguish backend failure. Precise credential masking, normalized container content inspection and one terminal audit.
+
+Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
+
 # Changelog
 
 ## Unreleased — Phase F audit fixes (2026-09-29)

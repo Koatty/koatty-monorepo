@@ -104,7 +104,7 @@ export class GuardAspect implements IAspect {
     target: string,
     args: unknown[],
     proceed: () => Promise<T> | T,
-    context: { caller?: string; sessionId?: string; requestId?: string; signal?: AbortSignal } = {},
+    context: { caller?: string; sessionId?: string; requestId?: string; signal?: AbortSignal; audit?: boolean } = {},
   ): Promise<T> {
     const startedAt = Date.now();
     const caller = context.caller ?? this.caller();
@@ -118,7 +118,11 @@ export class GuardAspect implements IAspect {
         const inspect = (value: unknown) => {
           if (typeof value === 'string') this.inspectContent(value);
           else if (value && typeof value === 'object' && !seen.has(value)) {
-            seen.add(value); for (const item of Object.values(value)) inspect(item);
+            seen.add(value);
+            if (Buffer.isBuffer(value)) { this.inspectContent(value.toString('utf8')); return; }
+            if (value instanceof Map) { for (const [key, item] of value) { inspect(key); inspect(item); } return; }
+            if (value instanceof Set) { for (const item of value) inspect(item); return; }
+            for (const [key, item] of Object.entries(value)) { inspect(key); inspect(item); }
           }
         };
         inspect(args);
@@ -140,23 +144,13 @@ export class GuardAspect implements IAspect {
         }, { signal });
         if (decision?.approved !== true) {
           const reason = decision?.reason ?? 'invalid-approval';
-          this.audit.record({
-            caller,
-            sessionId: context.sessionId,
-            requestId: context.requestId,
-            target,
-            status: 'pending-approval',
-            durationMs: Date.now() - startedAt,
-            argumentSummary: summarizeArguments(args[0]),
-            error: reason,
-          });
-          throw new GuardError('approval-denied', `approval denied for ${target}: ${reason}`);
+          throw new GuardError(reason, `approval denied for ${target}: ${reason}`);
         }
       }
 
       signal?.throwIfAborted();
       const result = await proceed();
-      this.audit.record({
+      if (context.audit !== false) this.audit.record({
         caller,
         sessionId: context.sessionId,
         requestId: context.requestId,
@@ -172,12 +166,12 @@ export class GuardAspect implements IAspect {
         sessionId: context.sessionId,
         requestId: context.requestId,
         target,
-        status: 'error',
+        status: error instanceof GuardError ? 'rejected' : 'error',
         durationMs: Date.now() - startedAt,
         argumentSummary: summarizeArguments(args[0]),
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof GuardError ? error.code : 'guard-operation-failed',
       };
-      this.audit.record(record);
+      if (context.audit !== false) this.audit.record(record);
       throw error;
     }
   }

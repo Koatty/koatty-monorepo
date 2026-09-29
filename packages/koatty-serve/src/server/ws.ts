@@ -34,7 +34,7 @@ export class WsServer extends BaseServer<
   protected recreate(): void {
     const profile = (this.app as any).security?.ws ?? {};
     const config = this.app.config?.("ws") ?? {};
-    this.checkOriginEnabled = profile.checkOrigin === true;
+    this.checkOriginEnabled = profile.checkOrigin !== false;
     this.allowedOrigins = Array.isArray(config.allowedOrigins)
       ? config.allowedOrigins
       : [];

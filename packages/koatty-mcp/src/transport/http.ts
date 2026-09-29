@@ -12,8 +12,12 @@ export interface McpHttpOptions {
   allowedOrigins?: string[];
   sessionful?: boolean;
   enableJsonResponse?: boolean;
+  /** Idle session lifetime, default 5 minutes. */
+  sessionTtlMs?: number;
+  /** Maximum active transports, default 1000. */
+  maxSessions?: number;
 }
-interface SessionEntry { transport: StreamableHTTPServerTransport; server: Server; principalId: string | null }
+interface SessionEntry { transport: StreamableHTTPServerTransport; server: Server; principalId: string | null; lastUsed: number }
 export interface McpHttpAdapter {
   readonly path: string;
   readonly sessionful: boolean;
@@ -27,6 +31,9 @@ export function createMcpHttpAdapter(options: McpHttpOptions): McpHttpAdapter {
   const sessions = new Map<string, SessionEntry>();
   const active = new Set<SessionEntry>();
   let closed = false;
+  const ttl = options.sessionTtlMs ?? 300_000;
+  const capacity = options.maxSessions ?? 1000;
+  if (!Number.isSafeInteger(ttl) || ttl <= 0 || ttl > 2_147_483_647 || !Number.isSafeInteger(capacity) || capacity <= 0) throw new Error('Invalid MCP session limits');
   const error = (ctx: any, status: number, message: string) => {
     ctx.status = status;
     ctx.body = { jsonrpc: '2.0', error: { code: -32000, message }, id: null };
@@ -37,6 +44,10 @@ export function createMcpHttpAdapter(options: McpHttpOptions): McpHttpAdapter {
     await entry.server.close();
   };
 
+  const sweep = setInterval(() => {
+    for (const entry of active) if (Date.now() - entry.lastUsed >= ttl) void dispose(entry).catch(() => {});
+  }, Math.min(ttl, 30_000));
+  sweep.unref();
   return {
     path, sessionful,
     async middleware(ctx, next) {
@@ -60,7 +71,9 @@ export function createMcpHttpAdapter(options: McpHttpOptions): McpHttpAdapter {
       if (sessionful && sessionId && !entry) return error(ctx, 404, 'Unknown MCP session.');
       if (sessionful && !entry && method !== 'POST') return error(ctx, 400, 'Missing MCP session id.');
       if (entry && entry.principalId !== (principal?.id ?? null)) return error(ctx, 403, 'Session belongs to another caller.');
+      if (entry && Date.now() - entry.lastUsed >= ttl) { await dispose(entry); return error(ctx, 404, 'Expired MCP session.'); }
       if (!entry) {
+        if (active.size >= capacity) return error(ctx, 503, 'MCP session capacity reached.');
         const server = options.host.createServer();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: sessionful ? () => randomUUID() : undefined,
@@ -68,10 +81,11 @@ export function createMcpHttpAdapter(options: McpHttpOptions): McpHttpAdapter {
           onsessioninitialized: id => { sessions.set(id, entry!); },
           onsessionclosed: id => { sessions.delete(id); void dispose(entry!).catch(() => {}); },
         });
-        entry = { server, transport, principalId: principal?.id ?? null };
+        entry = { server, transport, principalId: principal?.id ?? null, lastUsed: Date.now() };
         active.add(entry);
         try { await server.connect(transport); } catch (cause) { await dispose(entry); throw cause; }
       }
+      entry.lastUsed = Date.now();
       const connection = entry;
       const abort = new AbortController();
       const disconnected = () => { if (!ctx.res.writableFinished) abort.abort(); };
@@ -96,6 +110,7 @@ export function createMcpHttpAdapter(options: McpHttpOptions): McpHttpAdapter {
     },
     async close() {
       closed = true;
+      clearInterval(sweep);
       await Promise.allSettled([...active].map(dispose));
       sessions.clear();
     },

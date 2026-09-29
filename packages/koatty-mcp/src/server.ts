@@ -122,7 +122,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
     name: string,
     args: Record<string, unknown>,
     identity: ToolCallIdentity,
-    hooks: CallToolHooks = {},
+    hooks: CallToolHooks & { auditState?: { recorded: boolean } } = {},
   ): Promise<unknown> => {
     hooks.signal?.throwIfAborted();
     if (auth && !identity.principal) throw new McpAuthError('Authentication credentials are required.');
@@ -136,8 +136,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       status: AuditStatus,
       summary: Record<string, unknown>,
       error?: string,
-    ) =>
-      emitAudit(audit, {
+    ) => {
+      if (hooks.auditState) hooks.auditState.recorded = true;
+      return emitAudit(audit, {
         tool: name,
         caller,
         sessionId: identity.sessionId,
@@ -147,6 +148,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
         argumentSummary: summary,
         error,
       });
+    };
 
     // 3. scope check — before validation, approval and business code.
     try {
@@ -157,7 +159,11 @@ export function createMcpHost(options: McpHostOptions): McpHost {
     }
 
     // 4. argument validation: same whitelist policy as the HTTP request body.
-    let validatedArgs: Record<string, unknown> = tool.dto ? args : {};
+    if (!tool.dto && Object.keys(args).length) {
+      await record('invalid', argumentSummary, 'Tool without a DTO accepts only empty arguments.');
+      throw new McpError(ErrorCode.InvalidParams, 'Tool without a DTO accepts only empty arguments.');
+    }
+    let validatedArgs: Record<string, unknown> = args;
     if (tool.dto) {
       try {
         const { validatedArgs: checked } = await checkValidated([args], [tool.dto], tool.partial);
@@ -179,6 +185,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       | { approved: boolean; ticketId?: string; reason?: string }
       | undefined;
     const approvalStarted = Date.now();
+    const observeApproval = (event: Parameters<NonNullable<typeof options.onApproval>>[0]) => {
+      try { options.onApproval?.(event); } catch { /* observer must not change approval/audit semantics */ }
+    };
     try {
       approval = await evaluateApproval({
         tool: tool.name,
@@ -196,14 +205,14 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       });
     } catch (error) {
       if (tool.requireApproval === true || (strict && tool.annotations.destructiveHint && tool.requireApproval !== false)) {
-        options.onApproval?.({ tool: name, decision: (error as Error).name === 'McpApprovalTimeoutError' ? 'timeout' : 'rejected', durationMs: Date.now() - approvalStarted });
+        observeApproval({ tool: name, decision: (error as Error).name === 'McpApprovalTimeoutError' ? 'timeout' : 'rejected', durationMs: Date.now() - approvalStarted });
       }
-      await record('pending-approval', summary, (error as Error).message);
+      await record(hooks.signal?.aborted ? 'cancelled' : 'denied', summary, (error as Error).message);
       throw error;
     }
     hooks.signal?.throwIfAborted();
     if (tool.requireApproval === true || (strict && tool.annotations.destructiveHint && tool.requireApproval !== false)) {
-      options.onApproval?.({ tool: name, decision: approval.approved ? 'approved' : 'rejected', durationMs: Date.now() - approvalStarted });
+      observeApproval({ tool: name, decision: approval.approved ? 'approved' : 'rejected', durationMs: Date.now() - approvalStarted });
     }
     if (!approval.approved) {
       const message = `Tool "${tool.name}" was not approved (${approval.reason ?? 'rejected'}).`;
@@ -233,7 +242,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       return result;
     } catch (error) {
       const message = (error as Error).message || 'Tool execution failed.';
-      await record('error', summary, message);
+      await record(hooks.signal?.aborted ? 'cancelled' : 'error', summary, message);
       throw error;
     }
   };
@@ -241,8 +250,15 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   const callTool: McpHost['callTool'] = async (name, args, identity, hooks = {}) => {
     const ctx = createCallContext(options.app, identity, { toolName: name, signal: hooks.signal, progress: hooks.progress });
     return runWithContext(options.app, ctx, async () => {
-      const proceed = () => executeTool(name, args, identity, hooks);
-      return options.aroundTool ? options.aroundTool({ name, args, identity }, proceed) : proceed();
+      const auditState = { recorded: false };
+      const started = Date.now();
+      const proceed = () => executeTool(name, args, identity, { ...hooks, auditState });
+      try { return await (options.aroundTool ? options.aroundTool({ name, args, identity }, proceed) : proceed()); }
+      catch (error) {
+        if (!auditState.recorded) await emitAudit(audit, { tool: name, caller: identity.principal?.id ?? 'anonymous', sessionId: identity.sessionId, requestId: identity.requestId,
+          status: hooks.signal?.aborted ? 'cancelled' : 'denied', durationMs: Date.now() - started, argumentSummary: summarizeArguments(args, options.redact), error: 'tool-preflight-rejected' });
+        throw error;
+      }
     });
   };
 
@@ -260,7 +276,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
 
   const prepare = async (extra: any, request: any) => {
     const authInput = identityStorage.getStore() ?? connectionIdentity ?? { headers: {} };
-    const principal = await resolveIdentity(authInput);
+    let principal;
+    try { principal = await resolveIdentity(authInput); }
+    catch (error) { throw new McpError(ErrorCode.InvalidRequest, `[McpAuthError] ${(error as Error).message}`); }
     const identity: ToolCallIdentity = {
       principal,
       sessionId: extra?.sessionId ?? 'local',
@@ -272,7 +290,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       progressToken === undefined
         ? undefined
         : async (current: number, total?: number, message?: string) => {
-            await server.notification({
+            await extra.sendNotification({
               method: 'notifications/progress',
               params: { progressToken, progress: current, total, message },
             });
@@ -362,9 +380,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   server.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
     const uri = request.params.uri;
     try {
+      const { identity, progress, signal } = await prepare(extra, request);
       const match: ResourceMatch | undefined = registry.matchResource(uri);
       if (!match) throw new McpError(ErrorCode.InvalidParams, `Unknown resource "${uri}".`);
-      const { identity, progress, signal } = await prepare(extra, request);
       assertScopes(identity.principal, match.resource.scopes, `resource "${match.resource.uriTemplate}"`);
       const result = await invokeMember(
         identity,
@@ -399,9 +417,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
 
   server.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
     const name = request.params.name;
+    const { identity, progress, signal } = await prepare(extra, request);
     const prompt = registry.getPrompt(name);
     if (!prompt) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt "${name}".`);
-    const { identity, progress, signal } = await prepare(extra, request);
     assertScopes(identity.principal, prompt.scopes, `prompt "${prompt.name}"`);
     const result = await invokeMember(
       identity,

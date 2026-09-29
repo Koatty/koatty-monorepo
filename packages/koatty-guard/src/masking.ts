@@ -24,12 +24,18 @@ export interface MaskingService {
 }
 
 const MASKED = '***';
+export function isSensitiveKey(key: string): boolean {
+  return /^(password|passwd|pwd|secret|clientsecret|token|accesstoken|refreshtoken|authorization|apikey|accesskey|privatekey|credential|credentials|session|sessionid|cookie|setcookie)$/i.test(key.replace(/[_-]/g, ''));
+}
 
 /**
  * Default rules. Deliberately conservative and documented: they catch common
  * PII shapes only, they are not a compliance guarantee.
  */
 export const DEFAULT_MASKING_RULES: MaskingRule[] = [
+  { name: 'bearer', pattern: /\bBearer\s+[^\s,;"']+/gi, replace: 'Bearer ***' },
+  { name: 'credential-url', pattern: /\b[a-z][a-z0-9+.-]*:\/\/[^\s/@]+:[^\s/@]+@[^\s"']+/gi },
+  { name: 'private-key', pattern: /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g },
   { name: 'email', pattern: /\b[\w.+-]+@[\w-]+\.[\w.-]{2,}\b/g },
   { name: 'phone-cn', pattern: /(?<!\d)1[3-9]\d{9}(?!\d)/g },
   { name: 'id-card-cn', pattern: /(?<!\d)\d{17}[\dXx](?!\d)/g },
@@ -57,6 +63,9 @@ function cloneAndMask(value: unknown, rules: MaskingRule[], hits: string[]): unk
   if (typeof value === 'string') {
     return maskTextWith(value, rules, hits);
   }
+  if (Buffer.isBuffer(value)) return Buffer.from(maskTextWith(value.toString('utf8'), rules, hits));
+  if (value instanceof Map) return new Map([...value].map(([key, item]) => [cloneAndMask(key, rules, hits), isSensitiveKey(String(key)) ? MASKED : cloneAndMask(item, rules, hits)]));
+  if (value instanceof Set) return new Set([...value].map(item => cloneAndMask(item, rules, hits)));
   if (Array.isArray(value)) {
     return value.map((item) => cloneAndMask(item, rules, hits));
   }
@@ -67,7 +76,7 @@ function cloneAndMask(value: unknown, rules: MaskingRule[], hits: string[]): unk
     const source = value as Record<string, unknown>;
     const output: Record<string, unknown> = {};
     for (const key of Object.keys(source)) {
-      output[key] = /(password|passwd|secret|token|authorization|api[_-]?key|cookie)/i.test(key) ? MASKED : cloneAndMask(source[key], rules, hits);
+      Object.defineProperty(output, key, { value: isSensitiveKey(key) ? MASKED : cloneAndMask(source[key], rules, hits), enumerable: true, writable: true, configurable: true });
     }
     return output;
   }
