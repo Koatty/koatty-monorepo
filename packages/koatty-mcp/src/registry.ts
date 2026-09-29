@@ -220,10 +220,22 @@ export function createRegistry(options: RegistryOptions): McpRegistry {
       const prototype = target.prototype;
       if (!prototype) continue;
 
-      const toolMetadatas: Record<string, ToolOptions> = recursiveGetMetadata(container, MCP_TOOL_KEY, prototype) ?? {};
-      const resourceMetadatas: Record<string, ResourceOptions> = recursiveGetMetadata(container, MCP_RESOURCE_KEY, prototype) ?? {};
-      const promptMetadatas: Record<string, PromptOptions> = recursiveGetMetadata(container, MCP_PROMPT_KEY, prototype) ?? {};
-      const dtoMetadatas: Record<string, any> = recursiveGetMetadata(container, DTO_TYPES_KEY, prototype) ?? {};
+      const read = (key: string): Record<string, any> => {
+        const result = { ...(recursiveGetMetadata(container, key, prototype) ?? {}) };
+        const seen = new Set<string>();
+        for (let p = prototype; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) {
+          for (const name of Object.getOwnPropertyNames(p)) {
+            if (seen.has(name)) continue; seen.add(name);
+            const method = Object.getOwnPropertyDescriptor(p, name)?.value;
+            if (typeof method === 'function' && Reflect.hasOwnMetadata(key, method)) result[name] = Reflect.getOwnMetadata(key, method);
+          }
+        }
+        return result;
+      };
+      const toolMetadatas: Record<string, ToolOptions> = read(MCP_TOOL_KEY);
+      const resourceMetadatas: Record<string, ResourceOptions> = read(MCP_RESOURCE_KEY);
+      const promptMetadatas: Record<string, PromptOptions> = read(MCP_PROMPT_KEY);
+      const dtoMetadatas: Record<string, any> = read(DTO_TYPES_KEY);
 
       for (const methodName of Object.keys(toolMetadatas)) {
         const meta = toolMetadatas[methodName];
@@ -241,7 +253,7 @@ export function createRegistry(options: RegistryOptions): McpRegistry {
           annotations: { ...(meta.annotations ?? {}) },
           scopes: Array.isArray(meta.scopes) ? [...meta.scopes] : [],
           requireApproval: meta.requireApproval,
-          inputSchema: dto ? dtoToJsonSchema(dto) : emptyInputSchema(),
+          inputSchema: dto ? dtoToJsonSchema(dto, 0, partial) : emptyInputSchema(),
           outputSchema: meta.outputSchema,
           dto,
           partial,

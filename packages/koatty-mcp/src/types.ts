@@ -63,6 +63,10 @@ export interface AuthInput {
   headers: Record<string, string | string[] | undefined>;
   url?: string;
   sessionId?: string;
+  transport?: 'http' | 'stdio';
+  /** Trusted adapter identity, never copied from a request body. */
+  principal?: McpPrincipal | null;
+  signal?: AbortSignal;
 }
 
 /** Pluggable authentication: API key (internal services) or OAuth 2.1 bearer token. */
@@ -119,7 +123,7 @@ export type ApprovalDecision =
 
 /** Human-in-the-loop approval backend (roadmap F-3 implements one). */
 export interface ApprovalService {
-  request(ticket: ApprovalTicket): Promise<ApprovalDecision>;
+  request(ticket: ApprovalTicket, options?: { signal?: AbortSignal }): Promise<ApprovalDecision>;
 }
 
 export interface McpSecurityOptions {
@@ -156,4 +160,7 @@ export interface McpHostOptions {
   componentTypes?: string[];
   /** Identity used for stdio calls, where no HTTP headers exist. */
   stdioIdentity?: McpPrincipal;
+  /** Wrap the actual tool execution, e.g. with a live GenAI span/guard aspect. */
+  aroundTool?: (info: { name: string; identity: ToolCallIdentity; args: Record<string, unknown> }, proceed: () => Promise<unknown>) => Promise<unknown>;
+  onApproval?: (info: { tool: string; decision: 'approved' | 'rejected' | 'timeout'; durationMs: number }) => void;
 }

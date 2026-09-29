@@ -25,13 +25,10 @@ export interface StdioOptions {
  */
 export async function startStdioServer(host: McpHost, options: StdioOptions = {}): Promise<any> {
   const transport = options.transport ?? new StdioServerTransport();
-  const originalCallTool = host.callTool;
-  // Bind the stdio identity for the whole connection: every handler call runs
-  // inside this AsyncLocalStorage context, so scope checks are unchanged.
-  await host.runWithIdentity({ headers: {} }, async () => {
-    await host.server.connect(transport);
-  });
-  void originalCallTool;
+  // Bind identity to the server: native stdio events may originate outside
+  // the AsyncLocalStorage scope in which connect() was called.
+  const server = host.createServer({ headers: {}, transport: 'stdio', principal: options.identity });
+  await server.connect(transport);
   return transport;
 }
 

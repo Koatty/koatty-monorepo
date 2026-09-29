@@ -23,6 +23,7 @@ import {
   GetPromptRequestSchema,
   ListPromptsRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
   McpError,
   ReadResourceRequestSchema,
@@ -51,6 +52,8 @@ export interface CallToolHooks {
 export interface McpHost {
   readonly server: Server;
   readonly registry: McpRegistry;
+  readonly allowedOrigins?: string[];
+  createServer(connectionIdentity?: AuthInput): Server;
   /** Resolve the caller identity for a transport request. */
   resolveIdentity(input: AuthInput): Promise<McpPrincipal | null>;
   /** Bind the transport request (headers) to the protocol handlers. */
@@ -99,25 +102,30 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   const registry = createRegistry({ container, componentTypes: options.componentTypes });
   const security = options.security ?? {};
   const auth = security.auth;
-  const strict = security.strict === true;
+  const strict = security.strict ?? options.app?.security?.name === 'strict';
   const approvalTimeoutMs = security.approvalTimeoutMs ?? MCP_APPROVAL_TIMEOUT_MS;
   const audit = options.audit;
   const identityStorage = new AsyncLocalStorage<AuthInput>();
 
   const resolveIdentity = async (input: AuthInput): Promise<McpPrincipal | null> => {
+    if (input.principal) return input.principal;
     const authenticated = auth ? await auth.authenticate(input) : null;
     if (authenticated) return authenticated;
     const hasHeaders = !!input?.headers && Object.keys(input.headers).length > 0;
     // stdio has no HTTP headers: the adapter decides who the local caller is.
-    return hasHeaders ? null : options.stdioIdentity ?? null;
+    const principal = input.transport !== 'http' && !hasHeaders ? options.stdioIdentity ?? null : null;
+    if (auth && !principal) throw new McpAuthError('Authentication credentials are required.');
+    return principal;
   };
 
-  const callTool = async (
+  const executeTool = async (
     name: string,
     args: Record<string, unknown>,
     identity: ToolCallIdentity,
     hooks: CallToolHooks = {},
   ): Promise<unknown> => {
+    hooks.signal?.throwIfAborted();
+    if (auth && !identity.principal) throw new McpAuthError('Authentication credentials are required.');
     const started = Date.now();
     const tool = registry.getTool(name);
     if (!tool) throw new McpError(ErrorCode.InvalidParams, `Unknown tool "${name}".`);
@@ -149,7 +157,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
     }
 
     // 4. argument validation: same whitelist policy as the HTTP request body.
-    let validatedArgs: Record<string, unknown> = args;
+    let validatedArgs: Record<string, unknown> = tool.dto ? args : {};
     if (tool.dto) {
       try {
         const { validatedArgs: checked } = await checkValidated([args], [tool.dto], tool.partial);
@@ -164,11 +172,13 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       }
     }
     const summary = summarizeArguments(validatedArgs, options.redact);
+    hooks.signal?.throwIfAborted();
 
     // 5. human approval for high-risk tools (fails closed without a backend).
     let approval:
       | { approved: boolean; ticketId?: string; reason?: string }
       | undefined;
+    const approvalStarted = Date.now();
     try {
       approval = await evaluateApproval({
         tool: tool.name,
@@ -182,10 +192,18 @@ export function createMcpHost(options: McpHostOptions): McpHost {
         strict,
         timeoutMs: approvalTimeoutMs,
         redact: options.redact,
+        signal: hooks.signal,
       });
     } catch (error) {
+      if (tool.requireApproval === true || (strict && tool.annotations.destructiveHint && tool.requireApproval !== false)) {
+        options.onApproval?.({ tool: name, decision: (error as Error).name === 'McpApprovalTimeoutError' ? 'timeout' : 'rejected', durationMs: Date.now() - approvalStarted });
+      }
       await record('pending-approval', summary, (error as Error).message);
       throw error;
+    }
+    hooks.signal?.throwIfAborted();
+    if (tool.requireApproval === true || (strict && tool.annotations.destructiveHint && tool.requireApproval !== false)) {
+      options.onApproval?.({ tool: name, decision: approval.approved ? 'approved' : 'rejected', durationMs: Date.now() - approvalStarted });
     }
     if (!approval.approved) {
       const message = `Tool "${tool.name}" was not approved (${approval.reason ?? 'rejected'}).`;
@@ -207,7 +225,8 @@ export function createMcpHost(options: McpHostOptions): McpHost {
           if (typeof handler !== 'function') {
             throw new Error(`Tool handler ${tool.className}.${tool.methodName} is not callable.`);
           }
-          return await handler.call(instance, validatedArgs, ctx);
+          const proceed = async () => { hooks.signal?.throwIfAborted(); return await handler.call(instance, validatedArgs, ctx); };
+          return await proceed();
         }),
       );
       await record(hooks.signal?.aborted ? 'cancelled' : 'success', summary);
@@ -219,6 +238,15 @@ export function createMcpHost(options: McpHostOptions): McpHost {
     }
   };
 
+  const callTool: McpHost['callTool'] = async (name, args, identity, hooks = {}) => {
+    const ctx = createCallContext(options.app, identity, { toolName: name, signal: hooks.signal, progress: hooks.progress });
+    return runWithContext(options.app, ctx, async () => {
+      const proceed = () => executeTool(name, args, identity, hooks);
+      return options.aroundTool ? options.aroundTool({ name, args, identity }, proceed) : proceed();
+    });
+  };
+
+  const createServer = (connectionIdentity?: AuthInput): Server => {
   const server = new Server(
     {
       name: options.serverName ?? MCP_SERVER_NAME,
@@ -231,7 +259,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   );
 
   const prepare = async (extra: any, request: any) => {
-    const authInput = identityStorage.getStore() ?? { headers: {} };
+    const authInput = identityStorage.getStore() ?? connectionIdentity ?? { headers: {} };
     const principal = await resolveIdentity(authInput);
     const identity: ToolCallIdentity = {
       principal,
@@ -249,7 +277,9 @@ export function createMcpHost(options: McpHostOptions): McpHost {
               params: { progressToken, progress: current, total, message },
             });
           };
-    return { identity, progress };
+    const signal = authInput.signal && extra?.signal
+      ? AbortSignal.any([authInput.signal, extra.signal]) : authInput.signal ?? extra?.signal;
+    return { identity, progress, signal };
   };
 
   const invokeMember = async (
@@ -281,7 +311,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   };
 
   // --- tools ---------------------------------------------------------------
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => { await prepare(extra, _request); return ({
     tools: registry.tools.map((tool) => ({
       name: tool.name,
       title: tool.title,
@@ -290,14 +320,14 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       outputSchema: tool.outputSchema,
       annotations: tool.annotations,
     })),
-  }));
+  }); });
 
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const name = request.params.name;
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
     try {
-      const { identity, progress } = await prepare(extra, request);
-      const result = await callTool(name, args, identity, { signal: extra?.signal, progress });
+      const { identity, progress, signal } = await prepare(extra, request);
+      const result = await callTool(name, args, identity, { signal, progress });
       return toToolResult(result, registry.getTool(name));
     } catch (error) {
       if (error instanceof McpError) throw error;
@@ -316,21 +346,25 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   });
 
   // --- resources -----------------------------------------------------------
-  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: registry.resources.map((resource) => ({
+  server.setRequestHandler(ListResourcesRequestSchema, async (request, extra) => { await prepare(extra, request); return ({
+    resources: registry.resources.filter(resource => !resource.paramNames.length).map((resource) => ({
       uri: resource.uriTemplate,
       name: resource.name,
       description: resource.description,
       mimeType: resource.mimeType,
     })),
-  }));
+  }); });
+  server.setRequestHandler(ListResourceTemplatesRequestSchema, async (request, extra) => {
+    await prepare(extra, request);
+    return { resourceTemplates: registry.resources.filter(r => r.paramNames.length).map(r => ({ uriTemplate: r.uriTemplate, name: r.name, description: r.description, mimeType: r.mimeType })) };
+  });
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
     const uri = request.params.uri;
     try {
       const match: ResourceMatch | undefined = registry.matchResource(uri);
       if (!match) throw new McpError(ErrorCode.InvalidParams, `Unknown resource "${uri}".`);
-      const { identity, progress } = await prepare(extra, request);
+      const { identity, progress, signal } = await prepare(extra, request);
       assertScopes(identity.principal, match.resource.scopes, `resource "${match.resource.uriTemplate}"`);
       const result = await invokeMember(
         identity,
@@ -340,7 +374,7 @@ export function createMcpHost(options: McpHostOptions): McpHost {
         match.resource.className,
         match.resource.methodName,
         match.params,
-        { signal: extra?.signal, progress },
+        { signal, progress },
         match.resource.uriTemplate,
       );
       return { contents: toResourceContents(result, uri, match.resource.mimeType) };
@@ -354,20 +388,20 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   });
 
   // --- prompts -------------------------------------------------------------
-  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  server.setRequestHandler(ListPromptsRequestSchema, async (request, extra) => { await prepare(extra, request); return ({
     prompts: registry.prompts.map((prompt) => ({
       name: prompt.name,
       title: prompt.title,
       description: prompt.description,
       arguments: prompt.arguments,
     })),
-  }));
+  }); });
 
   server.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
     const name = request.params.name;
     const prompt = registry.getPrompt(name);
     if (!prompt) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt "${name}".`);
-    const { identity, progress } = await prepare(extra, request);
+    const { identity, progress, signal } = await prepare(extra, request);
     assertScopes(identity.principal, prompt.scopes, `prompt "${prompt.name}"`);
     const result = await invokeMember(
       identity,
@@ -377,14 +411,18 @@ export function createMcpHost(options: McpHostOptions): McpHost {
       prompt.className,
       prompt.methodName,
       request.params.arguments ?? {},
-      { signal: extra?.signal, progress },
+      { signal, progress },
       prompt.name,
     );
     return toPromptResult(result, prompt.description);
   });
+  return server;
+  };
 
   return {
-    server,
+    server: createServer(),
+    createServer,
+    allowedOrigins: security.allowedOrigins,
     registry,
     resolveIdentity,
     runWithIdentity: <T>(input: AuthInput, fn: () => Promise<T>) => identityStorage.run(input, fn),

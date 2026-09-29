@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Phase F audit fixes (2026-09-29)
+
+- HTTP 每连接独立 SDK Server；鉴权覆盖 discovery/unscoped 调用、strict 继承、Origin 精确匹配、stdio 身份与取消；TC39 发现与共享 DTO schema，资源模板改为 templates/list。
+- 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
+
+
 All notable changes to `koatty_mcp` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 

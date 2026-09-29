@@ -5,6 +5,8 @@ module.exports = {
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   clearMocks: true,
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageThreshold: { global: { lines: 80, statements: 80 } },
   testTimeout: 30000,
   transform: {
     '^.+\\.ts$': [

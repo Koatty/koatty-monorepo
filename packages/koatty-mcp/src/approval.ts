@@ -5,6 +5,7 @@
  * @License BSD-3-Clause
  */
 import { MCP_APPROVAL_TIMEOUT_MS } from './constants';
+import { randomUUID } from 'crypto';
 import type {
   ApprovalDecision,
   ApprovalService,
@@ -82,6 +83,7 @@ export interface ApprovalEvaluationInput {
   timeoutMs?: number;
   redact?: (value: any) => any;
   now?: () => number;
+  signal?: AbortSignal;
 }
 
 function needsApproval(input: ApprovalEvaluationInput): boolean {
@@ -101,6 +103,7 @@ function needsApproval(input: ApprovalEvaluationInput): boolean {
 export async function evaluateApproval(
   input: ApprovalEvaluationInput,
 ): Promise<{ approved: boolean; ticketId?: string; reason?: string }> {
+  input.signal?.throwIfAborted();
   if (!needsApproval(input)) return { approved: true };
 
   if (!input.service || typeof input.service.request !== 'function') {
@@ -112,7 +115,7 @@ export async function evaluateApproval(
   const now = input.now ? input.now() : Date.now();
   const timeoutMs = input.timeoutMs ?? MCP_APPROVAL_TIMEOUT_MS;
   const ticket: ApprovalTicket = {
-    id: `mcp-${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    id: randomUUID(),
     tool: input.tool,
     args: input.args,
     argumentSummary: summarizeArguments(input.args, input.redact),
@@ -125,7 +128,8 @@ export async function evaluateApproval(
 
   let decision: ApprovalDecision;
   try {
-    decision = await withTimeout(input.service.request(ticket), timeoutMs, timeoutMs);
+    decision = await withTimeout(input.service.request(ticket, { signal: input.signal }), timeoutMs, input.signal);
+    input.signal?.throwIfAborted();
   } catch (error) {
     if (error instanceof McpApprovalTimeoutError) throw error;
     throw new McpApprovalError(`Approval backend failed: ${(error as Error).message}`);
@@ -135,20 +139,23 @@ export async function evaluateApproval(
   return { approved: false, ticketId: ticket.id, reason: decision?.reason ?? 'rejected' };
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMs: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); };
+    const abort = () => { cleanup(); reject(new McpApprovalError('Approval cancelled.')); };
     const timer = setTimeout(
-      () => reject(new McpApprovalTimeoutError(`Approval timed out after ${timeoutMs}ms.`)),
+      () => { cleanup(); reject(new McpApprovalTimeoutError(`Approval timed out after ${ms}ms.`)); },
       ms,
     );
-    if (typeof (timer as any)?.unref === 'function') (timer as any).unref();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
     promise.then(
       (value) => {
-        clearTimeout(timer);
+        cleanup();
         resolve(value);
       },
       (error) => {
-        clearTimeout(timer);
+        cleanup();
         reject(error);
       },
     );

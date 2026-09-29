@@ -117,7 +117,7 @@ function createHost(overrides: Record<string, any> = {}) {
 async function connectClient(host: ReturnType<typeof createHost>) {
   const [clientTransport, serverTransport] = await createInMemoryPair();
   const client = new Client({ name: 'f01-client', version: '1.0.0' });
-  await host.server.connect(serverTransport);
+  await host.createServer({ headers: {}, principal: { id: 'test-reader', scopes: [] } }).connect(serverTransport);
   await client.connect(clientTransport);
   clients.push(client);
   return client;
@@ -161,7 +161,7 @@ describe('F-01 discovery and schema', () => {
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toEqual(['orderNo']);
     expect(schema.properties.orderNo).toMatchObject({ type: 'string' });
-    expect(schema.properties.page).toMatchObject({ type: 'integer', minimum: 1 });
+    expect(schema.properties.page).toMatchObject({ anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] });
     expect(schema['x-koatty-unresolved']).toBeUndefined();
 
     const host = createHost();
@@ -178,8 +178,8 @@ describe('F-01 discovery and schema', () => {
     expect(query.inputSchema).toMatchObject({ type: 'object' });
     expect(query.annotations?.readOnlyHint).toBe(true);
 
-    const resources = await client.listResources();
-    expect(resources.resources.map((resource) => resource.uri)).toContain('order://{orderNo}');
+    const resources = await client.listResourceTemplates();
+    expect(resources.resourceTemplates.map((resource) => resource.uriTemplate)).toContain('order://{orderNo}');
 
     const prompts = await client.listPrompts();
     expect(prompts.prompts.map((prompt) => prompt.name)).toContain('refund_policy');
@@ -372,7 +372,7 @@ describe('F-01 context isolation, audit and protocol safety', () => {
 
     const record = records.find((item) => item.tool === 'order_query' && item.status === 'success');
     expect(record).toBeTruthy();
-    expect(record.caller).toBe('anonymous');
+    expect(record.caller).toBe('test-reader');
     expect(record.durationMs).toBeGreaterThanOrEqual(0);
     expect(JSON.stringify(record.argumentSummary)).not.toContain('super-secret-value');
   });

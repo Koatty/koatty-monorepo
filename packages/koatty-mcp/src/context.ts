@@ -32,13 +32,13 @@ export function createCallContext(
   extras: CallContextExtras,
 ): any {
   const current = app?.getCurrentContext?.();
-  const ctx: any = current ?? { app };
+  const ctx: any = current ? Object.create(current) : { app };
   ctx.principal = toContextPrincipal(identity.principal);
   ctx.mcpSessionId = identity.sessionId;
   ctx.mcpRequestId = identity.requestId;
   ctx.mcpToolName = extras.toolName;
   ctx.signal = extras.signal;
-  if (extras.progress) ctx.progress = extras.progress;
+  ctx.progress = extras.progress;
   return ctx;
 }
 

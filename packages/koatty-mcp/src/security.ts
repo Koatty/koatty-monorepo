@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 /**
  * Authentication, scope checks and protocol safety helpers (roadmap Phase F, F-1).
  *
@@ -73,7 +74,7 @@ export function createApiKeyAuth(options: {
         if (safeEqual(known, presented)) {
           const override = options.identityHeader ? readHeader(input.headers, options.identityHeader) : undefined;
           return {
-            id: override || `api-key:${known.slice(0, 4)}`,
+            id: override || `api-key:${createHash('sha256').update(known).digest('hex')}`,
             scopes: [...(table[known] ?? [])],
             kind: 'api-key',
           };
@@ -95,6 +96,9 @@ export function createBearerAuth(options: {
   /** Token scopes that are mandatory for every call, regardless of the tool. */
   requiredScopes?: string[];
 }): AuthProvider {
+  if (!options.audience || (Array.isArray(options.audience) && !options.audience.length)) {
+    throw new McpAuthError('A resource audience is required for bearer authentication.');
+  }
   const scopesClaim = options.scopesClaim ?? 'scope';
   return {
     async authenticate(input: AuthInput): Promise<McpPrincipal | null> {
@@ -107,8 +111,8 @@ export function createBearerAuth(options: {
       let claims: Record<string, any>;
       try {
         claims = (await options.verify(token)) ?? {};
-      } catch (error) {
-        throw new McpAuthError(`Token verification failed: ${(error as Error).message}`);
+      } catch {
+        throw new McpAuthError('Token verification failed.');
       }
 
       if (options.audience) {
@@ -168,19 +172,22 @@ export function assertScopes(principal: McpPrincipal | null, required: string[],
 export function checkOrigin(origin: string | undefined, allowedOrigins?: string[]): boolean {
   if (!origin) return true;
   if (Array.isArray(allowedOrigins) && allowedOrigins.includes('*')) return true;
-  let host: string;
+  let parsed: URL;
   try {
-    host = new URL(origin).hostname.toLowerCase();
+    parsed = new URL(origin);
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) return false;
   } catch {
     return false;
   }
-  const allowed = (allowedOrigins ?? ['http://127.0.0.1', 'http://localhost', 'http://[::1]'])
+  // Local debugging permits dynamic loopback ports only in the default policy.
+  if (!allowedOrigins) return ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname.toLowerCase());
+  const allowed = allowedOrigins
     .map((entry) => {
       try {
-        return new URL(entry).hostname.toLowerCase();
+        return new URL(entry).origin;
       } catch {
-        return entry.toLowerCase();
+        return '';
       }
     });
-  return allowed.includes(host);
+  return allowed.includes(parsed.origin);
 }

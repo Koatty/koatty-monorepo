@@ -20,14 +20,13 @@ function saveMetadata(
   target: any,
   methodName: string | symbol,
   context?: any,
+  method?: any,
 ): void {
   const save: MetadataSaver = (prototype: object) => {
     IOCContainer.savePropertyData(key, meta, prototype, methodName);
   };
   if (context) {
-    context.addInitializer(function (this: any) {
-      save(Object.getPrototypeOf(this));
-    });
+    Reflect.defineMetadata(key, meta, method);
     return;
   }
   save(target);
@@ -57,8 +56,8 @@ function normalizeTool(options: ToolOptions): Record<string, any> {
 export function Tool(options: ToolOptions): any {
   const meta = normalizeTool(options);
   return IOCContainer.createDecorator(
-    ({ target, methodName, descriptor, context }: any) => {
-      saveMetadata(MCP_TOOL_KEY, meta, target, methodName, context);
+    ({ target, methodName, descriptor, context, method }: any) => {
+      saveMetadata(MCP_TOOL_KEY, meta, target, methodName, context, method);
       return descriptor;
     },
     'method',
@@ -76,8 +75,8 @@ export function Resource(options: ResourceOptions): any {
     scopes: Array.isArray(options.scopes) ? [...options.scopes] : [],
   };
   return IOCContainer.createDecorator(
-    ({ target, methodName, descriptor, context }: any) => {
-      saveMetadata(MCP_RESOURCE_KEY, meta, target, methodName, context);
+    ({ target, methodName, descriptor, context, method }: any) => {
+      saveMetadata(MCP_RESOURCE_KEY, meta, target, methodName, context, method);
       return descriptor;
     },
     'method',
@@ -96,8 +95,8 @@ export function Prompt(options: PromptOptions): any {
     scopes: Array.isArray(options.scopes) ? [...options.scopes] : [],
   };
   return IOCContainer.createDecorator(
-    ({ target, methodName, descriptor, context }: any) => {
-      saveMetadata(MCP_PROMPT_KEY, meta, target, methodName, context);
+    ({ target, methodName, descriptor, context, method }: any) => {
+      saveMetadata(MCP_PROMPT_KEY, meta, target, methodName, context, method);
       return descriptor;
     },
     'method',
