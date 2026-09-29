@@ -1,3 +1,4 @@
+import { createMaskingService } from './masking';
 /**
  * Auditing service (roadmap Phase F, item F-3).
  *
@@ -30,7 +31,9 @@ export function summarizeArguments(args: unknown): Record<string, unknown> {
   }
   const summary: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
-    if (value === null || value === undefined) {
+    if (/(password|passwd|secret|token|authorization|api[_-]?key|cookie)/i.test(key)) {
+      summary[key] = '***';
+    } else if (value === null || value === undefined) {
       summary[key] = value;
     } else if (typeof value === 'string') {
       summary[key] = value.length > 60 ? `${value.slice(0, 57)}...` : value;
@@ -57,7 +60,8 @@ export function createAuditService(options: {
   now?: () => number;
 } = {}): AuditService {
   const now = options.now ?? (() => Date.now());
-  const mask = options.mask ?? ((value: unknown) => value);
+  const safeMask = createMaskingService().mask;
+  const mask = (value: unknown) => safeMask(options.mask ? options.mask(value) : value);
 
   return {
     record(record) {
@@ -68,9 +72,12 @@ export function createAuditService(options: {
         ...record,
         argumentSummary: maskedSummary,
         at: record.at ?? now(),
+        caller: record.caller ? String(mask(record.caller)) : undefined,
+        // Error messages can contain arbitrary credentials, not just PII.
+        error: record.error ? (['approval-timeout', 'approval-cancelled', 'approval-denied', 'rate-limited', 'content-rejected'].includes(record.error) ? record.error : 'guard-operation-failed') : undefined,
       };
       if (options.sink) {
-        void options.sink(entry);
+        try { void Promise.resolve(options.sink(entry)).catch(() => {}); } catch { /* best-effort sink */ }
       }
     },
   };

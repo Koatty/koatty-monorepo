@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Phase F audit fixes (2026-09-29)
+
+- 审批 UUID/单次消费/CAS 持久状态/跨实例回调与截止时间；严格批准判断；递归内容检查，敏感键及错误审计脱敏，sink 异常隔离。
+- 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
+
+
 All notable changes to `koatty_guard` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 

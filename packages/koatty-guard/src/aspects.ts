@@ -104,19 +104,24 @@ export class GuardAspect implements IAspect {
     target: string,
     args: unknown[],
     proceed: () => Promise<T> | T,
-    context: { caller?: string; sessionId?: string; requestId?: string } = {},
+    context: { caller?: string; sessionId?: string; requestId?: string; signal?: AbortSignal } = {},
   ): Promise<T> {
     const startedAt = Date.now();
     const caller = context.caller ?? this.caller();
     try {
+      const signal = context.signal ?? this.app?.getCurrentContext?.()?.signal;
+      signal?.throwIfAborted();
       this.checkRateLimit(target, caller);
 
       if (this.options.inspectsContent?.(target)) {
-        for (const arg of args) {
-          if (typeof arg === 'string') {
-            this.inspectContent(arg);
+        const seen = new WeakSet<object>();
+        const inspect = (value: unknown) => {
+          if (typeof value === 'string') this.inspectContent(value);
+          else if (value && typeof value === 'object' && !seen.has(value)) {
+            seen.add(value); for (const item of Object.values(value)) inspect(item);
           }
-        }
+        };
+        inspect(args);
       }
 
       if (this.options.requiresApproval?.(target)) {
@@ -132,9 +137,9 @@ export class GuardAspect implements IAspect {
           caller,
           sessionId: context.sessionId,
           requestId: context.requestId,
-        });
-        if (decision.approved === false) {
-          const reason = decision.reason;
+        }, { signal });
+        if (decision?.approved !== true) {
+          const reason = decision?.reason ?? 'invalid-approval';
           this.audit.record({
             caller,
             sessionId: context.sessionId,
@@ -149,6 +154,7 @@ export class GuardAspect implements IAspect {
         }
       }
 
+      signal?.throwIfAborted();
       const result = await proceed();
       this.audit.record({
         caller,

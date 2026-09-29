@@ -67,7 +67,7 @@ function cloneAndMask(value: unknown, rules: MaskingRule[], hits: string[]): unk
     const source = value as Record<string, unknown>;
     const output: Record<string, unknown> = {};
     for (const key of Object.keys(source)) {
-      output[key] = cloneAndMask(source[key], rules, hits);
+      output[key] = /(password|passwd|secret|token|authorization|api[_-]?key|cookie)/i.test(key) ? MASKED : cloneAndMask(source[key], rules, hits);
     }
     return output;
   }
