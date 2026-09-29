@@ -27,6 +27,7 @@ Thumbs.db
 # Changesets
 .changeset/*.md
 !.changeset/README.md
+!.changeset/phase-f-audit-hardening.md
 
 # Local scratch and generated runtime state
 .tmp/

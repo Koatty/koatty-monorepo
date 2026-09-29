@@ -1,5 +1,8 @@
 # Phase F 迁移指南：AI 运行时能力 —— `koatty_mcp@1.0.0`（F-1）
 
+> 2026-09-29 审计修复已变更部分初版契约；以 [审计修复迁移](phase-f-audit-fixes.md) 为准（鉴权、预算、审批 CAS、追踪生命周期）。
+
+
 适用版本：新增包 `koatty_mcp@1.0.0`；配套 `koatty_validation` 4.0.0 → 4.1.0（minor，增量）、`koatty_core` 2.5.0 → 2.6.0（minor，增量）。
 方案来源：`docs/koatty-hardening-and-ai-evolution-plan.md` §9（Phase F，本次交付 F-1；F-2 见 `docs/migration/phase-f-llm-client.md`；F-3 ～ F-5 未包含）。
 

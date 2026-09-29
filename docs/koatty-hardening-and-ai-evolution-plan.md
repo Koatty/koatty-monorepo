@@ -1085,7 +1085,7 @@ koatty manifest [--out .koatty/manifest.json] [--format json|md]
 }
 ```
 
-- DTO → JSON Schema：静态读取 TypeScript 类型和已有校验装饰器（`koatty_validation` / `class-validator`）的字面量约束，不导入执行应用以获取元数据。未知类型/约束明确标记未解析。当前 API 文档生成复用此 schema；Phase F 的 MCP 工具与结构化输出消费属于后续接入，不提前标成已交付。
+- DTO → JSON Schema：静态读取 TypeScript 类型和已有校验装饰器（`koatty_validation` / `class-validator`）的字面量约束，不导入执行应用以获取元数据。未知类型/约束明确标记未解析。当前 API 文档生成复用此 schema；Phase F 审计修复已将静态与运行时约束集中到 koatty_validation，MCP 和 LLM DTO 结构化输出消费同一规则。
 - 配置只输出键名与 schema，**绝不输出配置值**（其中可能有密钥）。
 
 **工作量**：5 人天。
@@ -1282,24 +1282,24 @@ export class SupportAgent {
 - [ ] 使用 MCP Inspector 与至少两个主流 MCP 客户端完成工具发现与调用 —— **待人工验收**：自动回归用官方 SDK 客户端（in-memory / Streamable HTTP 中间件）覆盖同一调用路径，但真实客户端界面仍需人工确认；步骤见 `packages/koatty/examples/mcp-order-service/README.md`「人工验收」
 - [x] 工具参数中的多余字段被剥离，非法参数返回 JSON-RPC 错误（而不是抛出未处理异常）—— `F-01`（白名单剥离、`-32602`）与 `F-05`（`strips undeclared fields and answers the tool`、`returns a JSON-RPC invalid-params error instead of throwing`）
 - [x] 没有所需 scope 的调用方调用写工具 → 被拒绝；高危工具未经审批 → 不执行 —— `F-01` scope/审批用例与 `F-05`（scope 拒绝、审批后端静默超时 fail closed、审批被拒、批准后执行）
-- [x] 客户端断开 SSE 连接后，LLM 流式请求在 1 秒内被取消（通过 mock 供应商验证）—— `F-02`（取消 ≤1s）与 `F-05`（`cancels the provider stream when the client disconnects`）
-- [x] Trace 中可以看到"MCP 请求 → 工具调用 → LLM 调用"的完整链路，且默认不含提示词原文 —— `F-04` + `F-05`（`stitches MCP request -> tool call -> LLM call into one trace without prompt text`）
+- [x] 客户端断开 SSE 连接后，LLM 流式请求在 1 秒内被取消（通过 mock 供应商验证）—— `F-02`（取消 ≤1s）与 `F-05`（真实 Koatty 监听器 + HTTP socket 断连）
+- [x] Trace 中可以看到"MCP 请求 → 工具调用 → LLM 调用"的完整链路，且默认不含提示词原文 —— `F-04` + `F-05`（`F-05.trace-chain.test.ts`：真实协议工具内部调用 LLM，验证 span parent ID）
 
-**发布状态**：F-1～F-5 代码与自动回归全部完成；AI 组件版本文件已就位。
+**当前状态（2026-09-29 审计修复）**：F-A01～F-A23 已落实源码修复、回归与迁移；详见 [修复验证报告](phase-f-repair-2026-09-29.md)。已完成本地协议/编译产物测试，未发布；外部系统及部署验收仍开放。以下初版记录以修复报告为准。
 
 - **F-3**：填充 `packages/koatty-guard`（版本文件 `koatty_guard@1.0.0`，首次发布）。`createGuard()` 用**一个** `@Around` 普通切面串起脱敏 → 内容检查 → 限流 → 审批 → 审计，避免依赖多切面叠加语义；`destructiveHint` 工具在 strict 画像下默认需要审批（除非显式 `requireApproval: false`）。回归用例 `packages/koatty-guard/test/regression/F-03.guard.test.ts`。详见 [迁移说明](migration/phase-f-guard.md)。
 - **F-4**：扩展 `koatty-trace`（版本文件提升到 `koatty_trace@2.5.0`，新增导出为增量能力）。`createGenAiRecorder()` 记录 `gen_ai.*` 属性（供应商、模型、token、耗时、结束原因）与工具调用 span，属性名集中在 `src/genai/constants.ts`；token 成本按配置单价计算；**默认不记录提示词与模型输出原文**，`captureContent: true` 时复用 F-3 的脱敏服务。回归用例 `packages/koatty-trace/test/regression/F-04.genai.test.ts`。详见 [迁移说明](migration/phase-f-genai.md)。
-- **F-5**：参考应用 `packages/koatty/examples/mcp-order-service`（私有包，不发布）：2 个只读工具 + 1 个需审批的写工具 + 1 个 Resource + `/ask` SSE 问答 + `deploy/`（Docker 与 Kubernetes 探针模板），回归用例 `test/regression/F-05.reference-app.test.ts`（11 例）作为 F-1～F-4 的集成验收。
+- **F-5**：参考应用 `packages/koatty/examples/mcp-order-service`（私有包，不发布）：2 个只读工具 + 1 个需审批的写工具 + 1 个 Resource + `/ask` SSE 问答 + `deploy/`（Docker 与 Kubernetes 探针模板），回归用例 `test/regression/F-05.reference-app.test.ts`及 live-loop / trace-chain 共 13 例，作为 F-1～F-4 的本地集成验证。
 - **版本说明**：本次只提升 AI 组件版本（`koatty_mcp@1.0.0`、`koatty_llm@1.0.0`、`koatty_guard@1.0.0`、`koatty_trace@2.5.0`）。主框架 `5.0.0`（W16）的破坏性清理（移除 `legacyDefaults` 与 `process.env` 路径变量）不属于 Phase F 的代码范围，仍按 §10.1 的 W16 排期单独执行，因此 `koatty` 版本文件保持 `4.4.0`。
 
-仍待完成的验收项只有一条：MCP Inspector 与第二个真实客户端的人工验收（见上）。
+待验收：MCP Inspector 与至少两个主流客户端、真实 provider、真实共享存储/跨进程恢复、Docker/Kubernetes、隔离包安装与 p99 基准；不得把本地 mock/SDK 自动测试等同这些验收。
 
 **上一轮状态（保留记录）**：F-1（`koatty_mcp`）与 F-2（`koatty_llm`）代码与自动回归已完成。
 
 - **F-1**：新增包 `packages/koatty-mcp`（版本文件为 `koatty_mcp@1.0.0`，首次发布），回归用例 `packages/koatty-mcp/test/regression/F-01.mcp-host.test.ts`（19 例）覆盖发现与 schema、白名单校验、scope 拒绝、审批 fail closed、请求作用域与审计脱敏、Origin 校验；配套 `koatty_validation`（`PARAM_DTO_KEY` 桥接）与 `koatty_core`（`KoattyContext` 协议字段）为增量改动，已在各自 CHANGELOG 记录并新增 Changeset。详见 [迁移说明](migration/phase-f-mcp-host.md)。
 - **F-2**：新增包 `packages/koatty-llm`（版本文件为 `koatty_llm@1.0.0`，首次发布，未改动任何既有包行为），回归用例 `packages/koatty-llm/test/regression/F-02.llm-client.test.ts`（19 例）覆盖取消 ≤1s、fallback/重试/熔断、共享预算、结构化输出、工具循环、非流式缓存与 OpenAI 兼容 / Anthropic 两个适配器（测试使用脚本化 `fetch`，离线可跑）。验收门中“客户端断开后 LLM 流式请求 1 秒内被取消”已由该用例覆盖。详见 [迁移说明](migration/phase-f-llm-client.md)。
 
-F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用均已实现，Trace 完整链路验收门由自动回归关闭；仅剩 MCP Inspector/多客户端人工验收待人工确认。
+F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用均已实现，Trace 完整链路验收门由自动回归关闭；真实系统与发布验收仍按上面的当前状态保留。
 
 ---
 

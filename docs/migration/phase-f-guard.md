@@ -1,5 +1,8 @@
 # Phase F 迁移指南：AI 护栏 —— `koatty_guard@1.0.0`（F-3）
 
+> 2026-09-29 审计修复已变更部分初版契约；以 [审计修复迁移](phase-f-audit-fixes.md) 为准（鉴权、预算、审批 CAS、追踪生命周期）。
+
+
 适用版本：新增包 `koatty_guard@1.0.0`（首次发布，未改动任何既有包的行为）。
 方案来源：`docs/koatty-hardening-and-ai-evolution-plan.md` §9（Phase F，F-3）。
 

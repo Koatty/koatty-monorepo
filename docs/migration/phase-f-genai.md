@@ -1,5 +1,8 @@
 # Phase F 迁移指南：GenAI 可观测性 —— `koatty_trace@2.4.0 → 2.5.0`（F-4）
 
+> 2026-09-29 审计修复已变更部分初版契约；以 [审计修复迁移](phase-f-audit-fixes.md) 为准（鉴权、预算、审批 CAS、追踪生命周期）。
+
+
 适用版本：`koatty_trace` 2.4.0 → 2.5.0（minor，纯增量 API；未改动既有 Trace/指标行为）。
 方案来源：`docs/koatty-hardening-and-ai-evolution-plan.md` §9（Phase F，F-4）。
 

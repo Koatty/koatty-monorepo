@@ -1,5 +1,8 @@
 # Phase F 迁移指南：LLM 调用抽象 —— `koatty_llm@1.0.0`（F-2）
 
+> 2026-09-29 审计修复已变更部分初版契约；以 [审计修复迁移](phase-f-audit-fixes.md) 为准（鉴权、预算、审批 CAS、追踪生命周期）。
+
+
 适用版本：新增包 `koatty_llm@1.0.0`（新增包无需通过 changeset 递增版本）。
 方案来源：`docs/koatty-hardening-and-ai-evolution-plan.md` §9（Phase F，本次交付 F-2；F-1 见 `docs/migration/phase-f-mcp-host.md`，F-3 ～ F-5 未包含）。
 
@@ -29,9 +32,9 @@ const llm = createLlmClient({
 
 - **重试只针对 429/5xx**：4xx（除 429）与校验失败立即抛出，不做无意义重试；`attempts` 是"每个路由的总尝试次数"，不是"额外重试次数"。
 - **熔断按 provider + model**：达到 `breakerThreshold` 连续失败后该组合直接跳过并进入不可用错误，不会每次调用都打满超时；恢复用 `resetBreakers()`（建议挂在管理接口上，不要自动无限重试）。
-- **预算先检后扣、超限即中止**：请求前检查 scope 已用额度，调用后按 `usage` 记账。超额抛 `LlmBudgetError`（带 `scope`/`used`/`max`），**不会**静默截断输出；`BudgetStore` 需实现 `get`/`set`（可选 `incrBy`），多实例部署务必用共享存储，否则每个实例各有一份额度。
+- **预算原子预留后结算、超限即中止**：请求前检查 scope 已用额度，调用后按 `usage` 记账。超额抛 `LlmBudgetError`（带 `scope`/`used`/`max`），**不会**静默截断输出；`BudgetStore` 需实现 `get`/`set`/原子 `incrBy`，多实例部署务必用共享存储，否则每个实例各有一份额度。
 - **取消**：把请求的 `ctx.signal` 透传到 `stream({ signal })`。信号同时传给 provider 请求与分块检查，因此 SSE 取消在**一个网络往返内**生效并抛 `LlmAbortError`；不要用 `Promise.race` 模拟超时。
-- **结构化输出**：`schema` 是发给厂商的 JSON Schema，`dto` 是 `koatty_validation` 的 DTO；两者都要给，模型返回的 JSON 会用既有 class-validator 元数据校验。失败抛 `LlmValidationError`（`issues`、`raw` 供排查），`validationRetries`（默认 1）会带纠正提示再问一次。
+- **结构化输出**：`schema` 是发给厂商的 JSON Schema，`dto` 是 `koatty_validation` 的 DTO；只有 dto 时自动生成 schema，模型返回的 JSON 会用既有 class-validator 元数据校验。失败抛 `LlmValidationError`（`issues`、`raw` 供排查），`validationRetries`（默认 1）会带纠正提示再问一次。
 - **工具循环在进程内执行**：`withTools({ tools, registry, invoke })` 只负责"模型要工具 → 你的 invoker 执行 → 结果回灌"。权限、审批、审计仍由工具宿主（`koatty_mcp` 的 `requireApproval` / `auth` / `audit`）负责 —— **不要**在 LLM 层绕过审批直接执行高危工具。`maxRounds` 是硬上限，未知工具名直接拒绝。
 - **缓存仅精确匹配、仅非流式**：`complete()` 命中缓存时结果带 `cached: true`；`stream()` 不缓存。语义缓存不在 v1 范围内，`cache: false` 可单次绕过。
 - **成本估算来自路由价格**：未配置 `pricePer1kPrompt`/`pricePer1kCompletion` 时 `cost` 为 `undefined`，不要把它当作账单依据。
