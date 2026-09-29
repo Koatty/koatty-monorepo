@@ -21,6 +21,8 @@ import { GEN_AI_ATTRIBUTES, GEN_AI_SPAN_NAMES } from './constants';
  */
 export interface GenAiSpanOptions {
   context?: Context;
+  /** Existing live span; when provided recording completes it. */
+  span?: Span;
 }
 
 export interface GenAiUsage {
@@ -41,6 +43,8 @@ export interface GenAiChatInput extends GenAiSpanOptions {
   response?: unknown;
   /** Logical name used by the application, recorded as a span attribute. */
   route?: string;
+  status?: 'success' | 'error' | 'cancelled';
+  cost?: number;
 }
 
 export interface GenAiToolCallInput extends GenAiSpanOptions {
@@ -80,6 +84,8 @@ export interface GenAiRecorderOptions {
 
 export interface GenAiRecorder {
   startSpan(name: string, attributes?: Record<string, unknown>, parentContext?: Context): Span;
+  beginChat(input: GenAiChatInput): { context: Context; end(result?: Partial<GenAiChatInput>): void };
+  beginTool(input: Omit<GenAiToolCallInput, 'status'>): { context: Context; end(result: Partial<GenAiToolCallInput>): void };
   recordChat(input: GenAiChatInput): void;
   recordToolCall(input: GenAiToolCallInput): void;
   recordApproval(input: GenAiApprovalInput): void;
@@ -129,6 +135,7 @@ function contentAttributes(
 export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRecorder {
   const tracer = options.tracer ?? trace.getTracer('koatty-genai');
   const captureContent = options.captureContent === true;
+  if (captureContent && typeof options.mask !== 'function') throw new Error('GenAI content capture requires a masking service.');
   const masker = options.mask ?? ((value: any) => value);
 
   const metrics: GenAiMetrics = {
@@ -148,6 +155,24 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
 
   return {
     startSpan,
+    beginChat(input) {
+      const span = startSpan(GEN_AI_SPAN_NAMES.chat, {}, input.context);
+      const started = Date.now(); let ended = false;
+      return { context: trace.setSpan(input.context ?? context.active(), span), end: (result = {}) => {
+        if (ended) return; ended = true;
+        try { this.recordChat({ ...input, ...result, span, durationMs: Date.now() - started }); }
+        catch { span.end(); }
+      } };
+    },
+    beginTool(input) {
+      const span = startSpan(GEN_AI_SPAN_NAMES.tool, {}, input.context);
+      const started = Date.now(); let ended = false;
+      return { context: trace.setSpan(input.context ?? context.active(), span), end: (result) => {
+        if (ended) return; ended = true;
+        try { this.recordToolCall({ ...input, status: 'error', ...result, span, durationMs: Date.now() - started }); }
+        catch { span.end(); }
+      } };
+    },
 
     recordChat(input: GenAiChatInput) {
       const attributes: Record<string, unknown> = {
@@ -194,7 +219,16 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
         contentAttributes(captureContent, masker, input.request, input.response),
       );
 
-      const span = startSpan(GEN_AI_SPAN_NAMES.chat, attributes, input.context);
+      if (input.status) attributes['gen_ai.status'] = input.status;
+      if (input.route) attributes['gen_ai.route'] = input.route;
+      if (input.cost !== undefined) {
+        attributes[GEN_AI_ATTRIBUTES.costUsd] = input.cost;
+        // Prefer actual routed cost over recorder defaults.
+        metrics.costByModel[modelKey] = Number(((metrics.costByModel[modelKey] ?? 0) -
+          (((inputTokens ?? 0) / 1000) * (promptPrice ?? 0) + ((outputTokens ?? 0) / 1000) * (completionPrice ?? 0)) + input.cost).toFixed(6));
+      }
+      const span = input.span ?? startSpan(GEN_AI_SPAN_NAMES.chat, attributes, input.context);
+      if (input.span) span.setAttributes(attributes as any);
       span.end();
     },
 
@@ -222,7 +256,8 @@ export function createGenAiRecorder(options: GenAiRecorderOptions = {}): GenAiRe
       metrics.toolCalls.successRate =
         (metrics.toolCalls.total - metrics.toolCalls.failed) / metrics.toolCalls.total;
 
-      const span = startSpan(GEN_AI_SPAN_NAMES.tool, attributes, input.context);
+      const span = input.span ?? startSpan(GEN_AI_SPAN_NAMES.tool, attributes, input.context);
+      if (input.span) span.setAttributes(attributes as any);
       span.end();
     },
 

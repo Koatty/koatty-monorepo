@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Phase F audit fixes (2026-09-29)
+
+- 内容采集要求显式 masker；新增 live chat/tool span 生命周期、实际 provider/模型/失败与成本记录。
+- 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
+
+
 ## Unreleased — Phase A–D completion
 
 - koatty_core、koatty_exception 按运行期依赖声明，保证隔离 tarball 安装可导入。
