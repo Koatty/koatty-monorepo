@@ -111,6 +111,11 @@ jobs:
         # timing assertions have moved to the §12.3 benchmarks.
         run: pnpm turbo run test --force --concurrency=2 -- --runInBand --coverage --coverageReporters=json
 
+      - name: Phase F reference app type and compiled HTTP gates
+        run: |
+          pnpm --filter @koatty/example-mcp-order-service test:tsc
+          pnpm test:phase-f:compiled
+
       - name: Changed executable source coverage (at least 80 percent)
         env:
           KOATTY_COVERAGE_BASE: ${{ github.event.pull_request.base.sha || 'HEAD' }}

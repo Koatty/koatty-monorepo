@@ -4,3 +4,4 @@ packages:
   - 'tools/*'
   - 'examples/*'
 
+  - 'packages/koatty/examples/mcp-order-service'

@@ -29,7 +29,9 @@
     "release:submodule": "cd packages/koatty && pnpm release",
     "security:baseline": "tsc --project scripts/tsconfig.json --noEmit && ts-node --project scripts/tsconfig.json --transpile-only scripts/security-baseline.ts",
     "test": "turbo run test",
-    "test:phase-c:integration": "node scripts/regression/phase-c-network.cjs && node scripts/regression/phase-c-decorators.cjs && node scripts/regression/phase-c-shutdown.cjs"
+    "test:phase-c:integration": "node scripts/regression/phase-c-network.cjs && node scripts/regression/phase-c-decorators.cjs && node scripts/regression/phase-c-shutdown.cjs",
+    "test:phase-f": "pnpm --filter koatty_mcp --filter koatty_llm --filter koatty_guard test -- --runInBand && pnpm --filter koatty_trace exec jest F-04 --runInBand --coverage=false && pnpm --filter @koatty/example-mcp-order-service test -- --runInBand",
+    "test:phase-f:compiled": "node scripts/regression/phase-f-reference.cjs"
   },
   "keywords": [
     "koatty",

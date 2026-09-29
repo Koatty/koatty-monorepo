@@ -8,7 +8,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "temp/**", "*.tsbuildinfo"],
-      "inputs": ["src/**", "tsconfig.json", "tsup.config.ts", "package.json"]
+      "inputs": ["src/**", "tsconfig*.json", "tsup.config.ts", "package.json"]
     },
     "dev": {
       "cache": false,
