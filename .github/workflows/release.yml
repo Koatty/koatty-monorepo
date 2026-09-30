@@ -10,6 +10,9 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
   id-token: write
+  # changesets/action opens the "version packages" PR whenever pending
+  # changesets exist (e.g. the phase G entry), which needs PR write.
+  pull-requests: write
 
 jobs:
   release:
