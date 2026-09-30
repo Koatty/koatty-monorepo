@@ -1,5 +1,11 @@
 ## Unreleased — AI development / Phase G (2026-09-30)
 
+## 1.1.0
+
+### Minor Changes
+
+- 7382b72: Add shared AI development contracts, reproducible MCP/Agent scaffolds and a distributed Koatty skill. CLI generation now rejects accidental overwrites, uses bundled templates by default, reports failed verification accurately and supports single-use persisted plans. Add MCP output validation and optional checkpointed Agent execution with conservative unknown-outcome recovery. See docs/migration/phase-g-ai-development.md. Versions have not been applied or published.
+
 - 新增可选 createAgentRunner 和本地 createFileAgentRunStore：CAS 检查点、执行租约、工具调用意图、取消/限额状态和 unknown 人工权威结果协调；不自动重放不确定工具调用。
 - 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
 
