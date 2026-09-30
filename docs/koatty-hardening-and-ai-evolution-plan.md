@@ -1494,3 +1494,18 @@ F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用均已实现，Tra
 | Redis 默认端口 | 3306 | 6379 | store |
 | `@Scheduled` 重叠执行 | 允许 | 跳过 | schedule |
 | CLI `apply` | 直接写入 | 默认 dry-run，写入限制在项目根目录内 | cli |
+
+## Phase G：面向 Agent 的开发与执行契约（2026-09-30，本地未发布）
+
+接续 [AI-first 框架回顾](ai-first-framework-review-2026-09-30.md)，实施细节与兼容变化见 [迁移说明](migration/phase-g-ai-development.md)。下列为本地实现状态，不代表 npm 发布或外部服务验收。
+
+| 方向 | 已实现 | 验收边界 |
+|---|---|---|
+| G0 开发操作 | CLI/MCP 共享计划、前像校验、事务写入；结构化结果、稳定诊断、保存计划和失败退出状态 | 项目文件权限边界；测试执行不是 OS 沙箱；进程崩溃时不承诺整个文件集合原子回滚 |
+| G1 能力发现 | capabilities/doctor/verify；MCP tools/resources/prompts 静态清单、筛选分页；框架 Skill 文档检索；固定随包模板 | 动态声明标记 unresolved；完整复现还需 CLI/recipe/Skill 和依赖锁定 |
+| G2 开箱工程 | 标准应用真实 HTTP smoke；MCP/Agent recipe 的鉴权、DTO、scope、审批缺失拒绝、协议/SSE 测试 | workspace 依赖和 mock provider；示例业务存储是内存实现 |
+| G3 可恢复执行 | 可选 CAS runner、检查点、租约、调用意图、unknown 协调、本地文件 store | 不自动调度/审批；集群需注入原子 CAS；真实外部副作用须业务幂等 |
+| G4 固定回归任务 | 生成/编译/协议/拒绝路径；独立进程 SIGKILL 后协调恢复、业务副作用仅一次；test:ai-development | 不是模型能力评测；npm 隔离安装、真实 provider 和跨主机后端仍需发布验收 |
+| Skill | CLI 随包维护、新工程自动携带、Codex 本地安装；按开发/框架/MCP-Agent/验证渐进加载 | 新能力必须 feature detection；已发布旧版本不能直接套用 |
+
+发布仍按 RELEASE-GUIDE.md：提交嵌套模板子模块、CLI 子模块、主仓库指针并完成发布门禁。本轮不自动应用版本或发布。
