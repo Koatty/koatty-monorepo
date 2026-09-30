@@ -23,12 +23,12 @@ const BASE_PACKAGES = [
   'koatty_logger',     // 依赖 koatty_lib
   'koatty_container',  // 依赖 koatty_lib, koatty_logger
   'koatty_loader',     // 依赖 koatty_lib
-  'koatty_config',     // 依赖 koatty_lib
+  'koatty_exception',  // 依赖 koatty_lib, koatty_logger, koatty_container
+  'koatty_core',       // 依赖 koatty_exception, koatty_container, koatty_logger, koatty_lib
+  'koatty_config',     // 依赖 koatty_lib, koatty_core（resolveProfileName）
   'koatty_proto',      // 依赖 koatty_lib
   'koatty_validation', // 依赖 koatty_lib
   'koatty_graphql',    // 依赖 koatty_lib
-  'koatty_exception',  // 依赖 koatty_lib, koatty_logger, koatty_container
-  'koatty_core',       // 依赖 koatty_exception, koatty_container, koatty_logger, koatty_lib
 ];
 
 console.log('🚀 Building base packages (foundation dependencies)...\n');

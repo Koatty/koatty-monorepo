@@ -39,8 +39,9 @@ pnpm clean          # turbo run clean && rimraf node_modules .turbo
 `scripts/build-base-packages.js` 中的**基础包顺序**（改依赖关系时同步更新该数组）：
 
 ```
-koatty_lib → koatty_logger → koatty_container → koatty_loader → koatty_config
-→ koatty_proto → koatty_validation → koatty_graphql → koatty_exception → koatty_core
+koatty_lib → koatty_logger → koatty_container → koatty_loader
+→ koatty_exception → koatty_core → koatty_config
+→ koatty_proto → koatty_validation → koatty_graphql
 ```
 
 之后 `turbo run build` 按 `turbo.json` 的依赖图并行构建其余包。
