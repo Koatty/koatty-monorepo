@@ -215,6 +215,9 @@ pnpm release
   Service 方法,复用 `@Validated` DTO 白名单、IoC 请求作用域;destructive 工具默认人工审批(fail closed)
 - **koatty_llm@1.0.0** — 多供应商 LLM 客户端:逻辑模型路由 + failover、熔断、原子 token 预算、
   精确缓存、结构化输出(DTO 校验)、进程内工具循环
+- **官方 Agent Skill** — 随 `koatty_cli` 同版本分发的 `koatty` 技能包(`.agents/skills/koatty/`),
+  让 AI 编码代理按框架约定工作(feature detection、manifest 校验、plan/apply/verify 工作流);
+  新项目自动携带,详见文档站 Agent Skill 页
 - **koatty_guard@1.0.0** — 单切面护栏:脱敏 → 内容检查 → 限流 → 审批 → 审计;
   审批票据持久化、一次性、绑定调用方指纹;审计默认不记录提示词原文
 
