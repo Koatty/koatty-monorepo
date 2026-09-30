@@ -37,3 +37,6 @@ export {
   resetBreakers,
 } from './client';
 export type { LlmClient } from './client';
+export { createAgentRunner, AgentRunError } from './agent';
+export type { AgentRunStore, AgentRunStatus, AgentRun, AgentRunnerOptions } from './agent';
+export { createFileAgentRunStore } from './agent-file-store';

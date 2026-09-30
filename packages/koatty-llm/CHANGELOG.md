@@ -1,3 +1,8 @@
+## Unreleased — AI development / Phase G (2026-09-30)
+
+- 新增可选 createAgentRunner 和本地 createFileAgentRunStore：CAS 检查点、执行租约、工具调用意图、取消/限额状态和 unknown 人工权威结果协调；不自动重放不确定工具调用。
+- 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
+
 ## Unreleased — Phase A–F review (2026-09-30)
 
 ## 1.0.0
