@@ -16,6 +16,7 @@
  * @License BSD-3-Clause
  */
 import { AsyncLocalStorage } from 'async_hooks';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv-provider.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
@@ -100,6 +101,11 @@ export function createMcpHost(options: McpHostOptions): McpHost {
   }
 
   const registry = createRegistry({ container, componentTypes: options.componentTypes });
+  const validator = new AjvJsonSchemaValidator();
+  const outputValidators = new Map(registry.tools.filter(tool => tool.outputSchema).map(tool => {
+    if (tool.outputSchema?.type !== 'object') throw new Error(`Tool ${tool.name} outputSchema must describe an object`);
+    return [tool.name, validator.getValidator(tool.outputSchema!)];
+  }));
   const security = options.security ?? {};
   const auth = security.auth;
   const strict = security.strict ?? options.app?.security?.name === 'strict';
@@ -238,6 +244,11 @@ export function createMcpHost(options: McpHostOptions): McpHost {
           return await proceed();
         }),
       );
+      const validateOutput = outputValidators.get(name);
+      if (validateOutput && !validateOutput(result).valid) {
+        // The handler may already have performed a side effect: do not retry automatically.
+        throw new Error('MCP_OUTPUT_INVALID: tool result does not match its declared outputSchema');
+      }
       await record(hooks.signal?.aborted ? 'cancelled' : 'success', summary);
       return result;
     } catch (error) {

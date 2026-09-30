@@ -1,3 +1,8 @@
+## Unreleased — AI development / Phase G (2026-09-30)
+
+- 对工具 outputSchema 编译并验证实际执行结果；不匹配返回 MCP_OUTPUT_INVALID 并记录失败审计。此校验发生在业务执行后，不代表副作用回滚。
+- 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
+
 ## Unreleased — Phase A–F review (2026-09-30)
 
 ## 1.0.0
