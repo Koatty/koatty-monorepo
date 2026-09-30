@@ -28,8 +28,13 @@ Koatty Monorepo 采用 **混合架构**，将核心框架包集中管理，同�
 | `koatty_router` | 路由组件 |
 | `koatty_serve` | 服务器组件 | 
 | `koatty_exception` | 异常处理 |
-| `koatty_trace` | 链路追踪 |
+| `koatty_trace` | 链路追踪(GenAI 可观测) |
 | `koatty_config` | 配置加载 |
+| `koatty_testing` | 测试工具 |
+| `koatty_http3` | HTTP/3(experimental,独立安装) |
+| `koatty_mcp` | MCP Server 宿主(tools/resources/prompts) |
+| `koatty_llm` | LLM 调用抽象(路由/预算/缓存/工具循环) |
+| `koatty_guard` | AI 安全护栏(脱敏/审批/审计) |
 
 ### 独立包 (submodules)
 
@@ -45,7 +50,12 @@ Koatty Monorepo 采用 **混合架构**，将核心框架包集中管理，同�
 | `koatty_schedule` | 定时任务 |
 | `koatty_proto` | 协议定义 |
 | `koatty_graphql` | GraphQL 支持 |
-| `koatty_doc` | 文档工具 |
+| `koatty_swagger` | OpenAPI/Swagger |
+| `koatty_typeorm` | TypeORM 集成 |
+| `koatty_serverless` | Serverless 适配器 |
+| `koatty_ai` | AI 辅助 CLI(koatty_cli 源) |
+| `koatty_doc` | 文档站(packages/koatty-doc) |
+| `koatty_awesome` | 示例与模板 |
 
 ## 快速开始
 
@@ -74,11 +84,20 @@ pnpm build
 # 开发模式 (watch)
 pnpm dev
 
-# 测试
-pnpm test
+# 测试(全仓库,CI 同款并发配置)
+pnpm turbo run test --force --concurrency=2 -- --runInBand
 
-# Lint
+# Phase F 专项(MCP/LLM/Guard/GenAI/参考应用)
+pnpm test:phase-f
+
+# Lint(要求 0 error)
 pnpm lint
+
+# 安全基线(真实请求验证安全默认)
+pnpm security:baseline
+
+# 环境/依赖/子模块自检
+pnpm doctor
 ```
 
 ### 运行示例
@@ -116,7 +135,17 @@ koatty-monorepo/
 │   ├── koatty-schedule/   # 定时任务 (submodule)
 │   ├── koatty-proto/      # 协议 (submodule)
 │   ├── koatty-graphql/    # GraphQL (submodule)
-│   └── koatty-doc/        # 文档 (submodule)
+│   ├── koatty-swagger/    # Swagger (submodule)
+│   ├── koatty-typeorm/    # TypeORM (submodule)
+│   ├── koatty-serverless/ # Serverless (submodule)
+│   ├── koatty-ai/         # AI CLI (submodule)
+│   ├── koatty-mcp/        # MCP Server 宿主
+│   ├── koatty-llm/        # LLM 调用抽象
+│   ├── koatty-guard/      # AI 安全护栏
+│   ├── koatty-http3/      # HTTP/3 (experimental)
+│   ├── koatty-testing/    # 测试工具
+│   ├── koatty-doc/        # 文档站 (submodule)
+│   └── koatty-awesome/    # 示例模板 (submodule)
 ├── scripts/               # 工具脚本
 ├── .changeset/            # 版本管理
 ├── .github/workflows/     # CI/CD
@@ -177,6 +206,33 @@ pnpm release
 - 如需访问旧版本，请查看各包的历史版本
 
 ## 最新变更
+
+### 2026-09-30 · v5.0.0 家族发布
+
+#### 🚀 AI 运行时(新包首发)
+
+- **koatty_mcp@1.0.0** — MCP Server 宿主:`@Tool` / `@Resource` / `@Prompt` 声明式暴露
+  Service 方法,复用 `@Validated` DTO 白名单、IoC 请求作用域;destructive 工具默认人工审批(fail closed)
+- **koatty_llm@1.0.0** — 多供应商 LLM 客户端:逻辑模型路由 + failover、熔断、原子 token 预算、
+  精确缓存、结构化输出(DTO 校验)、进程内工具循环
+- **koatty_guard@1.0.0** — 单切面护栏:脱敏 → 内容检查 → 限流 → 审批 → 审计;
+  审批票据持久化、一次性、绑定调用方指纹;审计默认不记录提示词原文
+
+#### 🛡️ 安全画像与 fail-closed 默认
+
+- Security Profile(`KOATTY_ENV || NODE_ENV` → strict/standard/development),只读暴露为 `app.security`
+- 请求体 400/413/415、DTO 白名单剥离、WebSocket Origin 默认校验、`/metrics` 默认仅信任回环、
+  ops 端点 token、请求 ID、TLS ≥1.2、CLI 写沙箱(拒绝硬链接)
+- `koatty_validation` 5.0:DTO 入参转换为真实实例(Date/嵌套/数组),静态 schema 保守化(unresolved 诊断)
+- `koatty_trace` 2.5:GenAI 记录器(`genai.*` span 属性,默认不记录提示词/输出原文)
+
+#### 📦 主要版本
+
+`koatty@5.0.0` · `koatty_serve@4.0.0` · `koatty_validation@5.0.0` · `koatty_trace@2.5.0` ·
+`koatty_testing@5.0.0` · `koatty_http3@1.0.0` · `koatty_cli@5.1.0`
+
+迁移指南见 [docs/migration](docs/migration) 与文档站
+[koatty-doc → v4 to v5](https://github.com/koatty/koatty-doc/tree/main/docs/migration)。
 
 ### 2025-02-03
 
