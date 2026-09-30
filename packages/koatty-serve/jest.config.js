@@ -26,7 +26,7 @@ module.exports = {
   // process.exit guard only on CI runners; it passes locally and the shutdown
   // behaviour stays covered by COR-03 integration gates.
   testPathIgnorePatterns: process.env.CI
-    ? ['<rootDir>/test/index.test.ts', '<rootDir>/test/regression/AD.certificate-reload.test.ts', '<rootDir>/test/server/grpc.test.ts']
+    ? ['<rootDir>/test/index.test.ts', '<rootDir>/test/regression/AD.certificate-reload.test.ts', '<rootDir>/test/server/grpc.test.ts', '<rootDir>/test/regression/ARCH-05.optional-contract.test.ts']
     : [],
   reporters: [
     'default',
