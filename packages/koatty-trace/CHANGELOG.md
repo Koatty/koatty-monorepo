@@ -1,5 +1,51 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+## 2.5.0
+
+### Minor Changes
+
+- a9e91a9: Repair Phase F audit boundaries: HTTP connection ownership and authentication, cancellation, atomic token reservations, allowlisted streaming tool execution, single-use durable approval decisions, privacy-safe audit/capture, live GenAI spans and shared DTO schema rules. See docs/migration/phase-f-audit-fixes.md for stricter store/auth contracts. This changeset has not been applied or published.
+- f0e9278: Phase F (F-3/F-4) — AI 护栏与 GenAI 可观测性。
+
+  - **F-4（`koatty_trace` 2.5.0）**：新增 `src/genai`，按 OpenTelemetry GenAI 语义约定记录 `gen_ai.chat` / `gen_ai.tool` / `gen_ai.approval` Span（供应商、模型、输入/输出 token、耗时、结束原因、工具名与状态、审批结论），并提供 `metrics()`（每模型 token 与成本、工具调用成功率、审批通过率）。**默认不记录提示词与模型输出原文**，`captureContent: true` 时先调用注入的脱敏函数（F-3 同一服务）；`context` 选项可显式指定父 Span，使 “MCP 请求 → 工具调用 → LLM 调用” 落在同一条 Trace。属性名集中在 `src/genai/constants.ts` 便于跟进上游 development 状态。纯增量 API，未改动既有 Trace/指标行为。回归用例 `test/regression/F-04.genai.test.ts`（6 例）。迁移说明见 `docs/migration/phase-f-genai.md`。
+
+  - **F-3（`koatty_guard@1.0.0`）**：新增包 `packages/koatty-guard` —— 脱敏、提示注入内容检查、人工审批、按调用方+工具限流、结构化审计。全部构建在**既有** AOP 实现之上：一个 `GuardAspect` 顺序调用各服务，不新增 `Guard` 基类或装饰器栈（既有管线每个方法只应用一个 `Around`）。需要审批而未接审批后端时 **fail closed**（永不执行），审批票据超时自动拒绝；规则型注入检测在文档中明确为次要控制，核心防线仍是 F-1 的权限作用域与人工审批。`guard.approval` / `guard.audit` 满足 `koatty_mcp` 的接口（结构性类型，不引入包依赖）。`koatty_guard@1.0.0` 为首次发布，目标版本由 changeset major 从 0.0.0 统一生成，不直接写入 `packages/koatty-guard/package.json`，必须通过 changeset 统一生成版本。回归用例 `packages/koatty-guard/test/regression/F-03.guard.test.ts`（18 例）。迁移说明见 `docs/migration/phase-f-guard.md`。
+
+### Patch Changes
+
+- f0e9278: Close the second Phase A–F review: strict security config validation and environment resolution, explicit metrics trust, default WS Origin checks, hard-link-safe CLI writes and delimited tool arguments, DTO transformation and conservative schema diagnostics, privacy-safe telemetry, HTTP3 peer ownership and draining reference SSE service. MCP/LLM/Guard first-release major entries are in phase-f-audit-hardening. See docs/migration/phase-a-f-review-fixes.md. Do not treat local tests as release/client/provider acceptance.
+- f0e9278: Close Phase C audit findings: await singleton initialization and reverse disposal, make shutdown idempotent and drain responses complete, handle real gRPC deadlines and stream termination, bound lock renewal with cooperative cancellation, await scheduler drain, validate JSON Schema and explicit security profiles, isolate Redis native leases/transactions, and preserve cached types with single flight.
+
+  Redis transactions now return an explicit isolated handle; native connections must be released. Untyped legacy cache entries are treated as misses. JSON Schema requires optional peer ajv 8. See docs/migration/phase-c-audit-remediation.md before release. Linux/Redis CI and independent package consumption remain release gates.
+
+- f0e9278: Phase A–D 审计修复，未发布：
+
+  - 容器注册表、类标识、实例注入与 AOP 解析均按容器隔离；注入不再写入共享原型。同名构造函数的元数据缓存不再串用。
+  - `app.container` 与 Core ALS 贯通；请求结束释放对应容器的请求实例。组件实例和事件处理器使用所属应用。
+  - 注册期构造路由 handler；控制器、参数元数据、中间件和 RouterFactory 使用应用容器。关闭一个应用不会清理另一应用的路由。
+  - 扫描目录、每个模块与缓存条目均以 realpath 校验根目录边界；越界路径直接拒绝，不再回退扫描整个项目。
+  - Bootstrap 自动创建应用独立容器，Loader/Router/注入链路使用 app.container；扫描同时处理默认导出与具名导出。
+  - SSE 复用普通路由和 streamSSE；现有 middleware 与 Around/run 承担鉴权、限流和方法包装。
+  - HTTPS/HTTP2 证书热更新及失败回退。
+  - Serve 使用连接追踪器，HTTP/3 移至独立实验包 koatty_http3；移除核心 QUIC 依赖及模拟监听。
+  - 生产构建可用既有 manifest 命令生成 runtime 清单；启动前逐文件校验路径与 SHA256。
+  - 修复独立安装缺失运行时/公开类型依赖，以及原生 Node ESM 入口加载错误。
+  - Config 复用既有双模式装饰器适配器，支持 TC39 字段初始化与应用隔离。
+
+  移除 Http3Server 等核心导出和入站池语义属于破坏性变更，因此 koatty 与 koatty_serve 必须按 major 发布，不能沿用原计划的 4.5.0 minor。koatty_http3 是首次发布包，按发布工具的新包流程单独处理；最终版本需与主包依赖同步。
+
+  迁移：docs/migration/phase-d-router-hotpath.md。D-5 实现及 D-7 清单已补齐；性能门槛、Linux CI 与部署验收仍未关闭。此文件不代表验收通过，不自动应用版本或发布。
+
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+  - koatty_core@2.7.0
+  - koatty_container@4.1.0
+  - koatty_lib@1.6.1
+  - koatty_logger@3.1.2
+  - koatty_exception@2.2.3
+
 Record OTel ERROR status; preserve non-content attributes on masker failure; reject invalid metric values. Strengthen service-header trust regression at middleware boundary.
 
 Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
@@ -10,7 +56,6 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 
 - 内容采集要求显式 masker；新增 live chat/tool span 生命周期、实际 provider/模型/失败与成本记录。
 - 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
-
 
 ## Unreleased — Phase A–D completion
 
@@ -42,6 +87,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 - Phase C（P1 功能正确性，路线图 4.4.0）— main-repo 部分
 
   **koatty_serve**
+
   - COR-03（C-1）优雅停机闭环：`TerminusManager.shutdownAll()` 现在按
     `signal → beginDrain（/ready 503）→ preStopDelay → Stop（停止接收新连接、排空在途请求、超时强关）→ appStop → 退出`
     顺序执行，不再只触发 `appStop`；`Stop()` 前先 `beginDrain()`，`getStatus()` 生命周期
@@ -58,6 +104,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
   - `shutdown: { preStopDelay, drainTimeout }` 可通过 server 配置或 `TerminusManager` 覆盖。
 
   **koatty_trace**
+
   - COR-15（C-7）指标采集与 Span 结束只在 `handleRequest` 的 `finally` 中执行一次，
     删除各协议 handler 中的重复调用（此前每个请求指标 +2、Span 结束两次）；Span 的状态属性与
     `request` 事件也集中在该处写入。
@@ -65,6 +112,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
   - COR-03：删除 `SpanManager` 自行注册的 `SIGTERM`/`SIGINT` 监听，统一由 `TerminusManager` 协调。
 
   **koatty_core**
+
   - COR-03：`Application.stop()` 返回 Promise，服务器全部停止后再 `emit('appStop')`；
     移除把 `appStop` 转绑到 `process beforeExit` 的 `bindProcessEvent` 用法（收到信号退出时不会触发）。
   - COR-12（C-7）：`Application.use()` 同时清空 `middlewareStacks`（按协议缓存的中间件栈），
@@ -97,6 +145,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
+
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -397,6 +446,7 @@ All notable changes to this project will be documented in this file. See [standa
 ### Features
 
 - **metrics**: 完成基础 HTTP 指标的实际收集功能 ([#新增])
+
   - 实现完整的 MetricsCollector 类，支持 HTTP 请求指标收集
   - 新增 http_requests_total 计数器，统计 HTTP 请求总数
   - 新增 http_errors_total 计数器，统计 HTTP 错误请求数（状态码>=400）
@@ -407,6 +457,7 @@ All notable changes to this project will be documented in this file. See [standa
   - 添加完整的测试覆盖，确保指标收集功能的稳定性
 
 - **integration**: 增强请求处理器的指标收集能力 ([#改进])
+
   - 在 BaseHandler 中集成指标收集功能
   - 在 trace.ts 中添加指标收集调用
   - 支持错误类型分类（client_error, server_error）

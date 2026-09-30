@@ -1,5 +1,22 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+## 1.0.0
+
+### Major Changes
+
+- a9e91a9: Repair Phase F audit boundaries: HTTP connection ownership and authentication, cancellation, atomic token reservations, allowlisted streaming tool execution, single-use durable approval decisions, privacy-safe audit/capture, live GenAI spans and shared DTO schema rules. See docs/migration/phase-f-audit-fixes.md for stricter store/auth contracts. This changeset has not been applied or published.
+
+### Patch Changes
+
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+  - koatty_core@2.7.0
+  - koatty_container@4.1.0
+  - koatty_lib@1.6.1
+  - koatty_logger@3.1.2
+
 Expire replay tombstones without exhausting active capacity; bind resume context; async approval decisions; omit persisted raw args; distinguish backend failure. Precise credential masking, normalized container content inspection and one terminal audit.
 
 Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
@@ -10,7 +27,6 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 
 - 审批 UUID/单次消费/CAS 持久状态/跨实例回调与截止时间；严格批准判断；递归内容检查，敏感键及错误审计脱敏，sink 异常隔离。
 - 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
-
 
 All notable changes to `koatty_guard` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).

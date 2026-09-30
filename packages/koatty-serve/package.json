@@ -1,6 +1,6 @@
 {
   "name": "koatty_serve",
-  "version": "3.5.0",
+  "version": "4.0.0",
   "description": "HTTP, HTTPS, HTTP2, WebSocket and gRPC servers for Koatty",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc && pnpm run build:cp",

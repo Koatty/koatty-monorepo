@@ -1,17 +1,31 @@
 # koatty_testing
 
+## 5.0.0
+
+### Patch Changes
+
+- f0e9278: Fix Phase E audit findings: bind MCP writes to issued session plans and unchanged files, validate inputs and recover handled write failures, reject documentation/source symlink escapes, and correctly classify test execution. Add static manifest JSON Schemas and unresolved diagnostics without leaking configuration expressions/defaults. Align generated DTO/controller/service code and docs with existing APIs and test generated HTTP requests. Wait for test-app readiness and restore environment after cleanup failures. Preserve HTTP 400 for DTO validation and correctly extract mixed primitive/DTO parameters.
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+  - koatty_core@2.7.0
+  - koatty@5.0.0
+  - koatty_container@4.1.0
+  - koatty_lib@1.6.1
+
 ## Unreleased — Phase E audit fixes (2026-09-29)
 
 - Wait for listener readiness/error in createTestApp.start; restore environment in finally even when stop fails, without repeated restoration.
 - Add lifecycle regression coverage and correct examples to use an undecorated test app and createHttpTest(wrapper.app).
 - Migration: docs/migration/phase-e-ai-dev-experience.md. No publication performed.
 
-
 ## 4.0.1
 
 ### Patch Changes
 
 - Phase E（AI-Ready 开发体验，路线图 §8）：`koatty_cli@5.0.0` 发布内容。
+
   - **E-1 应用清单 `koatty manifest`**：静态采集器（`src/manifest`）+ CLI 命令，输出 components / routes / dtos / aspects / `config.keys` / `security.profile` / koatty 版本 / decoratorMode / protocols。**只输出配置键名，绝不输出配置取值**；纯静态分析（ts-morph），不启动应用、不监听端口、无网络。回归测试：`tests/regression/E-01.manifest.test.ts`。
   - **E-2 MCP 形态的 CLI（`koatty mcp`）**：stdio 传输的 MCP server，7 个工具（`koatty_manifest` / `koatty_routes` / `koatty_explain_component` / `koatty_plan` / `koatty_apply` / `koatty_test` / `koatty_docs`）。
     - 只读优先：除写类 `koatty_apply` 和执行类 `koatty_test` 外使用 `readOnlyHint`；`koatty_apply` 必须携带 `koatty_plan` 的 SHA-256 哈希，`dryRun` 默认 `true`。
@@ -62,6 +76,7 @@
 ### Patch Changes
 
 - Phase A（基线修复与 CI 可信）收口：修复让 `pnpm lint` / CI lint job 失败的配置与格式问题。
+
   - `koatty_cli`：按 prettier 重新格式化 `apply` 命令的 `--yes` 选项（`npx eslint --fix`，无行为变化）；
   - `koatty_graphql`、`koatty_loader`：`@typescript-eslint/ban-types` 已在 @typescript-eslint v8 中移除，配置仍引用该规则会让每次 lint 直接报
     `Definition for rule '@typescript-eslint/ban-types' was not found`；改用后继规则 `@typescript-eslint/no-unsafe-function-type`；
@@ -69,6 +84,7 @@
   - `koatty_testing`：补充缺失的 `.eslintrc.js`（此前 eslint 以 exit=2 报 `couldn't find a configuration file`）。
 
   修复后 `pnpm lint` 由 4 个包失败恢复为 21/21 通过；`pnpm build` 23/23、`pnpm security:baseline` PASS 6 / FAIL 0。详见 `docs/reports/test-baseline-2026-09.md` §七。
+
   - koatty@4.3.1
 
 ## 2.0.0

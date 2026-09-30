@@ -1,6 +1,6 @@
 {
   "name": "koatty_llm",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "LLM calling abstraction for Koatty: provider adapters, model routing, reliability, budgets, structured output and tool-call loops.",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:cp",
@@ -64,8 +64,8 @@
     "reflect-metadata": "^0.2.2"
   },
   "peerDependencies": {
-    "koatty_cacheable": "^5.0.0",
-    "koatty_store": "^4.0.0",
+    "koatty_cacheable": "^6.0.0",
+    "koatty_store": "^4.1.0",
     "koatty_validation": "^5.0.0"
   },
   "peerDependenciesMeta": {

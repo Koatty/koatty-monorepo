@@ -1,5 +1,44 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+## 2.5.0
+
+### Minor Changes
+
+- f0e9278: Phase A–D 审计修复，未发布：
+
+  - 容器注册表、类标识、实例注入与 AOP 解析均按容器隔离；注入不再写入共享原型。同名构造函数的元数据缓存不再串用。
+  - `app.container` 与 Core ALS 贯通；请求结束释放对应容器的请求实例。组件实例和事件处理器使用所属应用。
+  - 注册期构造路由 handler；控制器、参数元数据、中间件和 RouterFactory 使用应用容器。关闭一个应用不会清理另一应用的路由。
+  - 扫描目录、每个模块与缓存条目均以 realpath 校验根目录边界；越界路径直接拒绝，不再回退扫描整个项目。
+  - Bootstrap 自动创建应用独立容器，Loader/Router/注入链路使用 app.container；扫描同时处理默认导出与具名导出。
+  - SSE 复用普通路由和 streamSSE；现有 middleware 与 Around/run 承担鉴权、限流和方法包装。
+  - HTTPS/HTTP2 证书热更新及失败回退。
+  - Serve 使用连接追踪器，HTTP/3 移至独立实验包 koatty_http3；移除核心 QUIC 依赖及模拟监听。
+  - 生产构建可用既有 manifest 命令生成 runtime 清单；启动前逐文件校验路径与 SHA256。
+  - 修复独立安装缺失运行时/公开类型依赖，以及原生 Node ESM 入口加载错误。
+  - Config 复用既有双模式装饰器适配器，支持 TC39 字段初始化与应用隔离。
+
+  移除 Http3Server 等核心导出和入站池语义属于破坏性变更，因此 koatty 与 koatty_serve 必须按 major 发布，不能沿用原计划的 4.5.0 minor。koatty_http3 是首次发布包，按发布工具的新包流程单独处理；最终版本需与主包依赖同步。
+
+  迁移：docs/migration/phase-d-router-hotpath.md。D-5 实现及 D-7 清单已补齐；性能门槛、Linux CI 与部署验收仍未关闭。此文件不代表验收通过，不自动应用版本或发布。
+
+### Patch Changes
+
+- f0e9278: Fix Phase E audit findings: bind MCP writes to issued session plans and unchanged files, validate inputs and recover handled write failures, reject documentation/source symlink escapes, and correctly classify test execution. Add static manifest JSON Schemas and unresolved diagnostics without leaking configuration expressions/defaults. Align generated DTO/controller/service code and docs with existing APIs and test generated HTTP requests. Wait for test-app readiness and restore environment after cleanup failures. Preserve HTTP 400 for DTO validation and correctly extract mixed primitive/DTO parameters.
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [a9e91a9]
+- Updated dependencies [f0e9278]
+  - koatty_core@2.7.0
+  - koatty_validation@5.0.0
+  - koatty_container@4.1.0
+  - koatty_lib@1.6.1
+  - koatty_logger@3.1.2
+  - koatty_exception@2.2.3
+  - koatty_graphql@2.0.2
+  - koatty_proto@2.0.1
+
 Strengthen regression coverage through the actual GraphQL middleware introspection rejection path.
 
 Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
@@ -73,6 +112,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
+
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -422,10 +462,12 @@ This is a major release focusing on **performance**, **memory efficiency**, and 
 **If upgrading from v1.20.0-8 or earlier:**
 
 1. **Validator Compilation**: Ensure all validation rules are compatible with pre-compilation
+
    - Custom validation functions must be pure functions
    - All `ValidRules` references must exist in `FunctionValidator`
 
 2. **Error Handling**: Applications will now fail at startup (not runtime) if validators cannot compile
+
    - Check application startup logs for compilation errors
    - Fix any custom validators that throw during compilation
 

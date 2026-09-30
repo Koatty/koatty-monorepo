@@ -1,6 +1,6 @@
 {
   "name": "koatty_http3",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Experimental optional HTTP/3 transport for Koatty",
   "scripts": {
     "build": "pnpm run build:js && pnpm run build:dts && pnpm run build:doc",
@@ -84,6 +84,6 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "koatty_serve": ">=3.5.0 <5.0.0"
+    "koatty_serve": ">=4.0.0"
   }
 }

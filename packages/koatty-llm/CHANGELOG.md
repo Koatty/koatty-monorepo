@@ -1,5 +1,22 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+## 1.0.0
+
+### Major Changes
+
+- a9e91a9: Repair Phase F audit boundaries: HTTP connection ownership and authentication, cancellation, atomic token reservations, allowlisted streaming tool execution, single-use durable approval decisions, privacy-safe audit/capture, live GenAI spans and shared DTO schema rules. See docs/migration/phase-f-audit-fixes.md for stricter store/auth contracts. This changeset has not been applied or published.
+
+### Patch Changes
+
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+- Updated dependencies [a9e91a9]
+- Updated dependencies [f0e9278]
+  - koatty_validation@5.0.0
+  - koatty_cacheable@6.0.0
+  - koatty_store@4.1.0
+
 Bound per-attempt reservations; release immediate failures; enforce timeout independently of provider cooperation; isolate/refresh DTO caches; align streaming tool allowlists and contain cleanup/settlement errors. Budget store/incrBy are required.
 
 Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
@@ -10,7 +27,6 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 
 - 修复工具白名单、逐尝试原子预算预留与流式结算、输出后禁止重试、流资源释放、缓存 DTO 重验；新增流式工具循环、出站消息钩子和每次实际尝试遥测。
 - 迁移说明：`docs/migration/phase-f-audit-fixes.md`（主仓库）。
-
 
 All notable changes to `koatty_llm` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).

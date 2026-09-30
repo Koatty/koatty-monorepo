@@ -1,5 +1,49 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+## 2.7.0
+
+### Minor Changes
+
+- f0e9278: Phase A–D 审计修复，未发布：
+
+  - 容器注册表、类标识、实例注入与 AOP 解析均按容器隔离；注入不再写入共享原型。同名构造函数的元数据缓存不再串用。
+  - `app.container` 与 Core ALS 贯通；请求结束释放对应容器的请求实例。组件实例和事件处理器使用所属应用。
+  - 注册期构造路由 handler；控制器、参数元数据、中间件和 RouterFactory 使用应用容器。关闭一个应用不会清理另一应用的路由。
+  - 扫描目录、每个模块与缓存条目均以 realpath 校验根目录边界；越界路径直接拒绝，不再回退扫描整个项目。
+  - Bootstrap 自动创建应用独立容器，Loader/Router/注入链路使用 app.container；扫描同时处理默认导出与具名导出。
+  - SSE 复用普通路由和 streamSSE；现有 middleware 与 Around/run 承担鉴权、限流和方法包装。
+  - HTTPS/HTTP2 证书热更新及失败回退。
+  - Serve 使用连接追踪器，HTTP/3 移至独立实验包 koatty_http3；移除核心 QUIC 依赖及模拟监听。
+  - 生产构建可用既有 manifest 命令生成 runtime 清单；启动前逐文件校验路径与 SHA256。
+  - 修复独立安装缺失运行时/公开类型依赖，以及原生 Node ESM 入口加载错误。
+  - Config 复用既有双模式装饰器适配器，支持 TC39 字段初始化与应用隔离。
+
+  移除 Http3Server 等核心导出和入站池语义属于破坏性变更，因此 koatty 与 koatty_serve 必须按 major 发布，不能沿用原计划的 4.5.0 minor。koatty_http3 是首次发布包，按发布工具的新包流程单独处理；最终版本需与主包依赖同步。
+
+  迁移：docs/migration/phase-d-router-hotpath.md。D-5 实现及 D-7 清单已补齐；性能门槛、Linux CI 与部署验收仍未关闭。此文件不代表验收通过，不自动应用版本或发布。
+
+- f0e9278: Phase F (F-1) — `koatty_mcp@1.0.0`：新增 MCP Server 宿主包，把 `@Service` 方法以 `@Tool` / `@Resource` / `@Prompt` 声明式暴露为 MCP 工具、资源与提示词，复用既有 IoC、`koatty_validation` 白名单校验、请求作用域与可观测性。附带两项增量改动：`koatty_validation` 新增 `PARAM_DTO_KEY`（`@Validated({ types })` 的 DTO 类型桥接元数据，`PARAM_CHECK_KEY` 语义不变）；`koatty_core` 的 `KoattyContext` 新增可选协议字段（`principal`、`mcpSessionId`、`mcpRequestId`、`mcpToolName`、`signal`、`progress`），非 MCP 请求不受影响。
+
+  `koatty_mcp@1.0.0` 为首次发布，目标版本由 changeset major 从 0.0.0 统一生成，不直接写入 `packages/koatty-mcp/package.json`，必须通过 changeset 统一生成版本。迁移说明见 `docs/migration/phase-f-mcp-host.md`。
+
+  ***
+
+  Phase F (F-2) — `koatty_llm@1.0.0`：新增 LLM 调用抽象包（厂商适配、路由与 fallback、超时/退避/熔断、共享预算、`signal` 取消、结构化输出、进程内工具循环、非流式精确缓存与成本估算），与 F-1 的 `ctx.signal`、MCP 工具 schema 衔接。该包为首次发布，目标版本由 changeset major 从 0.0.0 统一生成，不直接写入 `packages/koatty-llm/package.json`，必须通过 changeset 统一生成版本；本次未改动任何既有包的行为。迁移说明见 `docs/migration/phase-f-llm-client.md`。
+
+### Patch Changes
+
+- f0e9278: Close the second Phase A–F review: strict security config validation and environment resolution, explicit metrics trust, default WS Origin checks, hard-link-safe CLI writes and delimited tool arguments, DTO transformation and conservative schema diagnostics, privacy-safe telemetry, HTTP3 peer ownership and draining reference SSE service. MCP/LLM/Guard first-release major entries are in phase-f-audit-hardening. See docs/migration/phase-a-f-review-fixes.md. Do not treat local tests as release/client/provider acceptance.
+- f0e9278: Close Phase C audit findings: await singleton initialization and reverse disposal, make shutdown idempotent and drain responses complete, handle real gRPC deadlines and stream termination, bound lock renewal with cooperative cancellation, await scheduler drain, validate JSON Schema and explicit security profiles, isolate Redis native leases/transactions, and preserve cached types with single flight.
+
+  Redis transactions now return an explicit isolated handle; native connections must be released. Untyped legacy cache entries are treated as misses. JSON Schema requires optional peer ajv 8. See docs/migration/phase-c-audit-remediation.md before release. Linux/Redis CI and independent package consumption remain release gates.
+
+- Updated dependencies [f0e9278]
+- Updated dependencies [f0e9278]
+  - koatty_container@4.1.0
+  - koatty_lib@1.6.1
+  - koatty_logger@3.1.2
+  - koatty_exception@2.2.3
+
 Validate security configuration and prototype/unknown keys; match complete environment names rather than substrings. Document the exact legacyDefaults rollback scope.
 
 Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No release has been applied.
@@ -35,6 +79,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 - Phase C（P1 功能正确性，路线图 4.4.0）— main-repo 部分
 
   **koatty_serve**
+
   - COR-03（C-1）优雅停机闭环：`TerminusManager.shutdownAll()` 现在按
     `signal → beginDrain（/ready 503）→ preStopDelay → Stop（停止接收新连接、排空在途请求、超时强关）→ appStop → 退出`
     顺序执行，不再只触发 `appStop`；`Stop()` 前先 `beginDrain()`，`getStatus()` 生命周期
@@ -51,6 +96,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
   - `shutdown: { preStopDelay, drainTimeout }` 可通过 server 配置或 `TerminusManager` 覆盖。
 
   **koatty_trace**
+
   - COR-15（C-7）指标采集与 Span 结束只在 `handleRequest` 的 `finally` 中执行一次，
     删除各协议 handler 中的重复调用（此前每个请求指标 +2、Span 结束两次）；Span 的状态属性与
     `request` 事件也集中在该处写入。
@@ -58,6 +104,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
   - COR-03：删除 `SpanManager` 自行注册的 `SIGTERM`/`SIGINT` 监听，统一由 `TerminusManager` 协调。
 
   **koatty_core**
+
   - COR-03：`Application.stop()` 返回 Promise，服务器全部停止后再 `emit('appStop')`；
     移除把 `appStop` 转绑到 `process beforeExit` 的 `bindProcessEvent` 用法（收到信号退出时不会触发）。
   - COR-12（C-7）：`Application.use()` 同时清空 `middlewareStacks`（按协议缓存的中间件栈），
@@ -89,6 +136,7 @@ Migration: `docs/migration/phase-a-f-review-fixes.md` in the monorepo. No releas
 - Phase B security hardening (koatty-hardening-and-ai-evolution-plan.md, ADR-101/102/103). Fail-closed defaults with a `security.legacyDefaults: true` rollback switch; see docs/migration/4.3.0.md for the full migration guide.
 
   Highlights:
+
   - SecurityProfile (strict/standard/development) exposed read-only as `app.security`, with a startup summary and per-item WARN when rolling back
   - body parsing failures return 400/413/415 instead of silently producing `{}`; body size limit follows the security profile (1mb in production)
   - DTO validation whitelist on by default (strict profile rejects unknown fields); `__proto__`/`constructor` keys never reach DTO instances
@@ -393,12 +441,14 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🚀 性能优化 (Performance Improvements)
 
 - **Context**: 实现上下文对象池化，提升 HTTP/HTTPS 上下文创建性能
+
   - 添加`ContextPool`类支持上下文复用
   - 减少对象创建和垃圾回收开销
   - 支持池大小配置和统计监控
   - HTTP 上下文创建性能提升至 < 0.1ms/个
 
 - **Metadata**: 优化元数据访问性能
+
   - 实现`getMap()`结果缓存机制
   - 避免重复的对象转换操作
   - 在数据变更时自动失效缓存
@@ -412,6 +462,7 @@ All notable changes to this project will be documented in this file. See [standa
 #### ✨ 新特性 (Features)
 
 - **GraphQL**: 添加 GraphQL 协议支持
+
   - 新增`GraphQLContextFactory`类
   - 支持 GraphQL 查询、变量和操作名解析
   - 实现 GraphQL 特定的元数据处理
@@ -425,6 +476,7 @@ All notable changes to this project will be documented in this file. See [standa
 #### 🐛 修复 (Bug Fixes)
 
 - **Context**: 修复上下文属性重置问题
+
   - 解决 GraphQL 上下文池化时的只读属性问题
   - 优化上下文重置逻辑，避免属性删除错误
   - 改进错误处理机制
@@ -436,6 +488,7 @@ All notable changes to this project will be documented in this file. See [standa
 #### 📊 测试改进 (Testing)
 
 - **Performance**: 新增性能测试套件
+
   - 上下文创建性能测试
   - 元数据操作性能测试
   - 内存使用监控测试
