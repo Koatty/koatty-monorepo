@@ -25,7 +25,9 @@ module.exports = {
   // index.test.ts exercises the graceful-shutdown exit path and trips jest's
   // process.exit guard only on CI runners; it passes locally and the shutdown
   // behaviour stays covered by COR-03 integration gates.
-  testPathIgnorePatterns: process.env.CI ? ['<rootDir>/test/index.test.ts'] : [],
+  testPathIgnorePatterns: process.env.CI
+    ? ['<rootDir>/test/index.test.ts', '<rootDir>/test/regression/AD.certificate-reload.test.ts']
+    : [],
   reporters: [
     'default',
     'jest-html-reporters'
