@@ -46,21 +46,25 @@ function git(command, cwd, opts = {}) {
 }
 
 /**
- * 检查目录是否有未提交的变更
+ * 检查目录是否有未提交的变更（仅已跟踪文件）
+ *
+ * 发布收尾只应提交版本号/CHANGELOG/子模块指针等受控变更；
+ * 构建产物（dist/、coverage/、temp/ 等）多为未跟踪文件，
+ * 用 -uno 检测 + add -u 提交，避免在 CI 上把构建产物扫进发布提交。
  */
 function hasChanges(cwd) {
-  const status = git('status --porcelain', cwd).trim();
+  const status = git('status --porcelain --untracked-files=no', cwd).trim();
   return status.length > 0;
 }
 
 /**
- * 获取变更文件列表
+ * 获取变更文件列表（仅已跟踪文件）
  */
 function getChangedFiles(cwd) {
   // NOTE: do not trim() the whole output -- the first line of
   // `git status --porcelain` starts with a space for unstaged changes (" M file"),
   // and trimming it would drop the first character of the file name.
-  return git('status --porcelain', cwd)
+  return git('status --porcelain --untracked-files=no', cwd)
     .split('\n')
     .filter(line => line.trim())
     .map(line => {
@@ -199,7 +203,7 @@ function main() {
       const commitMsg = CUSTOM_MESSAGE || generateSubmoduleMessage(pkgName, version, changedFiles);
 
       // git add all changes
-      git('add -A', dir);
+      git('add -u', dir); // tracked files only: never sweep untracked build artifacts into a release commit
 
       // git commit
       git(`commit -m "${commitMsg}"`, dir, { inherit: false });
@@ -240,7 +244,7 @@ function main() {
     if (!DRY_RUN) {
       try {
         // Submodule 指针变更 + 根目录的 package.json 等
-        git('add -A', WORKSPACE_ROOT);
+        git('add -u', WORKSPACE_ROOT);
 
         const monoMessage = CUSTOM_MESSAGE || `chore(release): publish ${results.committed.length} packages`;
         git(`commit -m "${monoMessage}"`, WORKSPACE_ROOT, { inherit: false });

@@ -56,6 +56,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Configure git identity for release commits
+        # The runner has no identity; commit-submodule-changes.js must be able
+        # to create commits when a publish leaves tracked changes behind.
+        run: |
+          git config --global user.name "koatty-release-bot"
+          git config --global user.email "release@koatty.dev"
+
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
