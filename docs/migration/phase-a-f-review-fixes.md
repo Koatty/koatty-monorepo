@@ -51,4 +51,4 @@
 
 取消 `.changeset/*.md` 忽略规则；新包以 0.0.0 为开发基线，由 major changeset 生成首次 1.0.0。trace 基线 2.4.0、validation 基线 4.0.0。完整 changeset 集合中已有 validation major，最终目标为 5.0.0；MCP/LLM peer 对齐该目标。HTTP3 的 serve 为 peer（兼容 3.5/4.x）与 workspace 开发依赖，不再作为普通运行时 dependency 打入第二份。锁文件由 pnpm 生成。
 
-本轮不执行 changeset version、git add/commit/push 或 npm publish；嵌套模板子模块仍需人工按“最内层子模块 → koatty-ai → 根仓库指针”顺序提交，随后才可推送与发布。
+后续进展（2026-09-30）：changeset 已全部应用并提交——`koatty@5.0.0`、`koatty_serve@4.0.0`、`koatty_validation@5.0.0`、`koatty_trace@2.5.0`、`koatty_mcp/koatty_llm/koatty_guard@1.0.0`（首次发布）等；子模块（含嵌套模板）已按“最内层 → koatty-ai → 根仓库指针”顺序提交并推送。npm 发布因认证要求（2FA OTP / NPM_TOKEN）由维护者手动执行 `pnpm release`。

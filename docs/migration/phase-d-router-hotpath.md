@@ -1,6 +1,6 @@
 # Phase A–D 修复与 API 迁移
 
-2026-09-28。本工作区已实施下述修复，尚未发布；最新验证与未关闭验收门见 [补齐记录](../audits/phase-ad-completion-2026-09-28.md)。原始缺陷证据保留在 [Phase D 审计](../audits/phase-d-audit-2026-09-28.md)，其中复现脚本断言的是旧缺陷，不能作为修复后的通过门。
+2026-09-28。本工作区已实施下述修复，尚未发布（版本已随 2026-09-30 的 changeset 应用）；最新验证与未关闭验收门见 [补齐记录](../audits/phase-ad-completion-2026-09-28.md)。原始缺陷证据保留在 [Phase D 审计](../audits/phase-d-audit-2026-09-28.md)，其中复现脚本断言的是旧缺陷，不能作为修复后的通过门。
 
 ## 复用既有入口
 
@@ -48,7 +48,7 @@ HTTPS/HTTP2 的文件证书每 500ms 检查变更，并合并短时间内的更�
 
 HTTP/3 从核心导出移除。使用者在应用目录安装 `koatty_http3`，保持 `protocol: 'http3'` 配置；直接导入改为 `import { Http3Server } from 'koatty_http3'`。未安装、原生后端不可用或 TLS 配置不支持时启动失败，不返回模拟就绪。该包仍是 experimental；移动的 frame/QPACK 测试不代表实际 QUIC 互操作验收。
 
-这些导出和语义删除属于破坏性变更，`koatty`、`koatty_serve` 采用 major changeset，撤回原计划的 minor 兼容承诺。未应用任何版本号。
+这些导出和语义删除属于破坏性变更，`koatty`、`koatty_serve` 采用 major changeset，撤回原计划的 minor 兼容承诺。版本已随 2026-09-30 的 changeset 应用为 `koatty@5.0.0`、`koatty_serve@4.0.0`。
 
 ## 生产构建清单
 

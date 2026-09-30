@@ -1,6 +1,6 @@
 # Phase A–F 二轮修复与验证
 
-日期：2026-09-30。基准清单：[全面审查报告](phase-a-f-review-2026-09-29.md)。本轮仅修改工作区，未暂存、提交、推送、应用版本或发布。保留任务开始时的 API 文档、锁文件、CLI package.json 和嵌套模板修改；保留用户删除的两份旧审计/修复报告，不重建这些文件。
+日期：2026-09-30。基准清单：[全面审查报告](phase-a-f-review-2026-09-29.md)。本报告记录同日的两轮工作：先在工作区完成二轮修复（当时未提交、未应用版本），随后完成提交闭环与发布准备，见文末「发布准备与补遗」。保留任务开始时的 API 文档、锁文件、CLI package.json 和嵌套模板修改；保留用户删除的两份旧审计/修复报告，不重建这些文件。
 
 ## 结论与范围
 
@@ -79,7 +79,7 @@
 3. 第三方 TC39 DTO、完整 Bun/TS7 方案仍未实施；本轮仅支持并验证方法元数据互操作，DTO 使用 legacy 编译。
 4. 真实 provider、共享存储跨进程故障/恢复、MCP Inspector/两种主流客户端、Docker/Kubernetes、隔离安装与 p99 指标仍需独立验收。
 5. diff --check 在本轮改动文件干净；validation 开始时已有的生成 API 文档带 CRLF/尾随空白，保留用户改动，不把整个子模块 diff --check 写成全绿。
-6. 版本应用（`changeset version`）与 npm 发布仍未执行：本地无可用 NPM_TOKEN/OTP；不得手工改 package.json 版本。
+6. 版本应用已在「发布准备与补遗」中完成；npm 发布因认证（无 NPM_TOKEN secret / 本地 token 需 OTP）由维护者手动执行 `pnpm release`，不得手工改 package.json 版本。
 
 ## 稳定性运行附记
 
@@ -93,3 +93,13 @@
 | 6 | 0 | 14.45 |
 
 这些有限次数复跑配合具体超时错误码及单条终态审计断言，证明本轮覆盖路径通过；不宣称对所有调度/真实后端已完成稳定性验收。
+
+## 发布准备与补遗（2026-09-30 下午）
+
+1. **旧测试补适配新契约**：按 CI 配置（`--concurrency=2 -- --runInBand`）重跑全量套件，暴露两组未适配二轮契约的旧用例：
+   - koatty-serve `test/server/ws.test.ts` 与 `AB.ops-origin.test.ts` 的 4 个用例未适配「未配置 profile 时 WebSocket 也默认检查 Origin」（无 Origin 头的升级握手被 403）。已在两组测试夹具上显式 `security.ws.checkOrigin: false` 以保留原测试意图；SEC-08 的「缺 Origin 拒绝」契约不变。serve 全量 218 用例（6 个既有 skip）通过。
+   - koatty-ai（koatty_cli）`E-06.manifest-contract` 仍断言旧 schema 契约（未装饰属性生成 schema、TS `?` 决定可选）。已按现行契约重写该 DTO：属性补 `@IsOptional` / `@ValidateNested` / `@IsArray` 装饰器，保留未装饰的 `extra` 并新增「未装饰属性被跳过且拒绝额外键」断言，`dto.undecorated` 进入 unresolved 诊断。koatty-ai 全量 205 用例通过。
+2. **版本应用**：6 份 changeset 已全部应用并提交（`chore(release): publish 15 packages`）：`koatty@5.0.0`、`koatty_serve@4.0.0`、`koatty_validation@5.0.0`、`koatty_trace@2.5.0`、`koatty_mcp`/`koatty_llm`/`koatty_guard@1.0.0` 首发、`koatty_http3@1.0.0` 等；`koatty_validation` peer 已对齐 `^5.0.0`。changeset 文件已消费，`changeset status` 无待应用项。锁文件使用 `workspace:*` 协议，版本应用不产生锁文件变更，`install --frozen-lockfile` 校验通过。
+3. **分支归位**：发布脚本会向有变更的子模块提交，已把 detached HEAD 的 `koatty_cacheable`、`koatty_schedule` 归位到 `master`（各带 1 个此前未推送的提交），避免产生不可达提交。
+4. **发布质量门**：`pnpm build` 28/28 任务成功；`pnpm lint` 0 error；`pnpm security:baseline` 通过；CI 配置全量测试通过（首轮在默认并发下出现的 container ARCH-02 计时与 mcp 会话容量抖动，与 ci.yml 注释一致，属机器超载敏感，非本轮回归——发布门以 CI 并发配置为准）。
+5. **仍开放**：npm 发布因认证要求（2FA OTP / NPM_TOKEN）由维护者手动执行 `pnpm release`（构建 + 发布 + 提交推送子模块）；推送后由 Linux CI 重新取得全量绿色运行结果。

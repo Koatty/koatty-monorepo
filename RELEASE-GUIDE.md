@@ -67,7 +67,7 @@ pnpm changeset
 pnpm changeset version
 
 # 3. 推送变更
-git push origin master
+git push origin main
 
 # 4. 构建并发布到 npm
 pnpm release
@@ -153,7 +153,7 @@ node scripts/create-and-version.js minor koatty koatty-core
 ### Step 3: 推送变更
 
 ```bash
-git push origin master
+git push origin main
 ```
 
 ### Step 4: 发布
@@ -171,8 +171,8 @@ pnpm release
 
 ```bash
 # 1. 确保在正确的分支
-git checkout master
-git pull origin master
+git checkout main
+git pull origin main
 
 # 2. 检查工作区状态
 git status
@@ -188,7 +188,7 @@ pnpm changeset version
 # 这会自动提交所有版本变更
 
 # 5. 推送变更
-git push origin master
+git push origin main
 
 # 6. 发布到 npm
 pnpm release
@@ -505,7 +505,7 @@ pnpm install
   "fixed": [],
   "linked": [],
   "access": "public",
-  "baseBranch": "master",
+  "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": []
 }

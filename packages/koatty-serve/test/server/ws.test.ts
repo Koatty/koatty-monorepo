@@ -3,7 +3,7 @@ import {createServer} from 'http';
 import WebSocket from 'ws';
 import {WsServer} from '../../src/server/ws';
 beforeEach(()=>jest.useRealTimers());
-const makeApp=(config: any={}, handler: any=(req:any,ws:any)=>ws.send(req.url+':'+req.data.toString()))=>Object.assign(new EventEmitter(),{config:()=>config,callback:()=>handler}) as any;
+const makeApp=(config: any={}, handler: any=(req:any,ws:any)=>ws.send(req.url+':'+req.data.toString()))=>Object.assign(new EventEmitter(),{config:()=>config,security:{ws:{checkOrigin:false}},callback:()=>handler}) as any;
 test('real messages retain upgrade URL/data; closing does not close an externally owned HTTP server',async()=>{
  const external=createServer((_req,res)=>res.end('external'));await new Promise<void>(r=>external.listen(0,'127.0.0.1',r));
  const s=new WsServer(makeApp(),{protocol:'ws',hostname:'127.0.0.1',port:0,ext:{server:external}});

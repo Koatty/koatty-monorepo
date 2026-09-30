@@ -1290,7 +1290,7 @@ export class SupportAgent {
 - **F-3**：填充 `packages/koatty-guard`（目标 `koatty_guard@1.0.0`，由 changeset 生成首次发布）。`createGuard()` 用**一个** `@Around` 普通切面串起脱敏 → 内容检查 → 限流 → 审批 → 审计，避免依赖多切面叠加语义；`destructiveHint` 工具在 strict 画像下默认需要审批（除非显式 `requireApproval: false`）。回归用例 `packages/koatty-guard/test/regression/F-03.guard.test.ts`。详见 [迁移说明](migration/phase-f-guard.md)。
 - **F-4**：扩展 `koatty-trace`（目标 `koatty_trace@2.5.0`，版本基线保持 2.4.0 等待 changeset）。`createGenAiRecorder()` 记录 `gen_ai.*` 属性（供应商、模型、token、耗时、结束原因）与工具调用 span，属性名集中在 `src/genai/constants.ts`；token 成本按配置单价计算；**默认不记录提示词与模型输出原文**，`captureContent: true` 时必须显式注入 mask（可使用 F-3 服务）。回归用例 `packages/koatty-trace/test/regression/F-04.genai.test.ts`。详见 [迁移说明](migration/phase-f-genai.md)。
 - **F-5**：参考应用 `packages/koatty/examples/mcp-order-service`（私有包，不发布）：2 个只读工具 + 1 个需审批的写工具 + 1 个 Resource + `/ask` SSE 问答 + `deploy/`（Docker 与 Kubernetes 探针模板），回归用例 `test/regression/F-05.reference-app.test.ts`及 live-loop / trace-chain 当前共 17 例，作为 F-1～F-4 的本地集成验证。
-- **版本说明**：版本应用尚未执行。新包从 0.0.0 生成 1.0.0，trace 从 2.4.0 生成 2.5.0；完整待发布 changeset 还包含既有 koatty/serve/validation major。具体目标以 Changesets 预演为准，不再手工预升版本。
+- **版本说明**：版本已于 2026-09-30 由 Changesets 统一应用并提交（不手工预升）：新包 mcp/llm/guard 为 1.0.0 首发版本，trace 2.5.0、validation 5.0.0，既有 koatty/serve 等 major 一并生效；npm 发布待维护者手动执行 `pnpm release`。
 
 
 待验收：MCP Inspector 与至少两个主流客户端、真实 provider、真实共享存储/跨进程恢复、Docker/Kubernetes、隔离包安装与 p99 基准；不得把本地 mock/SDK 自动测试等同这些验收。

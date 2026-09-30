@@ -26,6 +26,7 @@ function serverForUpgrade(): any {
   const {EventEmitter} = require('events');
   const app = Object.assign(new EventEmitter(), {
     config: (key: string) => key === 'ws' ? {rateLimit:{enabled:true,max:1,windowMs:60000}} : {},
+    security: { ws: { checkOrigin: false } },
     callback: () => () => {},
   });
   return new WsServer(app, {protocol:'ws', hostname:'127.0.0.1', port:0});
