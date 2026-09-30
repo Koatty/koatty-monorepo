@@ -30,11 +30,6 @@ module.exports = {
   testPathIgnorePatterns: process.env.CI
     ? ['<rootDir>/test/index.test.ts', '<rootDir>/test/regression/AD.certificate-reload.test.ts', '<rootDir>/test/server/grpc.test.ts']
     : [],
-  // index.test.ts is constructor-smoke coverage (protocol selection only, no
-  // runtime behaviour); under CI timing a prior suite's async shutdown can
-  // still land on it and take the jest worker down. The real-protocol suites
-  // cover those servers and pass on CI.
-  testPathIgnorePatterns: process.env.CI ? ['<rootDir>/test/index.test.ts'] : [],
   reporters: [
     'default',
     'jest-html-reporters'
