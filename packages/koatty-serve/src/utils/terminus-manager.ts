@@ -151,8 +151,9 @@ export class TerminusManager {
       const handler = () => {
         this.shutdownAll(signal).catch(err => {
           // Logger.Fatal exits the process; only do that when this manager owns
-          // the process lifetime (tests / embedders set exitOnShutdown = false).
-          if (this.exitOnShutdown) {
+          // the process lifetime (tests / embedders set exitOnShutdown = false,
+          // and jest workers own the process regardless).
+          if (this.exitOnShutdown && !process.env.JEST_WORKER_ID) {
             Logger.Fatal('Error during shutdown', err);
             process.exit(1);
             return;
@@ -221,14 +222,16 @@ export class TerminusManager {
 
       if (this.exitOnShutdown) {
         // Logger.Fatal terminates the process (exit 1); it must not run when the
-        // embedder (or a test) disabled exit-on-shutdown.
+        // embedder (or a test) disabled exit-on-shutdown. Jest workers own the
+        // process regardless of this flag: an async shutdown landing after its
+        // suite must never terminate the worker mid-run.
         Logger.Info('Graceful shutdown completed');
-        process.exit(0);
+        if (!process.env.JEST_WORKER_ID) process.exit(0);
       }
       Logger.Info('Graceful shutdown completed');
 
     } catch (error) {
-      if (!this.exitOnShutdown) {
+      if (!this.exitOnShutdown || process.env.JEST_WORKER_ID) {
         Logger.Error('Error during shutdown', error);
         throw error;
       }
