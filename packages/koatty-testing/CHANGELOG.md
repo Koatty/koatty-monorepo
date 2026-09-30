@@ -1,3 +1,8 @@
+## Unreleased — AI development / Phase G (2026-09-30)
+
+- createTestApp 参数类型修正为实际 Koatty 子类，支持生成工程使用真实启动及 HTTP 测试。
+- 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
+
 # koatty_testing
 
 ## 5.0.0

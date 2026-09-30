@@ -6,7 +6,7 @@
  */
 
 import { createApplication } from "koatty";
-import { KoattyApplication } from "koatty_core";
+import { Koatty, KoattyApplication } from "koatty_core";
 import { Constructor, TestApplication, TestAppOptions } from "./types";
 
 /**
@@ -43,7 +43,7 @@ import { Constructor, TestApplication, TestAppOptions } from "./types";
  * ```
  */
 export async function createTestApp(
-  AppClass: Constructor<KoattyApplication>,
+  AppClass: Constructor<Koatty>,
   options?: TestAppOptions
 ): Promise<TestApplication> {
   const { env = {} } = options || {};
