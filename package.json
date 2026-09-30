@@ -31,7 +31,8 @@
     "test": "turbo run test",
     "test:phase-c:integration": "node scripts/regression/phase-c-network.cjs && node scripts/regression/phase-c-decorators.cjs && node scripts/regression/phase-c-shutdown.cjs",
     "test:phase-f": "pnpm --filter koatty_mcp --filter koatty_llm --filter koatty_guard test -- --runInBand && pnpm --filter koatty_trace exec jest F-04 --runInBand --coverage=false && pnpm --filter @koatty/example-mcp-order-service test -- --runInBand",
-    "test:phase-f:compiled": "node scripts/regression/phase-f-reference.cjs"
+    "test:phase-f:compiled": "node scripts/regression/phase-f-reference.cjs",
+    "test:ai-development": "pnpm --filter koatty_cli exec jest --runInBand --coverage=false G- && pnpm --filter koatty_mcp exec jest --runInBand --coverage=false G- && pnpm --filter koatty_llm exec jest --runInBand --coverage=false G- && node scripts/regression/ai-agent-crash.cjs"
   },
   "keywords": [
     "koatty",
