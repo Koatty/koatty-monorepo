@@ -53,7 +53,8 @@ Koatty Monorepo 采用 **混合架构**，将核心框架包集中管理，同�
 | `koatty_swagger` | OpenAPI/Swagger |
 | `koatty_typeorm` | TypeORM 集成 |
 | `koatty_serverless` | Serverless 适配器 |
-| `koatty_ai` | AI 辅助 CLI(koatty_cli 源) |
+| `koatty_cli` | 脚手架 CLI（packages/koatty_cli） |
+| `koatty_ai` | AI Agent 工具包：Skill + Tools（packages/koatty_ai，依赖 koatty_cli） |
 | `koatty_doc` | 文档站(packages/koatty-doc) |
 | `koatty_awesome` | 示例与模板 |
 
@@ -138,7 +139,7 @@ koatty-monorepo/
 │   ├── koatty-swagger/    # Swagger (submodule)
 │   ├── koatty-typeorm/    # TypeORM (submodule)
 │   ├── koatty-serverless/ # Serverless (submodule)
-│   ├── koatty-ai/         # AI CLI (submodule)
+│   ├── koatty_cli/        # CLI 脚手架 (submodule, npm: koatty_cli)
 │   ├── koatty-mcp/        # MCP Server 宿主
 │   ├── koatty-llm/        # LLM 调用抽象
 │   ├── koatty-guard/      # AI 安全护栏

@@ -21,7 +21,7 @@ async function main() {
     assert(fs.existsSync(path.join(tarballs, name)), `Missing tarball: ${name}`);
     overrides[pkg.name] = 'file:' + path.join(tarballs, name);
   }
-  execFileSync(process.execPath, [path.join(root, 'packages/koatty-ai/dist/cli/index.js'), 'new', 'acceptance', '--dir', app], { cwd: output, stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(root, 'packages/koatty_cli/dist/cli/index.js'), 'new', 'acceptance', '--dir', app], { cwd: output, stdio: 'inherit' });
   const file = path.join(app, 'package.json'), pkg = JSON.parse(fs.readFileSync(file));
   pkg.pnpm = { overrides };
   // The additional package is consumed through its published entry point, not a workspace link.

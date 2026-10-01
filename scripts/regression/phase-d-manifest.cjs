@@ -13,7 +13,7 @@ try{
  }
  fs.writeFileSync(path.join(dir,'dist/config/server.js'),'module.exports={hostname:"127.0.0.1",port:0,protocol:"http"};');
  fs.writeFileSync(path.join(dir,'dist/App.js'),`const {Koatty,createApplication}=require(${JSON.stringify(framework)});class App extends Koatty{init(){this.env='production';this.rootPath=${JSON.stringify(dir)};this.appPath=${JSON.stringify(path.join(dir,'dist'))};this.silent=true;}};module.exports={App,createApplication};`);
- execFileSync(process.execPath,[path.join(root,'packages/koatty-ai/dist/cli/index.js'),'manifest','--root',dir,'--runtime-dir','dist','--out',path.join(dir,'.koatty/manifest.json'),'--validate'],{stdio:'pipe'});
+ execFileSync(process.execPath,[path.join(root,'packages/koatty_cli/dist/cli/index.js'),'manifest','--root',dir,'--runtime-dir','dist','--out',path.join(dir,'.koatty/manifest.json'),'--validate'],{stdio:'pipe'});
  const manifest=JSON.parse(fs.readFileSync(path.join(dir,'.koatty/manifest.json')));assert.equal(manifest.runtime.files.length,202);assert.equal(manifest.components.length,200);
  const child=`const assert=require('assert/strict');const {App,createApplication}=require('./dist/App');(async()=>{const app=await createApplication(App);try{for(let i=0;i<200;i++)assert.equal(app.container.get('Service'+i,'SERVICE').value,i);assert(app.isReady);console.log('BOOTSTRAP_200_PASS')}finally{await app.stop()}})().catch(e=>{console.error(e);process.exitCode=1});`;
  const out=execFileSync(process.execPath,['-e',child],{cwd:dir,encoding:'utf8',timeout:30000});assert.match(out,/BOOTSTRAP_200_PASS/);
