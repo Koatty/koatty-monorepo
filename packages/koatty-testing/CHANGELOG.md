@@ -1,5 +1,11 @@
 ## Unreleased — AI development / Phase G (2026-09-30)
 
+## 5.0.1
+
+### Patch Changes
+
+- 7382b72: Add shared AI development contracts, reproducible MCP/Agent scaffolds and a distributed Koatty skill. CLI generation now rejects accidental overwrites, uses bundled templates by default, reports failed verification accurately and supports single-use persisted plans. Add MCP output validation and optional checkpointed Agent execution with conservative unknown-outcome recovery. See docs/migration/phase-g-ai-development.md. Versions have not been applied or published.
+
 - createTestApp 参数类型修正为实际 Koatty 子类，支持生成工程使用真实启动及 HTTP 测试。
 - 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
 
@@ -30,7 +36,6 @@
 ### Patch Changes
 
 - Phase E（AI-Ready 开发体验，路线图 §8）：`koatty_cli@5.0.0` 发布内容。
-
   - **E-1 应用清单 `koatty manifest`**：静态采集器（`src/manifest`）+ CLI 命令，输出 components / routes / dtos / aspects / `config.keys` / `security.profile` / koatty 版本 / decoratorMode / protocols。**只输出配置键名，绝不输出配置取值**；纯静态分析（ts-morph），不启动应用、不监听端口、无网络。回归测试：`tests/regression/E-01.manifest.test.ts`。
   - **E-2 MCP 形态的 CLI（`koatty mcp`）**：stdio 传输的 MCP server，7 个工具（`koatty_manifest` / `koatty_routes` / `koatty_explain_component` / `koatty_plan` / `koatty_apply` / `koatty_test` / `koatty_docs`）。
     - 只读优先：除写类 `koatty_apply` 和执行类 `koatty_test` 外使用 `readOnlyHint`；`koatty_apply` 必须携带 `koatty_plan` 的 SHA-256 哈希，`dryRun` 默认 `true`。
@@ -81,7 +86,6 @@
 ### Patch Changes
 
 - Phase A（基线修复与 CI 可信）收口：修复让 `pnpm lint` / CI lint job 失败的配置与格式问题。
-
   - `koatty_cli`：按 prettier 重新格式化 `apply` 命令的 `--yes` 选项（`npx eslint --fix`，无行为变化）；
   - `koatty_graphql`、`koatty_loader`：`@typescript-eslint/ban-types` 已在 @typescript-eslint v8 中移除，配置仍引用该规则会让每次 lint 直接报
     `Definition for rule '@typescript-eslint/ban-types' was not found`；改用后继规则 `@typescript-eslint/no-unsafe-function-type`；
@@ -89,7 +93,6 @@
   - `koatty_testing`：补充缺失的 `.eslintrc.js`（此前 eslint 以 exit=2 报 `couldn't find a configuration file`）。
 
   修复后 `pnpm lint` 由 4 个包失败恢复为 21/21 通过；`pnpm build` 23/23、`pnpm security:baseline` PASS 6 / FAIL 0。详见 `docs/reports/test-baseline-2026-09.md` §七。
-
   - koatty@4.3.1
 
 ## 2.0.0

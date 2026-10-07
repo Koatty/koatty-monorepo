@@ -1,5 +1,11 @@
 ## Unreleased — AI development / Phase G (2026-09-30)
 
+## 1.1.0
+
+### Minor Changes
+
+- 7382b72: Add shared AI development contracts, reproducible MCP/Agent scaffolds and a distributed Koatty skill. CLI generation now rejects accidental overwrites, uses bundled templates by default, reports failed verification accurately and supports single-use persisted plans. Add MCP output validation and optional checkpointed Agent execution with conservative unknown-outcome recovery. See docs/migration/phase-g-ai-development.md. Versions have not been applied or published.
+
 - 对工具 outputSchema 编译并验证实际执行结果；不匹配返回 MCP_OUTPUT_INVALID 并记录失败审计。此校验发生在业务执行后，不代表副作用回滚。
 - 迁移说明：`docs/migration/phase-g-ai-development.md`（主仓库）。尚未发布。
 
