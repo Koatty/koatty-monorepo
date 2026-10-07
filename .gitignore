@@ -51,7 +51,3 @@ jest_html_reporters.html
 
 .opencode/
 *.tsbuildinfo
-
-# packages/koatty_ai 是独立 git 仓库（设计 §9.1）；远端确认并接入 submodule 前
-# 不纳入主仓库索引，workspace 亦通过 pnpm-workspace.yaml 的 !packages/koatty_ai 排除。
-packages/koatty_ai/

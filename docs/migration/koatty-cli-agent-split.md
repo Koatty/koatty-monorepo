@@ -1,5 +1,23 @@
 # koatty_cli / koatty_AI 双工具拆分迁移指南
 
+## 2026-10-07 实施更新（优先于下方历史记录）
+
+两个 submodule 已登记：koatty_cli → https://github.com/Koatty/koatty-cli.git（新建），koatty_ai → https://github.com/Koatty/koatty-ai.git。AI 已加入 workspace，单向依赖 CLI 公开 API；构建和测试不再映射兄弟仓库源码。
+
+代码已按用户要求提交并推送：CLI `41cdc09`，AI `b3857e7`。AI 通过保留双方父提交的迁移合并承接旧 CLI 历史，未强制推送；旧 CLI 历史也完整保留在新 koatty-cli 仓库。主仓库 gitlink 指向上述远端提交。npm 尚未发布。
+
+- `koatty-ai plan` 默认无磁盘写入且不返回持久化 planId。跨进程应用须显式 `--savePlan`，再 `apply --planId … --yes`。MCP 客户端在同一连接内 plan/apply。
+- 使用 `koatty new demo --offline --no-skill` 后，再 `koatty-ai skill --root ./demo --yes` 安装新版 Skill。省略 `--yes` 只预览。旧项目同路径已有不同 Skill 时拒绝覆盖，应先人工核对并迁移旧资源；传统 CLI 默认仍附带旧 Skill。
+- HTTP reference 模式要求可静态确认的框架 Service 注册、类名对应文件、公开实例方法与兼容 DTO 参数。不再接受不可调用的桩引用；不支持路径参数/通配路由，需 Agent 按框架资料显式实现绑定。
+- JSON DTO 表示对象，日期表示 ISO8601 字符串；不支持的字段属性直接报错。CRUD recipe 只暴露目前可验证的基础字段组合，复杂业务由外部 Agent 完成。
+- 框架检查为静态辅助：动态路由等不确定实现仍需实际运行验证；同 major 的 API 索引匹配不等于该小版本一定有该 API。
+- 发布前须先发布携带新 API 的 CLI，并将 AI 的 CLI 依赖下界更新为该实际版本。当前版本号尚未变更；本地 tarball 验收不证明 npm registry 已发布。
+
+验收脚本：`node scripts/regression/koatty-tools-package.cjs`，先构建受影响包。它安装本地框架与工具 tarball、外部 npm 依赖，禁用安装脚本；不使用工具 workspace 链接，不代表真实外部 Agent 评测。
+
+## 2026-10-01 历史迁移记录
+
+
 日期：2026-10-01。设计：[docs/koatty-cli-agent-development-design.md](../koatty-cli-agent-development-design.md)。
 
 ## 变更总览

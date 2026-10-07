@@ -1509,3 +1509,10 @@ F-3 `koatty_guard`、F-4 GenAI 可观测性、F-5 参考应用均已实现，Tra
 | Skill | CLI 随包维护、新工程自动携带、Codex 本地安装；按开发/框架/MCP-Agent/验证渐进加载 | 新能力必须 feature detection；已发布旧版本不能直接套用 |
 
 发布仍按 RELEASE-GUIDE.md：提交嵌套模板子模块、CLI 子模块、主仓库指针并完成发布门禁。本轮不自动应用版本或发布。
+
+
+## 双工具实施更新（2026-10-07，本地未发布）
+
+koatty_cli 与 koatty_ai 已拆分登记为两个 submodule；前者提供传统骨架/桩代码与公开生成 API，后者提供外部 Agent 的 Skill、CLI/stdio MCP 工具、recipe 和框架检查。AI 不接入 LLM，不维护任务运行时。
+
+本轮已完成独立 tarball 安装验收、真实 HTTP 生成代码验证和真实 stdio MCP 客户端验证。两个远端目标提交已推送，旧 CLI 历史已保留。外部 Agent 实测、依赖版本下界更新和 npm 发布仍未完成。具体支持范围见 docs/migration/koatty-cli-agent-split.md。

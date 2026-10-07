@@ -20,7 +20,7 @@ git status --short   # 子模块显示为 " m <path>"；主仓库文件显示为
 ```
 
 - **主仓库目录**（直接在本仓库提交）：`koatty-core`、`koatty-router`、`koatty-serve`、`koatty-exception`、`koatty-trace`、`koatty-config`、`koatty-testing`。
-- **子模块**（需 `git -C packages/<name> ...` 单独提交）：`koatty`、`koatty_cli`（npm: koatty_cli，远端仍为 koatty-ai.git）、`koatty-lib`、`koatty-logger`、`koatty-container`、`koatty-loader`、`koatty-proto`、`koatty-validation`、`koatty-cacheable`、`koatty-store`、`koatty-schedule`、`koatty-graphql`、`koatty-doc`、`koatty-awesome`、`koatty-typeorm`、`koatty-serverless`、`koatty-swagger`。`koatty_ai`（npm: koatty_ai，位于 packages/koatty_ai）为独立仓库，待确认远端后接入 submodule。
+- **子模块**（需 `git -C packages/<name> ...` 单独提交）：`koatty`、`koatty_cli`（npm: koatty_cli，远端为 Koatty/koatty-cli.git）、`koatty-lib`、`koatty-logger`、`koatty-container`、`koatty-loader`、`koatty-proto`、`koatty-validation`、`koatty-cacheable`、`koatty-store`、`koatty-schedule`、`koatty-graphql`、`koatty-doc`、`koatty-awesome`、`koatty-typeorm`、`koatty-serverless`、`koatty-swagger`。`koatty_ai`（npm: koatty_ai，位于 packages/koatty_ai）已登记为 submodule，远端为 Koatty/koatty-ai.git。
 
 > 以 `.gitmodules` 为准，不要凭记忆判断。
 

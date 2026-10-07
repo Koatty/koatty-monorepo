@@ -5,7 +5,3 @@ packages:
   - 'examples/*'
 
   - 'packages/koatty/examples/mcp-order-service'
-  # koatty_ai 是独立仓库（尚未接入 submodule）；在确认远端并注册 submodule 前
-  # 先排除出 pnpm workspace，避免根目录 install 把它写进主仓库 lockfile。
-  # 接入 submodule 后删除下一行。
-  - '!packages/koatty_ai'

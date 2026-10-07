@@ -46,7 +46,10 @@
 	url = https://github.com/Koatty/koatty_serverless.git
 [submodule "packages/koatty_cli"]
 	path = packages/koatty_cli
-	url = https://github.com/koatty/koatty-ai.git
+	url = https://github.com/Koatty/koatty-cli.git
 [submodule "packages/koatty-swagger"]
 	path = packages/koatty-swagger
 	url = https://github.com/Koatty/koatty_swagger.git
+[submodule "packages/koatty_ai"]
+	path = packages/koatty_ai
+	url = https://github.com/Koatty/koatty-ai.git

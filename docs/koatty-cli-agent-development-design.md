@@ -1,6 +1,6 @@
 # koatty_cli 与 koatty_AI 双工具设计及现状审计
 
-日期：2026-10-01。状态：S0–S4 已实施（本地，未发布）；S5 外部 Agent 实测待执行。实施记录见第 12 节与 docs/migration/koatty-cli-agent-split.md。
+日期：2026-10-01，更新：2026-10-07。状态：S0–S4 已实施并推送（npm 未发布）；S5 外部 Agent 实测待执行。实施记录见第 12 节与 docs/migration/koatty-cli-agent-split.md。
 
 ## 1. 定位与范围修正
 
@@ -297,7 +297,7 @@ koatty_cli 同时提供面向人的 bin 和面向库调用者的稳定 API。koa
 
 ### 9.2 两种独立使用路径
 
-以下为目标发布后的用法，koatty_ai 包及新增命令尚未实现：
+以下为目标发布后的用法；本地工具实现与发布状态见文末更新：
 
 ```sh
 # 开发者使用传统工具
@@ -382,3 +382,12 @@ koatty_cli 新建项目默认面向传统开发，不强制安装 koatty_ai 或 
 | S5 外部 Agent 实测 | 未执行 | 需真实外部 Agent 与独立 npm 安装环境；当前验收止于工具与示例契约测试，不声称已提高 AI 编程成功率 |
 
 测试基线：koatty_cli 46 套件 / 232 测试、koatty_ai 5 套件 / 24 测试全绿，两包 `tsc --noEmit` 干净、lint 0 error。发布顺序：先推送并发布 koatty_cli（公开 API 按 minor 进入下一版本），确认 koatty_ai 远端后接入 submodule 并首次发布；两仓库远端 URL 按实际确认填写，未自动创建。
+
+
+## 13. 2026-10-07 实施补全
+
+本轮实现两个 submodule 与独立构建、真实 CLI/stdio MCP、Skill 安装、三类 recipe、分页上下文、指南检索、框架规则与 HTTP 运行契约。传统 CLI 继续兼容旧入口，AI 只经公开程序 API 复用生成能力，不接入 LLM。
+
+S0–S4 的本地功能已补全；两个模块已推送，AI 远端历史通过迁移合并保留，npm 发布尚未完成。S5 中独立 tarball 安装有自动验收脚本，真实外部 Agent 编程成功率评测尚未执行，不能据本地测试声称提高了成功率。当前严格支持范围和迁移方式见 docs/migration/koatty-cli-agent-split.md 的 2026-10-07 更新。
+
+本轮最终验证：koatty_cli 48 套件 / 241 测试、koatty_ai 6 套件 / 32 测试通过且进程退出码为 0；两包 build、typecheck、lint 通过（CLI 存量 46 个 warning，0 error）；Skill 校验通过。API-05 实际启动 HTTP 应用，验证有效请求调用 Service、非法 DTO 返回 400 且不调用 Service；TOOLS-01 使用实际 stdio MCP 客户端；独立 tarball 安装脚本通过。未运行全仓库测试，不代表线上版本或外部 Agent 验收。
