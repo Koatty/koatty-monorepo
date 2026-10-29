@@ -296,11 +296,6 @@ export async function respond(ctx: KoattyContext, ext?: extensionOptions) {
     return safeEnd(res, textBody);
   }
 
-  // status
-  if (code === 404) {
-    ctx.status = 200;
-  }
-
   // ✅ Apply compression middleware with enhanced error handling
   try {
     await compressMiddleware(ctx)(ctx, async () => {

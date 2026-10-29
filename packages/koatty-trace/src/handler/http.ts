@@ -58,7 +58,7 @@ export class HttpHandler extends BaseHandler implements Handler {
       await this.handleWithTimeout(ctx, next, ext, timeout);
 
       // 使用基类的通用状态检查方法
-      this.checkAndSetStatus(ctx);
+      this.checkAndSetStatus(ctx, true);
       
       return respond(ctx, ext);
     } catch (err: any) {

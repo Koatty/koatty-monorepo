@@ -69,11 +69,14 @@ export abstract class BaseHandler implements Handler {
 
   /**
    * 检查并设置响应状态
-   * - 将404转为200(如果有body)
-   * - 状态>=400时抛出异常
+   * - 保留应用显式设置的状态和响应体；Koa 的 body setter 负责隐式 200
+   * - 仅在错误状态没有响应体时使用框架异常处理
    */
-  protected checkAndSetStatus(ctx: KoattyContext): void {
-    if (ctx.body !== undefined && ctx.status === 404) {
+  protected checkAndSetStatus(ctx: KoattyContext, preserveHttpResponse = false): void {
+    if (preserveHttpResponse) {
+      if (ctx.respond === false || ctx.res?.headersSent || ctx.res?.writableEnded || ctx.body != null) return;
+    } else if (ctx.body !== undefined && ctx.status === 404) {
+      // Keep non-HTTP protocol status translation unchanged.
       ctx.status = 200;
     }
     if (ctx.status >= 400) {

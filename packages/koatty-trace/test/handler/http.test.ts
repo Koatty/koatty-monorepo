@@ -136,15 +136,16 @@ describe('HttpHandler', () => {
       expect(result.body).toContain('Deadline exceeded');
     });
 
-    it('should convert 404 to 200 when body exists', async () => {
+    it('should preserve explicit 404 when body exists', async () => {
       mockCtx.status = 404;
       mockCtx.body = 'exists';
       await handler.handle(mockCtx, mockNext, mockExt);
-      expect(mockCtx.status).toBe(200);
+      expect(mockCtx.status).toBe(404);
     });
 
     it('should return error response for status >=400', async () => {
       mockCtx.status = 400;
+      mockCtx.body = undefined;
       mockCtx.message = 'Bad Request';
       const result = await handler.handle(mockCtx, mockNext, mockExt);
       expect(result.body).toContain('Bad Request');

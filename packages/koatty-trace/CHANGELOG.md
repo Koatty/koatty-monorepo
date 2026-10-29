@@ -1,5 +1,7 @@
 ## Unreleased — Phase A–F review (2026-09-30)
 
+- COR-16: Preserve explicit HTTP error status and application-provided response bodies. A JSON 404 no longer becomes 200; completed/raw responses are not reprocessed. Errors without a response body retain framework exception handling. See `docs/migration/cor-16-explicit-http-status.md`. Not released.
+
 ## 2.5.0
 
 ### Minor Changes
