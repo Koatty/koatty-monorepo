@@ -1,0 +1,4 @@
+interface:
+  display_name: "Koatty"
+  short_description: "Build and verify Koatty services, MCP tools and Agents"
+  default_prompt: "Use $koatty to implement and verify this Koatty application change with its installed framework APIs."

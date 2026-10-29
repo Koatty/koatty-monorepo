@@ -1,0 +1,11 @@
+node_modules
+dist
+.local-deps
+.deployment
+.git
+.env
+logs
+test
+coverage
+.koatty
+.agents

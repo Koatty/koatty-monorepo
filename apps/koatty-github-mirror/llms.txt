@@ -1,0 +1,22 @@
+# koatty-github-mirror
+
+> Koatty 应用：Controller / Service / Model / DTO 分层，IoC 容器装配，`koatty` CLI 提供代码生成与 AI 集成。
+
+## 项目内文件
+
+- [AGENTS.md](./AGENTS.md)：AI 编码助手约定（目录结构、常用命令、禁止事项）。
+- [.cursor/rules/koatty.mdc](./.cursor/rules/koatty.mdc)：Cursor 规则版本。
+- 应用入口：`src/App.ts`；路由与配置：`src/config/router.ts`、`src/config/config.ts`。
+- 测试：`test/*.test.ts`，通过 `npm test`（jest + ts-jest）运行。
+
+## 框架能力
+
+- 应用清单：`npx koatty manifest [--format json|md] [--out .koatty/manifest.json]`（只导出配置**键名**）。
+- MCP 服务：`npx koatty mcp`（stdio 传输；只读工具 + 需 plan 哈希的 `koatty_apply`）。
+- 代码生成：`npx koatty g:m <module>`、`npx koatty add <module>`、`npx koatty plan/apply`。
+
+## 框架仓库
+
+- 核心框架：https://github.com/koatty/koatty
+- 测试工具：https://github.com/koatty/koatty_testing
+- CLI：https://github.com/koatty/koatty-ai

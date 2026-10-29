@@ -1,0 +1,388 @@
+{
+  "note": "Separate attempts retained, including failed direct GitHub baselines and local upstream timeouts. Do not interpret union of passing cases as one clean run.",
+  "attempts": [
+    {
+      "attempt": "public-features",
+      "base": "https://du.koatty.org",
+      "at": "2026-10-14T02:56:38.533Z",
+      "passed": 3,
+      "total": 15,
+      "results": [
+        {
+          "name": "health",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": true,
+          "head": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+          "protocols": [
+            0,
+            2
+          ],
+          "note": "Incremental changes verified separately by local git-http-backend regression."
+        },
+        {
+          "name": "Raw file bytes",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "GitHub blob conversion bytes",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "GitHub raw conversion bytes",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Source archive zip",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Source archive tar.gz",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Codeload direct archive",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Release attachment bytes and redirects",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Release latest attachment",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Release list selection and actual attachment download",
+          "ok": false,
+          "error": "release listing HTTP\n\n403 !== 200\n"
+        },
+        {
+          "name": "Release HEAD and Range resume",
+          "ok": true,
+          "range": "bytes=10-29",
+          "status": 206
+        },
+        {
+          "name": "Raw conditional request",
+          "ok": false,
+          "error": "fetch failed"
+        },
+        {
+          "name": "Link conversion API: Git / release / zip / tar / raw / blob",
+          "ok": true
+        },
+        {
+          "name": "Reject unsupported host and Git push discovery",
+          "ok": false,
+          "error": "fetch failed"
+        }
+      ]
+    },
+    {
+      "attempt": "public-verified",
+      "base": "https://du.koatty.org",
+      "at": "2026-10-14T02:59:19.601Z",
+      "passed": 12,
+      "total": 15,
+      "results": [
+        {
+          "name": "health",
+          "ok": true
+        },
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": false,
+          "error": "Command failed: git ls-remote https://github.com/octocat/Hello-World.git HEAD\n"
+        },
+        {
+          "name": "Raw file bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "GitHub blob conversion bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "GitHub raw conversion bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "Source archive zip",
+          "ok": false,
+          "error": "Command failed: curl --silent --show-error --location --max-time 45 --dump-header /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-L5g29w/headers-8 --output /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-L5g29w/body-8 --write-out %{http_code} https://github.com/octocat/Hello-World/archive/refs/heads/master.zip\ncurl: (28) Connection timed out after 45011 milliseconds\n"
+        },
+        {
+          "name": "Source archive tar.gz",
+          "ok": true,
+          "bytes": 258,
+          "sha256": "ab7006ec9cea1c8cb012961328029a9d178e947ab6f997c6dbae12a9019407a4"
+        },
+        {
+          "name": "Codeload direct archive",
+          "ok": true,
+          "bytes": 351,
+          "sha256": "acd2fd3563d8de4b46dae1edeb96607b3d105a0a3be894e90aa5472353a93233"
+        },
+        {
+          "name": "Release attachment bytes and redirects",
+          "ok": true,
+          "bytes": 2129,
+          "sha256": "f1f692fe9f923a4f5c6741729fb5931212ebccfff976225feb7a2ccec8635da4"
+        },
+        {
+          "name": "Release latest attachment",
+          "ok": true,
+          "bytes": 2302,
+          "sha256": "dc86824a41c165ece971ff691aff6e08bbfe6e1d1f531688b47ee78c283a85cd"
+        },
+        {
+          "name": "Release list selection and actual attachment download",
+          "ok": false,
+          "error": "release listing HTTP\n\n403 !== 200\n"
+        },
+        {
+          "name": "Release HEAD and Range resume",
+          "ok": true,
+          "range": "bytes=10-29",
+          "status": 206
+        },
+        {
+          "name": "Raw conditional request",
+          "ok": true
+        },
+        {
+          "name": "Link conversion API: Git / release / zip / tar / raw / blob",
+          "ok": true
+        },
+        {
+          "name": "Reject unsupported host and Git push discovery",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "attempt": "public-zip-retry",
+      "base": "https://du.koatty.org",
+      "at": "2026-10-14T02:59:17.188Z",
+      "passed": 1,
+      "total": 1,
+      "results": [
+        {
+          "name": "Source archive zip",
+          "ok": true,
+          "bytes": 351,
+          "sha256": "acd2fd3563d8de4b46dae1edeb96607b3d105a0a3be894e90aa5472353a93233"
+        }
+      ]
+    },
+    {
+      "attempt": "public-git-final",
+      "base": "https://du.koatty.org",
+      "at": "2026-10-14T03:01:24.837Z",
+      "passed": 0,
+      "total": 1,
+      "results": [
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": false,
+          "error": "Command failed: curl --silent --show-error --location --connect-timeout 10 --retry 1 --retry-delay 1 --max-time 30 --dump-header /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-eEJmWC/headers-1 --output /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-eEJmWC/body-1 --write-out %{http_code} https://github.com/octocat/Hello-World.git/info/refs?service=git-upload-pack\ncurl: (28) Failed to connect to github.com port 443 after 10003 ms: Timeout was reached\ncurl: (28) Failed to connect to github.com port 443 after 10003 ms: Timeout was reached\n"
+        }
+      ]
+    },
+    {
+      "attempt": "local-verified",
+      "base": "http://127.0.0.1:3101",
+      "at": "2026-10-14T02:59:35.427Z",
+      "passed": 10,
+      "total": 15,
+      "results": [
+        {
+          "name": "health",
+          "ok": true
+        },
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": false,
+          "error": "Command failed: git ls-remote https://github.com/octocat/Hello-World.git HEAD\n"
+        },
+        {
+          "name": "Raw file bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "GitHub blob conversion bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "GitHub raw conversion bytes",
+          "ok": true,
+          "bytes": 13,
+          "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340"
+        },
+        {
+          "name": "Source archive zip",
+          "ok": false,
+          "error": "Command failed: curl --silent --show-error --location --max-time 45 --dump-header /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-8gC9mw/headers-8 --output /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-8gC9mw/body-8 --write-out %{http_code} https://github.com/octocat/Hello-World/archive/refs/heads/master.zip\ncurl: (28) Connection timed out after 45009 milliseconds\n"
+        },
+        {
+          "name": "Source archive tar.gz",
+          "ok": true,
+          "bytes": 258,
+          "sha256": "ab7006ec9cea1c8cb012961328029a9d178e947ab6f997c6dbae12a9019407a4"
+        },
+        {
+          "name": "Codeload direct archive",
+          "ok": true,
+          "bytes": 351,
+          "sha256": "acd2fd3563d8de4b46dae1edeb96607b3d105a0a3be894e90aa5472353a93233"
+        },
+        {
+          "name": "Release attachment bytes and redirects",
+          "ok": false,
+          "error": "mirror HTTP\n\n504 !== 200\n"
+        },
+        {
+          "name": "Release latest attachment",
+          "ok": false,
+          "error": "mirror HTTP\n\n504 !== 200\n"
+        },
+        {
+          "name": "Release list selection and actual attachment download",
+          "ok": true,
+          "releases": 2,
+          "asset": "HuashanAICode-3.14.3-linux-amd64.deb.sha256",
+          "bytes": 133,
+          "sha256": "6a054ccb2ee0d6d35ab278f0cc717b54973a80ac78be7e1b412bb3b831a13339"
+        },
+        {
+          "name": "Release HEAD and Range resume",
+          "ok": false,
+          "error": "Expected values to be strictly equal:\n\n504 !== 200\n"
+        },
+        {
+          "name": "Raw conditional request",
+          "ok": true
+        },
+        {
+          "name": "Link conversion API: Git / release / zip / tar / raw / blob",
+          "ok": true
+        },
+        {
+          "name": "Reject unsupported host and Git push discovery",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "attempt": "local-zip-retry",
+      "base": "http://127.0.0.1:3101",
+      "at": "2026-10-14T02:59:44.673Z",
+      "passed": 1,
+      "total": 1,
+      "results": [
+        {
+          "name": "Source archive zip",
+          "ok": true,
+          "bytes": 351,
+          "sha256": "acd2fd3563d8de4b46dae1edeb96607b3d105a0a3be894e90aa5472353a93233"
+        }
+      ]
+    },
+    {
+      "attempt": "local-git-retry",
+      "base": "http://127.0.0.1:3101",
+      "at": "2026-10-14T03:00:04.727Z",
+      "passed": 0,
+      "total": 1,
+      "results": [
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": false,
+          "error": "Command failed: git -c http.version=HTTP/1.1 -C /var/folders/q7/btr_3bl94ml3jg4mkshx237h0000gn/T/mirror-live-lY4MXh/clone pull --ff-only\nerror: RPC failed; HTTP 504 curl 22 The requested URL returned error: 504\nfatal: expected flush after ref listing\n"
+        }
+      ]
+    },
+    {
+      "attempt": "local-git-final",
+      "base": "http://127.0.0.1:3101",
+      "at": "2026-10-14T03:01:21.477Z",
+      "passed": 0,
+      "total": 1,
+      "results": [
+        {
+          "name": "Git clone/fetch/pull (real GitHub)",
+          "ok": false,
+          "error": "Command failed: git -c http.version=HTTP/1.1 ls-remote http://127.0.0.1:3101/github.com/octocat/Hello-World.git HEAD\nerror: RPC failed; HTTP 504 curl 22 The requested URL returned error: 504\nfatal: expected flush after ref listing\n"
+        }
+      ]
+    },
+    {
+      "attempt": "local-release-retry",
+      "base": "http://127.0.0.1:3101",
+      "at": "2026-10-14T03:01:57.457Z",
+      "passed": 3,
+      "total": 4,
+      "results": [
+        {
+          "name": "Release attachment bytes and redirects",
+          "ok": true,
+          "bytes": 2129,
+          "sha256": "f1f692fe9f923a4f5c6741729fb5931212ebccfff976225feb7a2ccec8635da4"
+        },
+        {
+          "name": "Release latest attachment",
+          "ok": false,
+          "error": "mirror HTTP\n\n504 !== 200\n"
+        },
+        {
+          "name": "Release list selection and actual attachment download",
+          "ok": true,
+          "releases": 2,
+          "asset": "HuashanAICode-3.14.3-linux-amd64.deb.sha256",
+          "bytes": 133,
+          "sha256": "6a054ccb2ee0d6d35ab278f0cc717b54973a80ac78be7e1b412bb3b831a13339"
+        },
+        {
+          "name": "Release HEAD and Range resume",
+          "ok": true,
+          "range": "bytes=10-29",
+          "status": 206
+        }
+      ]
+    }
+  ],
+  "additional_public_git_check": {
+    "ok": true,
+    "operations": [
+      "ls-remote protocol v0",
+      "ls-remote protocol v2",
+      "shallow clone",
+      "fetch",
+      "pull --ff-only"
+    ],
+    "expectedHead": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+    "baseline": "Direct GitHub Smart HTTP advertisement captured during this verification; reused because subsequent direct GitHub connections timed out."
+  }
+}

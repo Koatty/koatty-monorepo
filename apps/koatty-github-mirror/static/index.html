@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="以 Koatty 构建的 GitHub 加速站。加速 Git 仓库拉取、Release 下载、源码归档和 Raw 文件。">
+  <title>渡 · GitHub 加速站</title>
+  <link rel="stylesheet" href="/assets/site.css"><script src="/assets/site.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/" aria-label="渡，首页"><span class="brand-icon">渡</span><span>DU <b>/</b> GITHUB</span></a><nav><a href="#workspace">开始加速 <span>↗</span></a><a href="#guide">使用指南</a><span id="health" class="health">检测服务中</span></nav></header>
+  <main>
+    <section class="hero" aria-labelledby="title">
+      <div class="hero-copy"><p class="eyebrow"><span></span> A SHORTER WAY TO OPEN SOURCE</p><h1 id="title">开源的下一站，<br><em>即刻抵达。</em></h1><p class="intro">少一点等待，多一点创造。<br>让 Git 仓库和 GitHub 文件，经由你的服务器顺畅抵达。</p><a class="hero-link" href="#workspace">粘贴链接，开始加速 <span>↓</span></a></div>
+      <div class="route-art" aria-hidden="true"><div class="art-label">OPEN SOURCE, IN MOTION</div><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-source">⌘<small>GITHUB</small></div><div class="route-line"></div><div class="art-center">渡<span>RELAY</span></div><div class="art-destination">↗<small>YOU</small></div><div class="art-foot"><span>01 / GIT</span><span>02 / FILES</span></div></div>
+    </section>
+    <section id="workspace" class="workspace" aria-labelledby="workspace-title">
+      <div class="section-top"><h2 id="workspace-title">一条链接，连接开源。</h2><span class="mono">YOUR GITHUB GATEWAY / 01</span></div>
+      <div class="tabs" role="tablist" aria-label="加速类型"><button id="git-tab" role="tab" aria-selected="true" aria-controls="converter" type="button"><span>01</span> Git 版本控制 <b>↗</b></button><button id="file-tab" role="tab" aria-selected="false" aria-controls="converter" tabindex="-1" type="button"><span>02</span> 文件下载 <b>↓</b></button></div>
+      <div id="converter" role="tabpanel" aria-labelledby="git-tab">
+        <form id="link-form"><label for="source" id="source-label">GitHub 仓库地址</label><div class="input-row"><input id="source" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" required maxlength="4096" placeholder="https://github.com/owner/repository.git" aria-describedby="input-help form-message"><button id="submit" type="submit">生成加速链接 <span>↗</span></button></div><div class="input-meta"><p id="input-help">支持 clone、fetch、pull 和 push。认证弹窗的密码栏填写 GitHub PAT（个人访问令牌），不是账号密码。</p><button id="example" type="button">试用一个示例 ↗</button></div></form>
+        <p id="form-message" role="status" aria-live="polite"></p>
+        <div id="releases" class="release-panel" hidden><h2>选择 Release 附件</h2><p id="release-note"></p><div id="release-list"></div><a id="release-source" target="_blank" rel="noopener noreferrer">在 GitHub 查看全部版本 ↗</a></div>
+        <div id="result" class="result" hidden><div class="result-heading"><span>你的加速链接已就绪</span><span id="result-type" class="mono"></span></div><div class="output-row"><code id="output-url"></code><button type="button" class="copy" id="copy-url">复制链接</button></div><div class="command-header"><span id="command-label">在终端中运行</span><button id="copy-command" class="copy" type="button">复制命令</button></div><pre><code id="output-command"></code></pre><a id="download" hidden>开始下载 ↓</a><p class="result-note">链接转换成功不代表上游资源可用；实际速度取决于服务器线路与 GitHub 响应。</p></div>
+      </div>
+      <div class="workspace-footer"><span><i></i> 流式转发 · 不落盘保存代码与文件</span><span>POWERED BY KOATTY</span></div>
+    </section>
+    <section class="guide" id="guide" aria-labelledby="guide-title"><div class="guide-title"><p class="eyebrow">LESS SETUP. MORE BUILDING.</p><h2 id="guide-title">保持你的习惯，<br>只换一个入口。</h2><p>在原始地址前加上本站域名。<br>Git 还是 Git，文件还是原来的文件。</p></div><div class="guide-items"><article><span class="step">01 / GIT</span><h3>克隆、拉取、推送更新。</h3><p>把 <code>https://github.com/…</code> 替换为<br><code class="prefix-example">本站域名/github.com/…</code></p><p class="small">已有仓库可用 <code>git remote set-url origin 加速地址</code> 切换，之后照常 fetch / pull / push。认证时填写 GitHub 用户名，密码栏填写 PAT（个人访问令牌），不要填写账号密码。</p></article><article><span class="step">02 / FILES</span><h3>从源码到 Release，一路直达。</h3><p>粘贴 Release 列表页可选择版本附件，也支持附件直链、ZIP / tar.gz 源码归档和 Raw 文件；支持 HEAD 与单段 Range 断点续传。</p><p class="small">Git 支持 HTTPS 认证读写；文件下载仅支持公开资源。不提供 GitHub 通用网页、SSH 或 Git LFS 代理。</p></article></div></section>
+    <aside class="closing"><span>从一个好想法，到下一次提交。</span><span>KEEP BUILDING. ↗</span></aside>
+  </main>
+  <footer><a class="brand" href="/"><span class="brand-icon">渡</span><span>DU / GITHUB</span></a><p>基于 Koatty 构建 · 独立部署的 GitHub 加速服务<br>非 GitHub 官方服务；使用前请遵守源仓库许可。</p><a href="#workspace">回到加速台 ↑</a></footer>
+</body></html>

@@ -1,0 +1,7 @@
+{$SITE_ADDRESS} {
+  # No URI rewrite: keep /github.com/owner/repo.git and its query intact.
+  reverse_proxy mirror:3000 {
+    header_up X-Real-IP {remote_host}
+    flush_interval -1
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "koatty-github-mirror",
+  "version": "1.0.0",
+  "description": "Git Smart HTTP and GitHub download acceleration, powered by Koatty",
+  "main": "dist/App.js",
+  "scripts": {
+    "build": "rimraf dist && tsc && node node_modules/koatty_cli/dist/cli/index.js manifest --runtime-dir dist --out .koatty/manifest.json --validate",
+    "dev": "npm run build && node dist/App.js",
+    "start": "node dist/App.js",
+    "test": "npm run build && jest --runInBand --coverage=false",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "setup:local": "node scripts/setup-local.mjs",
+    "package:deploy": "node scripts/package-deploy.mjs",
+    "test:live": "node scripts/live-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "koatty": "^5.0.0",
+    "tslib": "^2.6.0",
+    "koatty_validation": "5.0.0",
+    "class-validator": "^0.14.2",
+    "ipaddr.js": "^2.2.0"
+  },
+  "devDependencies": {
+    "koatty_cli": "^5.1.0",
+    "koatty_testing": "^5.0.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^22.0.0",
+    "cross-env": "^7.0.0",
+    "jest": "^29.0.0",
+    "rimraf": "^6.0.0",
+    "ts-jest": "^29.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "koatty_ai": "0.1.0"
+  },
+  "private": true
+}

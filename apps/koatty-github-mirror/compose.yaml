@@ -1,0 +1,44 @@
+services:
+  mirror:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      TRUST_PROXY: 'true'
+      MIRROR_MAX_CONCURRENT: ${MIRROR_MAX_CONCURRENT:-32}
+      MIRROR_MAX_PER_CLIENT: ${MIRROR_MAX_PER_CLIENT:-4}
+      MIRROR_REQUESTS_PER_MINUTE: ${MIRROR_REQUESTS_PER_MINUTE:-120}
+      MIRROR_MAX_GIT_BODY_BYTES: ${MIRROR_MAX_GIT_BODY_BYTES:-8388608}
+      MIRROR_MAX_GIT_PUSH_BODY_BYTES: ${MIRROR_MAX_GIT_PUSH_BODY_BYTES:-536870912}
+      MIRROR_TRANSFER_TIMEOUT_MS: ${MIRROR_TRANSFER_TIMEOUT_MS:-1800000}
+    expose: ['3000']
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777
+      - /app/logs:uid=1000,gid=1000,mode=0750
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    pids_limit: 128
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      mirror: { condition: service_healthy }
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+volumes:
+  caddy_data:
+  caddy_config:

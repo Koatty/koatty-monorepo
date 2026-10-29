@@ -1,0 +1,13 @@
+node_modules/
+dist/
+logs/
+*.log
+.env
+.DS_Store
+
+.local-deps/
+.deployment/
+.env
+logs/
+.koatty/*
+!.koatty/template-lock.json

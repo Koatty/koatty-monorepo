@@ -1,0 +1,17 @@
+---
+description: Koatty 框架项目约定（Controller/Service 分层、IoC、测试）
+globs:
+  - "src/**/*.ts"
+  - "test/**/*.ts"
+alwaysApply: false
+---
+
+# Koatty 约定
+
+- **分层**：Controller 只做参数解析与结果返回；业务逻辑必须在 Service；数据访问在 Model。
+- **依赖注入**：使用 `@Autowired()` / 构造函数注入，**不要**直接操作全局 `IOC` 容器对象。
+- **校验**：入参走 DTO + `@Validated({ types: [Dto] })`；属性用现有 `@IsDefined()` 声明转换字段，约束从 `class-validator` 导入，不要在 Controller 里手写校验分支。
+- **配置**：使用 `src/config/*` 与 `app.paths.*`，不要把路径或密钥写进 `process.env`。
+- **测试**：行为变更必须配 `test/**/*.test.ts` 用例；`npm test` 必须通过后才算完成。
+- **产物**：不要提交 `dist/`、`*.tsbuildinfo`、`node_modules/`。
+- **清单**：需要项目结构元数据时运行 `npx koatty manifest`，不要靠猜测文件位置。
