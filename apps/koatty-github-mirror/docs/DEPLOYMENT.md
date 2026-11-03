@@ -121,6 +121,8 @@ Docker 日志轮转，应用日志目录使用 tmpfs；未开启 Caddy 访问日
 
 ## 7. 排障
 
+- Git clone/pull 慢、但文件下载快：先运行 [Git 吞吐分段诊断](migration/git-throughput.md)，比较 VPS 到 GitHub、Koatty 直连和公网 CDN 入口；文件下载与 Git pack 使用的路径及生成过程不同。
+
 - 502/504：检查 VPS 的 DNS、出站 HTTPS 与 GitHub 可达性；不关闭 TLS 校验。
 - 401/403/404：Git 请求检查凭证、仓库权限、组织授权与分支规则；文件和 Release 列表仍仅支持公开资源。
 - 413：检查应用 push 大小上限，以及 Nginx/CDN 的请求体限制；提高应用限额不会提高 CDN 限额。

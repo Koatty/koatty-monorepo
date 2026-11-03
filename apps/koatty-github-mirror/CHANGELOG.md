@@ -10,6 +10,11 @@
 - 新增 MIRROR_GIT_BASE_URL 配置，仅 Git 链接返回独立 baseUrl；页面展示和复制的 URL、clone 命令均使用该入口，文件及 Release 下载仍使用 Web 域名。
 - 配置为空兼容单域名部署；非法或带凭证的非 HTTPS origin 启动时拒绝。见 docs/migration/git-link-origin.md。
 
+## Unreleased — Git 吞吐分段诊断
+
+- 增加无凭证、有时限的 Git Smart HTTP 对照脚本，比较 GitHub 直连、本地应用和公网入口。
+- 分离进度消息与 pack 字节、首响应与首 pack 延迟；不修改代理行为。使用方式见 docs/migration/git-throughput.md。
+
 ## Unreleased — Git 认证令牌提示
 
 - Git 401 的 Basic realm 明确提示密码栏填写 GitHub PAT 而非账号密码。
