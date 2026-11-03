@@ -10,6 +10,12 @@
 - 新增 MIRROR_GIT_BASE_URL 配置，仅 Git 链接返回独立 baseUrl；页面展示和复制的 URL、clone 命令均使用该入口，文件及 Release 下载仍使用 Web 域名。
 - 配置为空兼容单域名部署；非法或带凭证的非 HTTPS origin 启动时拒绝。见 docs/migration/git-link-origin.md。
 
+## Unreleased — 专用 Git 域名 Caddy 加固
+
+- 新增 deploy/Caddyfile.git 双域名配置：Git 入口仅允许 Smart HTTP 和健康检查；校验方法、查询和 Content-Type，限制读协商 8 MiB、push 512 MiB。
+- 移除 Git 入口负数 flush_interval，恢复客户端断开时取消上游；保留认证与流式读写，覆盖伪造来源头并移除 Cookie/Forwarded。
+- HTTPS 监听启用 SNI/Host 一致校验、16 KiB 请求头上限和 10 秒读头时限。迁移、回滚及实测边界见 docs/migration/git-edge-hardening.md。
+
 ## Unreleased — Git 吞吐分段诊断
 
 - 增加无凭证、有时限的 Git Smart HTTP 对照脚本，比较 GitHub 直连、本地应用和公网入口。

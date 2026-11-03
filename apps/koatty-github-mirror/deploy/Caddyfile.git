@@ -1,0 +1,91 @@
+# Optional dual-domain deployment profile, validated with Caddy 2.11.7.
+{
+	servers :443 {
+		strict_sni_host on
+		max_header_size 16KiB
+		timeouts {
+			read_header 10s
+			idle 1m
+		}
+	}
+}
+
+# Preserve the existing web/download site.
+{$SITE_ADDRESS} {
+	reverse_proxy mirror:3000 {
+		header_up X-Real-IP {remote_host}
+		flush_interval -1
+	}
+}
+
+(git_backend) {
+	reverse_proxy mirror:3000 {
+		# Use the socket peer, never client-supplied identity headers.
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up -Forwarded
+		header_up -Cookie
+		# Default buffering preserves cancellation on disconnect.
+		# No request buffering, caching, retries or Authorization rewriting.
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
+	}
+}
+
+git.koatty.org {
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Cache-Control no-store
+	}
+	@health {
+		method GET HEAD
+		path /healthz
+	}
+	handle @health {
+		import git_backend
+	}
+	@discovery {
+		method GET
+		path_regexp discovery ^/github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git/info/refs$
+		expression `{http.request.uri.query} in ['service=git-upload-pack', 'service=git-receive-pack']`
+	}
+	handle @discovery {
+		import git_backend
+	}
+	@upload {
+		method POST
+		path_regexp upload ^/github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git/git-upload-pack$
+		expression `{http.request.uri.query} == ''`
+	}
+	handle @upload {
+		@wrongUploadType not header_regexp Content-Type ^application/x-git-upload-pack-request(;.*)?$
+		respond @wrongUploadType "Unsupported Git content type" 415
+		request_body {
+			max_size 8388608
+		}
+		import git_backend
+	}
+	@receive {
+		method POST
+		path_regexp receive ^/github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git/git-receive-pack$
+		expression `{http.request.uri.query} == ''`
+	}
+	handle @receive {
+		@wrongReceiveType not header_regexp Content-Type ^application/x-git-receive-pack-request(;.*)?$
+		respond @wrongReceiveType "Unsupported Git content type" 415
+		request_body {
+			max_size 536870912
+		}
+		import git_backend
+	}
+	@repository path_regexp repository ^/github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git/?$
+	handle @repository {
+		respond "Use a Git Smart HTTP client" 405
+	}
+	handle {
+		respond "Not found" 404
+	}
+}

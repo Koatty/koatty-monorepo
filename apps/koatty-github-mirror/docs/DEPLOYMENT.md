@@ -154,6 +154,16 @@ VPS 部署、公网证书、持续负载、下载吞吐与真实用户线路测�
 
 ## 已有 Nginx 服务的本次升级
 
+### 2026-11-01 当前 VPS 的双域名配置
+
+后续已部署独立 Git 入口加固配置 `deploy/Caddyfile.git`，替代下面描述的初始共享站点声明。当前行为、验证和回滚见 [Git 边缘代理加固](migration/git-edge-hardening.md)；后续部署保留此配置。
+
+当前 `/root/web/Caddyfile` 的站点声明为 `{$SITE_ADDRESS}, git.koatty.org {`，其余代理配置保持不变。已通过 Caddy validate 和热加载；新域名 HTTPS 校验、两域名 healthz 均通过。开发机经新域名匿名完整 clone pipewright 用时 4.23 秒，非浅克隆，`git fsck --full` 通过。未重建或重启 mirror。
+
+Git 使用 `https://git.koatty.org/github.com/OWNER/REPO.git`。Git 域名保持 DNS-only；原 du 域名可单独恢复 Cloudflare 代理，本次没有修改 DNS 设置。两个域名目前仍访问同一应用，尚未按域名限制路由，也未增加网络隔离。
+
+后续同步部署文件时保留这一站点声明，不要用仓库的单域名 Caddyfile 模板直接覆盖。服务器原配置备份为 `/root/web/Caddyfile.before-git-20261101-051639`。
+
 已有 `mcp-nginx` 占用 80/443 的实例，请保留现有反向代理和 Compose 网络配置，仅更新并重新构建 `mirror`。具体步骤见 [Release 列表页迁移说明](migration/release-listing.md)。
 
 ## Git push 升级补充

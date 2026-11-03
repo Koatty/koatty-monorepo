@@ -39,7 +39,7 @@ for(const [name,production] of required) {
   if(production) delete appPackage.devDependencies[name];
   appPackage.overrides[name]='$'+name;
 }
-for(const name of ['src','static','test','scripts','docs','tsconfig.json','jest.config.js','.eslintrc.cjs','Dockerfile','compose.yaml','Caddyfile','.dockerignore','.env.example','README.md','CHANGELOG.md']) {
+for(const name of ['src','static','test','scripts','docs','deploy','tsconfig.json','jest.config.js','.eslintrc.cjs','Dockerfile','compose.yaml','Caddyfile','.dockerignore','.env.example','README.md','CHANGELOG.md']) {
   await cp(path.join(app,name),path.join(output,name),{recursive:true});
 }
 await writeFile(path.join(output,'package.json'),JSON.stringify(appPackage,null,2)+'\n');
