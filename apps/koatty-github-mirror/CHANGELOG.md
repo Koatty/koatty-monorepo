@@ -5,6 +5,11 @@
 - 通过 GitHub releases/latest 查询官方指定版本，直接 Release 页面及首页版本列表显示 Latest · 最新版。
 - 不按列表顺序或版本号猜测；指定版本不在前 20 项时纳入列表，保持最多 20 项。标记查询失败时保留列表和下载，不误标。
 
+## Unreleased — Git 加速链接使用独立域名
+
+- 新增 MIRROR_GIT_BASE_URL 配置，仅 Git 链接返回独立 baseUrl；页面展示和复制的 URL、clone 命令均使用该入口，文件及 Release 下载仍使用 Web 域名。
+- 配置为空兼容单域名部署；非法或带凭证的非 HTTPS origin 启动时拒绝。见 docs/migration/git-link-origin.md。
+
 ## Unreleased — Git 认证令牌提示
 
 - Git 401 的 Basic realm 明确提示密码栏填写 GitHub PAT 而非账号密码。

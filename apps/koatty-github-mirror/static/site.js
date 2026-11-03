@@ -24,7 +24,7 @@
   $('source').addEventListener('input', () => { generation++; $('result').hidden = true; $('releases').hidden = true; $('form-message').textContent = ''; $('submit').disabled = false; });
   const quote = value => "'" + value.replace(/'/g, "'\\''") + "'";
   function showLink(data) {
-    const url = location.origin + data.path;
+    const url = (data.kind === 'git' && data.baseUrl ? data.baseUrl : location.origin) + data.path;
     $('output-url').textContent = url;
     $('output-command').textContent = data.kind === 'git' ? 'git clone ' + quote(url) : 'curl -fL --retry 3 -C - -o ' + quote(data.name || 'download') + ' ' + quote(url);
     $('result-type').textContent = data.kind === 'git' ? 'GIT / SMART HTTP' : 'FILE / STREAMING';
@@ -84,6 +84,7 @@
     try { await navigator.clipboard.writeText($(source).textContent); const old = $(button).textContent; $(button).textContent = '已复制 ✓'; setTimeout(() => { $(button).textContent = old; }, 1800); }
     catch { const range = document.createRange(); range.selectNodeContents($(source)); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); $('form-message').dataset.error = 'false'; $('form-message').textContent = '请按 Ctrl+C / ⌘C 复制已选中的内容。'; }
   });
-  document.querySelectorAll('.prefix-example').forEach(element => { element.textContent = location.host + '/github.com/…'; });
+  const gitOrigin = document.documentElement?.dataset.gitOrigin || location.origin;
+  document.querySelectorAll('.prefix-example').forEach(element => { element.textContent = new URL(gitOrigin).host + '/github.com/…'; });
   fetch('/healthz', {signal:AbortSignal.timeout(5000)}).then(response => { if(!response.ok) throw new Error(); return response.json(); }).then(data => { if(data.status !== 'ok') throw new Error(); $('health').dataset.ok = 'true'; $('health').textContent = '本站服务可用'; }).catch(() => { $('health').textContent = '服务暂不可用'; });
 })();

@@ -87,6 +87,18 @@ test('boot full Koatty, inject services, serve UI, health and validated link API
   expect(spy).toHaveBeenCalledTimes(1); spy.mockRestore();
 });
 
+test('Git link generation uses configured origin while files stay on the web origin', async () => {
+  const post=url=>fetch(origin+'/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})}).then(r=>r.json());
+  fixture.app.config(undefined,'link',{gitOrigin:'https://git.koatty.org'});
+  try {
+    expect(await post('https://github.com/Koatty/koatty.git')).toMatchObject({kind:'git',baseUrl:'https://git.koatty.org',path:'/github.com/Koatty/koatty.git'});
+    expect(await fetch(origin).then(r=>r.text())).toContain('data-git-origin="https://git.koatty.org"');
+    const file=await post('https://raw.githubusercontent.com/Koatty/koatty/master/README.md');
+    expect(file.kind).toBe('file'); expect(file.baseUrl).toBeUndefined();
+  } finally { fixture.app.config(undefined,'link',{gitOrigin:''}); }
+  expect((await post('https://github.com/Koatty/koatty.git')).baseUrl).toBeUndefined();
+});
+
 test('real git clone, protocol v2, incremental fetch/pull and protocol v0',async () => {
   const clone=path.join(temp,'clone'); await git('-c','protocol.version=2','clone',origin+'/github.com/owner/demo.git',clone);
   expect(await fs.readFile(path.join(clone,'README.md'),'utf8')).toBe('first\n');

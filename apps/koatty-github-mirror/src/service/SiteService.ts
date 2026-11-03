@@ -30,6 +30,7 @@ export class SiteService {
     const [html, css, js] = await Promise.all([this.read('index.html'), this.read('site.css'), this.read('site.js')]);
     const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
     return Buffer.from(html.toString('utf8')
+      .replace('<html ', '<html data-git-origin="' + escapeHtml(this.app.config('gitOrigin', 'link') || '') + '" ')
       .replace('/assets/site.css', '/assets/site.css?v=' + digest(css))
       .replace('/assets/site.js', '/assets/site.js?v=' + digest(js)));
   }
