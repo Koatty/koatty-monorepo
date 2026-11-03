@@ -1,6 +1,6 @@
 # Phase G：AI 开发契约与 Agent 执行迁移
 
-2026-09-30。本地实现已提交。changeset 尚未应用，版本尚未发布。CLI 的默认模板和覆盖行为有变化，changeset 按 major 记录；不要依据现有版本号推断新命令已发布。
+2026-09-30。本地实现，尚未应用 changeset、提交子模块或发布。CLI 的默认模板和覆盖行为有变化，changeset 按 major 记录；不要依据现有版本号推断新命令已发布。
 
 ## CLI 与开发 MCP
 
