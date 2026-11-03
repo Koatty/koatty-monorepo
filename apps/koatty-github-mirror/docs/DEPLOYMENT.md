@@ -38,6 +38,26 @@ git --version
 
 ## 3. 启动
 
+低内存 VPS 应在本地构建镜像，再上传启动，避免在服务器执行 npm 安装和 TypeScript 构建。以下命令在生成的独立部署目录执行；当前目标 VPS 为 x86_64，因此指定 linux/amd64：
+
+```bash
+docker build --platform linux/amd64 -t koatty-github-mirror:release .
+docker save koatty-github-mirror:release | gzip > mirror-image.tar.gz
+scp mirror-image.tar.gz user@VPS:/tmp/mirror-image.tar.gz
+```
+
+在 VPS 上加载镜像，使用镜像覆盖文件，并明确禁止构建和拉取：
+
+```bash
+cd /root/web
+docker load -i /tmp/mirror-image.tar.gz
+printf 'services:\n  mirror:\n    image: koatty-github-mirror:release\n' > compose.image.yaml
+docker compose -f compose.yaml -f compose.image.yaml up -d --no-build --pull never --no-deps mirror
+docker compose -f compose.yaml -f compose.image.yaml ps
+```
+
+后续镜像升级仍使用这两个 Compose 文件及 `--no-build --pull never`；保留上一版镜像标签便于回滚。下面的源码构建方式仅适用于资源充足的服务器。
+
 ```bash
 cd /home/user/koatty-github-mirror
 cp .env.example .env
