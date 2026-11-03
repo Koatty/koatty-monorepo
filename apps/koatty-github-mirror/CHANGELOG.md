@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Release 最新版标记
+
+- 通过 GitHub releases/latest 查询官方指定版本，直接 Release 页面及首页版本列表显示 Latest · 最新版。
+- 不按列表顺序或版本号猜测；指定版本不在前 20 项时纳入列表，保持最多 20 项。标记查询失败时保留列表和下载，不误标。
+
 ## Unreleased — Git 认证令牌提示
 
 - Git 401 的 Basic realm 明确提示密码栏填写 GitHub PAT 而非账号密码。

@@ -42,6 +42,7 @@
     for (const release of data.releases) {
       const section = document.createElement('section');
       const title = document.createElement('h3'); title.textContent = release.name + (release.prerelease ? ' · 预发布' : '');
+      if (release.latest) { const badge = document.createElement('span'); badge.className = 'release-latest'; badge.textContent = 'Latest · 最新版'; title.append(badge); }
       const tag = document.createElement('p'); tag.className = 'release-tag'; tag.textContent = release.tag;
       section.append(title, tag);
       if (!release.assets.length) { const empty = document.createElement('p'); empty.textContent = '此版本没有可下载的附件。'; section.append(empty); }

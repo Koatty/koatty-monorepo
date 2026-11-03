@@ -173,10 +173,11 @@ test('homepage versions static assets by content and prevents stale release UI c
 
 test('direct Release page renders download links safely without JavaScript, while .git root stays non-HTML',async()=>{
   const {Readable}=require('node:stream');const service=fixture.app.container.get('ReleaseService','SERVICE');
-  service.transport=async()=>Object.assign(Readable.from([JSON.stringify([{name:'<script>alert(1)</script>',tag_name:'v1',assets:[{state:'uploaded',name:'app<&>.zip',size:36,browser_download_url:'https://github.com/browser/demo/releases/download/v1/app.zip'}]}])]),{statusCode:200});
+  const item={id:123,name:'<script>alert(1)</script>',tag_name:'v1',assets:[{state:'uploaded',name:'app<&>.zip',size:36,browser_download_url:'https://github.com/browser/demo/releases/download/v1/app.zip'}]};
+  service.transport=async url=>Object.assign(Readable.from([JSON.stringify(url.pathname.endsWith('/latest')?item:[item])]),{statusCode:200});
   const url=origin+'/github.com/browser/demo/releases';
   const response=await fetch(url);expect(response.status).toBe(200);expect(response.headers.get('content-type')).toContain('text/html');expect(response.headers.get('cache-control')).toBe('no-store');
-  const html=await response.text();expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('app&lt;&amp;&gt;.zip');expect(html).toContain('href="/github.com/browser/demo/releases/download/v1/app.zip"');
+  const html=await response.text();expect(html).toContain('Latest · 最新版');expect(html).toContain('class="release-latest"');expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('app&lt;&amp;&gt;.zip');expect(html).toContain('href="/github.com/browser/demo/releases/download/v1/app.zip"');
   const file=await fetch(origin+'/github.com/browser/demo/releases/download/v1/app.zip');expect(file.status).toBe(200);expect(Buffer.from(await file.arrayBuffer())).toEqual(content);
   const head=await fetch(url,{method:'HEAD'});expect(head.status).toBe(200);expect(await head.text()).toBe('');
   expect((await fetch(url+'/')).status).toBe(200);expect((await fetch(url,{method:'POST'})).status).toBe(405);

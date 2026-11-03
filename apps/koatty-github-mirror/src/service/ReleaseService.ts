@@ -4,7 +4,7 @@ import { parseTarget, proxyPath } from '../utils/policy';
 import { MirrorError } from '../utils/MirrorError';
 
 interface Asset { name: string; size: number; source: string; path: string; }
-interface Release { name: string; tag: string; prerelease: boolean; assets: Asset[]; }
+interface Release { name: string; tag: string; prerelease: boolean; latest: boolean; assets: Asset[]; }
 export interface Listing { kind: 'releases'; source: string; releases: Release[]; limit: number; }
 
 @Service()
@@ -54,6 +54,9 @@ export class ReleaseService {
         }
         const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         if (!Array.isArray(data)) throw new Error('Invalid release response');
+        // GitHub's designated latest release is not necessarily the first or highest tag.
+        const latest = data.length ? await this.fetchLatest(owner, repo, controller.signal) : undefined;
+        if (latest && !data.some(item => item?.id === latest.id)) data.unshift(latest);
         const releases: Release[] = data.slice(0, 20).filter(item => item && !item.draft).map(item => {
           if (typeof item.tag_name !== 'string' || !Array.isArray(item.assets)) throw new Error('Invalid release');
           const assets: Asset[] = item.assets.filter((asset: { state?: string }) => asset?.state === 'uploaded').map((asset: { name: string; size: number; browser_download_url: string }) => {
@@ -63,7 +66,7 @@ export class ReleaseService {
               typeof asset.name !== 'string' || !Number.isSafeInteger(asset.size) || asset.size < 0) throw new Error('Invalid release asset');
             return { name: asset.name, size: asset.size, source: target.url.href, path: proxyPath(target.url) };
           });
-          return { name: typeof item.name === 'string' && item.name ? item.name : item.tag_name, tag: item.tag_name, prerelease: !!item.prerelease, assets };
+          return { name: typeof item.name === 'string' && item.name ? item.name : item.tag_name, tag: item.tag_name, prerelease: !!item.prerelease, latest: !!latest && item.id === latest.id && !item.prerelease, assets };
         });
         return { kind: 'releases', source, releases, limit: 20 };
       } finally { response.destroy(); }
@@ -71,5 +74,33 @@ export class ReleaseService {
       if (error instanceof MirrorError) throw error;
       throw new MirrorError(502, 'RELEASE_UNAVAILABLE', '暂时无法读取 GitHub 版本信息，请稍后重试，或粘贴具体附件的下载链接。');
     } finally { clearTimeout(timer); }
+  }
+
+  private async fetchLatest(owner: string, repo: string, signal: AbortSignal) {
+    try {
+      const response = await this.transport(new URL(`https://api.github.com/repos/${owner}/${repo}/releases/latest`), {
+        method: 'GET', headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Koatty-GitHub-Mirror', 'X-GitHub-Api-Version': '2022-11-28' },
+        signal, headerTimeoutMs: 2000, idleTimeoutMs: 2000,
+      });
+      try {
+        if (response.statusCode !== 200) return undefined;
+        const chunks: Buffer[] = []; let size = 0;
+        for await (const chunk of response) {
+          const bytes = Buffer.from(chunk); size += bytes.length;
+          if (size > 4 * 1024 * 1024) return undefined;
+          chunks.push(bytes);
+        }
+        const latest = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (!latest || !Number.isSafeInteger(latest.id) || latest.id <= 0 || typeof latest.tag_name !== 'string' || !Array.isArray(latest.assets) || latest.draft || latest.prerelease) return undefined;
+        for (const asset of latest.assets.filter((item: { state?: string }) => item?.state === 'uploaded')) {
+          const target = parseTarget(asset.browser_download_url);
+          if (target.kind !== 'file' || target.url.hostname !== 'github.com' || !target.url.pathname.startsWith(`/${owner}/${repo}/releases/download/`) || typeof asset.name !== 'string' || !Number.isSafeInteger(asset.size) || asset.size < 0) return undefined;
+        }
+        return latest;
+      } finally { response.destroy(); }
+    } catch {
+      // Keep downloads available if the optional marker lookup is unavailable; never guess.
+      return undefined;
+    }
   }
 }
